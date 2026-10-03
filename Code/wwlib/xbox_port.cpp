@@ -10,6 +10,8 @@
 #include <ctype.h>
 #include <wctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <process.h>
 
 extern "C" {
 
@@ -260,6 +262,55 @@ int _snwprintf(wchar_t *buffer, size_t count, const wchar_t *format, ...)
 	va_end(args);
 	return n;
 }
+
+/* --- Names, error text, threads ------------------------------------------------------- */
+
+static BOOL copy_name(const char *name, char *buffer, DWORD *size)
+{
+	DWORD needed = (DWORD)strlen(name) + 1;
+	if (!buffer || !size || *size < needed) { if (size) *size = needed; return FALSE; }
+	memcpy(buffer, name, needed);
+	*size = needed - 1;      /* Windows reports the length without the terminator */
+	return TRUE;
+}
+
+BOOL GetComputerNameA(char *buffer, DWORD *size) { return copy_name("XBOX", buffer, size); }
+BOOL GetUserNameA(char *buffer, DWORD *size)     { return copy_name("Player", buffer, size); }
+
+DWORD FormatMessageA(DWORD flags, const void *source, DWORD message_id, DWORD language_id,
+                     char *buffer, DWORD size, va_list *args)
+{
+	(void)flags; (void)source; (void)language_id; (void)args;
+	if (!buffer || size == 0) return 0;
+	int n = snprintf(buffer, size, "Windows error %lu", (unsigned long)message_id);
+	if (n < 0) { buffer[0] = 0; return 0; }
+	return (DWORD)((n < (int)size) ? n : (int)size - 1);
+}
+
+struct BeginThreadArgs {
+	void (__cdecl *start)(void *);
+	void *arg;
+};
+
+static unsigned __stdcall begin_thread_trampoline(void *p)
+{
+	BeginThreadArgs args = *(BeginThreadArgs *)p;
+	free(p);
+	args.start(args.arg);
+	return 0;
+}
+
+uintptr_t _beginthread(void (__cdecl *start)(void *), unsigned stack_size, void *arg)
+{
+	BeginThreadArgs *args = (BeginThreadArgs *)malloc(sizeof(BeginThreadArgs));
+	if (!args) return (uintptr_t)-1;
+	args->start = start;
+	args->arg = arg;
+	uintptr_t handle = _beginthreadex(NULL, stack_size, begin_thread_trampoline, args, 0, NULL);
+	if (!handle) { free(args); return (uintptr_t)-1; }
+	return handle;
+}
+
 
 void DebugBreak(void)
 {

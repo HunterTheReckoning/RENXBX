@@ -181,7 +181,7 @@ void BitStreamClass::Add_Wide_Terminated_String(const WCHAR *string, bool permit
 
 	Add(len);
 	for (int i = 0; i < len; i++) {
-		Add(string[i]);
+		Add((USHORT)string[i]);	// PORT: 16 bits per character on the wire, as with MSVC6's WCHAR
 	}
 }
 
@@ -198,7 +198,7 @@ void BitStreamClass::Get_Wide_Terminated_String(WCHAR *buffer, USHORT buffer_len
 		WWASSERT(len > 0 && "Empty string not permitted");
 	}
 
-	WCHAR temp = L'?';
+	USHORT temp = L'?';	// PORT: read exactly 16 bits per character (see Add_Wide_Terminated_String)
 	int i = 0;
 	for (i = 0; i < len; i++) {
 		Get(temp);

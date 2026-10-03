@@ -110,6 +110,19 @@ void ThreadClass::Stop(unsigned ms)
 	#else
 		running=false;
 		unsigned time=TIMEGETTIME();
+#ifdef NXDK
+		// PORT: the Xbox kernel cannot safely kill another thread, and abandoning it would
+		// leave it running against a destroyed object. Engine threads poll 'running' and exit
+		// on their own, so wait for that, warning (once) if it takes longer than expected.
+		bool warned=false;
+		while (handle) {
+			if (!warned && (TIMEGETTIME()-time)>ms) {
+				WWDEBUG_SAY(("ThreadClass::Stop: thread %s is slow to exit, still waiting\n", ThreadName));
+				warned=true;
+			}
+			Sleep(1);
+		}
+#else
 		while (handle) {
 			if ((TIMEGETTIME()-time)>ms) {
 				int res=TerminateThread((HANDLE)handle,0);
@@ -118,6 +131,7 @@ void ThreadClass::Stop(unsigned ms)
 			}
 			Sleep(0);
 		}
+#endif
 	#endif
 }
 

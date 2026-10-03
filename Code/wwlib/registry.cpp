@@ -33,6 +33,8 @@
  *---------------------------------------------------------------------------------------------*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#ifndef NXDK  // PORT: the Xbox version of RegistryClass is in registry_xbox.cpp
+
 #include "registry.h"
 #include "rawfile.h"
 #include "ini.h"
@@ -732,15 +734,4 @@ void RegistryClass::Delete_Registry_Tree(char *path)
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
+#endif // NXDK

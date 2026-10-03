@@ -260,6 +260,7 @@ protected:
 	using SimpleVecClass<T>::VectorMax;
 
 public:
+	using SimpleVecClass<T>::Length;
 
 	SimpleDynVecClass(int size = 0);
 	virtual ~SimpleDynVecClass(void);

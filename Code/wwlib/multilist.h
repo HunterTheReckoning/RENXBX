@@ -491,7 +491,7 @@ protected:
 public:
 	PriorityMultiListIterator(MultiListClass<ObjectType> *list)
 		:	OriginalHead (NULL),
-			MultiListIterator<ObjectType>(list)			{ First (); }
+			MultiListIterator<ObjectType>(list)			{ this->First (); }  // PORT: this-> for two-phase lookup
 
 	bool
 	Process_Head (ObjectType **object)
@@ -507,7 +507,7 @@ public:
 
 			// Remove the node from the head of the list and
 			// add it to the tail of the list
-			Remove_Current_Object();
+			this->Remove_Current_Object();
 			((MultiListClass<ObjectType> *)PriorityMultiListIterator::List)->Add_Tail ((*object));
 
 			retval = true;

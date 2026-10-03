@@ -25,9 +25,12 @@ typedef const char *LPCTSTR;
 #endif
 
 #include <windows.h>
+#include <process.h>
+#include <stdint.h>
 #include <wchar.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* Path size limits from the MSVC CRT (stdlib.h), same values. */
 #ifndef _MAX_PATH
@@ -56,6 +59,37 @@ typedef const char *LPCTSTR;
 #define _int64 __int64
 #endif
 
+/* Registry key handle type; only named in registry.h's private section on Xbox. */
+typedef void *HKEY;
+
+#ifndef GetComputerName
+#define GetComputerName GetComputerNameA
+#endif
+#ifndef GetUserName
+#define GetUserName GetUserNameA
+#endif
+#ifndef FormatMessage
+#define FormatMessage FormatMessageA
+#endif
+#ifndef FORMAT_MESSAGE_ALLOCATE_BUFFER
+#define FORMAT_MESSAGE_ALLOCATE_BUFFER 0x00000100
+#define FORMAT_MESSAGE_IGNORE_INSERTS  0x00000200
+#define FORMAT_MESSAGE_FROM_STRING     0x00000400
+#define FORMAT_MESSAGE_FROM_HMODULE    0x00000800
+#define FORMAT_MESSAGE_FROM_SYSTEM     0x00001000
+#define FORMAT_MESSAGE_ARGUMENT_ARRAY  0x00002000
+#endif
+#ifndef MAKELANGID
+#define MAKELANGID(p, s) ((((WORD)(s)) << 10) | (WORD)(p))
+#define LANG_NEUTRAL 0x00
+#define SUBLANG_DEFAULT 0x01
+#endif
+
+/* No processes on the Xbox; srandom.cpp only mixes this into a random seed. */
+#ifndef getpid
+#define getpid() ((int)GetCurrentThreadId())
+#endif
+
 #ifndef strcmpi
 #define strcmpi _stricmp
 #endif
@@ -80,6 +114,20 @@ int   WideCharToMultiByte(UINT code_page, DWORD flags, const wchar_t *src, int s
                           char *dst, int dst_len, const char *default_char, BOOL *used_default);
 void  DebugBreak(void);
 BOOL  DosDateTimeToFileTime(WORD fat_date, WORD fat_time, FILETIME *ft);
+
+/* MSVC's _beginthread, built on nxdk's _beginthreadex. Returns the thread handle, or
+** (uintptr_t)-1 on failure as MSVC does. Unlike MSVC, the handle is not closed when the
+** thread exits (ThreadClass keeps using it); the engine creates only a few threads. */
+uintptr_t _beginthread(void (__cdecl *start)(void *), unsigned stack_size, void *arg);
+
+/* The Xbox has no computer or user name: these return "XBOX" and "Player"
+** (used only to help seed the secure random generator). */
+BOOL  GetComputerNameA(char *buffer, DWORD *size);
+BOOL  GetUserNameA(char *buffer, DWORD *size);
+
+/* No system message table on the Xbox: formats "Windows error <code>" for debug messages. */
+DWORD FormatMessageA(DWORD flags, const void *source, DWORD message_id, DWORD language_id,
+                     char *buffer, DWORD size, va_list *args);
 
 /* Wide printf with Microsoft semantics (%s = wide string, %S/%hs = narrow string,
 ** %c = wide char, %C/%hc = narrow char). Returns the character count, or -1 if the

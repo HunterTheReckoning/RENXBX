@@ -96,7 +96,7 @@
 #include	"xstraw.h"
 #include	<stdio.h>
 #include <malloc.h>
-#ifdef _UNIX
+#if defined(_UNIX) || defined(NXDK)  // PORT: windows.h no longer pulls in ctype.h
 #include <ctype.h>
 #endif
 #include "rawfile.h"
@@ -992,9 +992,9 @@ int INIClass::Get_UUBlock(char const * section, void * block, int len) const
  * HISTORY:                                                                                    *
  *    11/6/2001 4:27PM ST : Created                                                            *
  *=============================================================================================*/
-const WideStringClass& INIClass::Get_Wide_String(WideStringClass& new_string, char const * section, char const * entry, unsigned short const * defvalue) const
+const WideStringClass& INIClass::Get_Wide_String(WideStringClass& new_string, char const * section, char const * entry, WCHAR const * defvalue) const
 {
-	unsigned short out[1024];
+	WCHAR out[1024];
 	char buffer[1024];
 
 	Base64Pipe b64pipe(Base64Pipe::DECODE);
@@ -1031,7 +1031,7 @@ const WideStringClass& INIClass::Get_Wide_String(WideStringClass& new_string, ch
  * HISTORY:                                                                                    *
  *   11/6/2001 4:29PM ST : Created                                                             *
  *=============================================================================================*/
-bool INIClass::Put_Wide_String(char const * section, char const * entry, const unsigned short * string)
+bool INIClass::Put_Wide_String(char const * section, char const * entry, const WCHAR * string)
 {
 	if (section == NULL || entry == NULL || string == NULL) {
 		return(false);

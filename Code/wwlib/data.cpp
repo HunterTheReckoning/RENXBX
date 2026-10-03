@@ -200,7 +200,13 @@ typedef struct SRecord {
  *=============================================================================================*/
 char const * Fetch_String(int id)
 {
-#ifdef _UNIX
+#ifdef NXDK
+	// PORT: the Xbox build has no Windows string resources (game text comes from the
+	// translation database), so there is nothing to fetch.
+	(void)id;
+	return("");
+#endif
+#if defined(_UNIX) || defined(NXDK)  // PORT: no Windows resources on Xbox
 	return("");
 #else
 	static SRecord _buffers[64];
@@ -260,7 +266,7 @@ char const * Fetch_String(int id)
 
 void const * Fetch_Resource(LPCSTR resname, LPCSTR restype)
 {
-#ifdef _UNIX
+#if defined(_UNIX) || defined(NXDK)  // PORT: no Windows resources on Xbox
 	return(NULL);
 #else
 	/*
