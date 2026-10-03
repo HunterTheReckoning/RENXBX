@@ -26,13 +26,55 @@ struct Value {
 	std::vector<unsigned char> data;
 };
 
+#ifdef NXDK
+/* The Xbox kernel caches disk writes and writes them out later; closing a file does not
+** force it, and a reset or power cut drops whatever is still cached. These ask the kernel
+** to write a file's (or folder's) cached data to the disk now. */
+static bool flush_path(const std::string &dos_path, bool directory)
+{
+	/* "E:\dir\" -> "\??\E:\dir\": nxMountDrive's drive letters are links in \??\ */
+	std::string nt_path = std::string("\\??\\") + dos_path;
+	ANSI_STRING name;
+	RtlInitAnsiString(&name, nt_path.c_str());
+	OBJECT_ATTRIBUTES attributes;
+	InitializeObjectAttributes(&attributes, &name, OBJ_CASE_INSENSITIVE, NULL, NULL);
+	HANDLE handle;
+	IO_STATUS_BLOCK io;
+	NTSTATUS status = NtOpenFile(&handle, SYNCHRONIZE | FILE_WRITE_DATA, &attributes, &io,
+	                             FILE_SHARE_READ | FILE_SHARE_WRITE,
+	                             FILE_SYNCHRONOUS_IO_NONALERT |
+	                             (directory ? FILE_DIRECTORY_FILE : FILE_NON_DIRECTORY_FILE));
+	if (!NT_SUCCESS(status)) return false;
+	status = NtFlushBuffersFile(handle, &io);
+	NtClose(handle);
+	return NT_SUCCESS(status);
+}
+
+/* Flush the file, then the folder holding it (the save renames a temporary file, and a
+** rename only changes the folder's directory entries). Returns FLUSHED_* bits. */
+static int flush_to_disk(const std::string &path)
+{
+	if (path.size() < 3 || path[1] != ':') return 0;   /* needs a drive letter */
+	int result = 0;
+	if (flush_path(path, false)) result |= XboxSettings::FLUSHED_FILE;
+	size_t slash = path.find_last_of("\\/");
+	if (slash != std::string::npos && flush_path(path.substr(0, slash + 1), true)) {
+		result |= XboxSettings::FLUSHED_FOLDER;
+	}
+	return result;
+}
+#else
+static int flush_to_disk(const std::string &) { return 0; }
+#endif
+
 struct Store {
 	bool loaded;
 	bool dirty;
+	int last_flush;                               /* Last_Disk_Flush() result */
 	std::string path;
 	std::set<std::string> keys;                   /* lower-cased key paths */
 	std::map<std::string, Value> values;          /* lower(key) + '\n' + lower(name) */
-	Store() : loaded(false), dirty(false), path("D:\\renegade_settings.dat") {}
+	Store() : loaded(false), dirty(false), last_flush(0), path("D:\\renegade_settings.dat") {}
 };
 
 Store &store()
@@ -179,6 +221,7 @@ bool Flush(void)
 	}
 
 	/* Write to a temporary file first so a power cut can't leave a half-written settings file. */
+	s.last_flush = 0;
 	std::string tmp = s.path + ".tmp";
 	FILE *f = fopen(tmp.c_str(), "wb");
 	if (!f) return false;
@@ -187,8 +230,14 @@ bool Flush(void)
 	if (!ok) { remove(tmp.c_str()); return false; }
 	remove(s.path.c_str());
 	if (rename(tmp.c_str(), s.path.c_str()) != 0) return false;
+	s.last_flush = flush_to_disk(s.path);
 	s.dirty = false;
 	return true;
+}
+
+int Last_Disk_Flush(void)
+{
+	return store().last_flush;
 }
 
 bool Key_Exists(const char *key)

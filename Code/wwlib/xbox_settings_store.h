@@ -41,6 +41,12 @@ void List_Values(const char *key, void (*callback)(const char *name, void *conte
 bool Flush(void);    /* write the file if anything changed; returns false if writing failed */
 bool Reload(void);   /* discard memory and read the file again; returns false if no file */
 
+/* After a Flush() that wrote the file: whether the Xbox kernel confirmed writing its cached
+** data to the disk (FLUSHED_FILE, FLUSHED_FOLDER bits). The Xbox caches disk writes, so
+** without this a reset soon after saving can lose the file. Always 0 on non-Xbox builds. */
+enum { FLUSHED_FILE = 1, FLUSHED_FOLDER = 2 };
+int Last_Disk_Flush(void);
+
 } /* namespace XboxSettings */
 
 #endif /* XBOX_SETTINGS_STORE_H */
