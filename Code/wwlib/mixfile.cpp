@@ -614,7 +614,7 @@ void	Add_Files( const char * dir, MixFileCreator & mix )
 			StringClass name;
 			name.Format( "%s%s", dir, find_info.cFileName );
 			StringClass	source;
-			source.Format( "makemix\\%s", name );
+			source.Format( "makemix\\%s", (const char *)name );	// PORT: pass text, not objects, through ...
 			mix.Add_File( source, name );
 //			WWDEBUG_SAY(( "Adding file from %s %s\n", source, name ));
 		}

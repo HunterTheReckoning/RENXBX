@@ -885,6 +885,19 @@ void CPUDetectClass::Init_Processor_Features()
 
 void CPUDetectClass::Init_Memory()
 {
+#ifdef NXDK
+	// PORT: ask the Xbox kernel. The Xbox has no page file (reported as 0) and no virtual
+	// memory beyond RAM ("virtual" reports the physical figures).
+	MM_STATISTICS stats;
+	memset(&stats, 0, sizeof(stats));
+	stats.Length = sizeof(stats);
+	MmQueryStatistics(&stats);
+	TotalPhysicalMemory = stats.TotalPhysicalPages * 4096;
+	AvailablePhysicalMemory = stats.AvailablePages * 4096;
+	TotalPageMemory = AvailablePageMemory = 0;
+	TotalVirtualMemory = TotalPhysicalMemory;
+	AvailableVirtualMemory = AvailablePhysicalMemory;
+#else
 	MEMORYSTATUS mem;
 	GlobalMemoryStatus(&mem);
 	TotalPhysicalMemory=mem.dwTotalPhys;
@@ -893,10 +906,19 @@ void CPUDetectClass::Init_Memory()
 	AvailablePageMemory=mem.dwAvailPageFile;
 	TotalVirtualMemory=mem.dwTotalVirtual;
 	AvailableVirtualMemory=mem.dwAvailVirtual;
+#endif
 }
 
 void CPUDetectClass::Init_OS()
 {
+#ifdef NXDK
+	// PORT: report the Xbox kernel's version (e.g. 1.0.5838) instead of a Windows version.
+	OSVersionNumberMajor = XboxKrnlVersion.Major;
+	OSVersionNumberMinor = XboxKrnlVersion.Minor;
+	OSVersionBuildNumber = XboxKrnlVersion.Build;
+	OSVersionPlatformId = 0;
+	OSVersionExtraInfo = "Xbox";
+#else
 	OSVERSIONINFO os;
 	os.dwOSVersionInfoSize=sizeof(os);
 	GetVersionEx(&os);
@@ -906,6 +928,7 @@ void CPUDetectClass::Init_OS()
 	OSVersionBuildNumber=os.dwBuildNumber;
 	OSVersionPlatformId=os.dwPlatformId;
 	OSVersionExtraInfo=os.szCSDVersion;
+#endif
 }
 
 bool CPUDetectClass::CPUID(
