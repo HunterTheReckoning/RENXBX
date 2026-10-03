@@ -120,7 +120,7 @@ static WWINLINE float Fabs(float val)
 static WWINLINE int Float_To_Int_Chop(const float& f);
 static WWINLINE int Float_To_Int_Floor(const float& f);
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
 static WWINLINE float Cos(float val);
 static WWINLINE float Sin(float val);
 static WWINLINE float Sqrt(float val);
@@ -298,7 +298,7 @@ WWINLINE bool WWMath::Is_Valid_Double(double x)
 // Float to long
 // ----------------------------------------------------------------------------
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
 WWINLINE long WWMath::Float_To_Long(float f)
 {
 	long i;
@@ -313,19 +313,21 @@ WWINLINE long WWMath::Float_To_Long(float f)
 #else 
 WWINLINE long WWMath::Float_To_Long(float f)
 {
-	return (long) f;
+	// PORT: fistp rounds to nearest (default FPU mode); a cast would truncate.
+	return lrintf(f);
 }
 #endif
 
 WWINLINE long WWMath::Float_To_Long(double f)	
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
 	long retval;
 	__asm fld	qword ptr [f]
 	__asm fistp dword ptr [retval]
 	return retval;
 #else 
-	return (long) f;
+	// PORT: fistp rounds to nearest (default FPU mode); a cast would truncate.
+	return lrint(f);
 #endif
 }
 
@@ -333,7 +335,7 @@ WWINLINE long WWMath::Float_To_Long(double f)
 // Cos
 // ----------------------------------------------------------------------------
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
 WWINLINE float WWMath::Cos(float val)
 {
 	float retval;
@@ -355,7 +357,7 @@ WWINLINE float WWMath::Cos(float val)
 // Sin
 // ----------------------------------------------------------------------------
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
 WWINLINE float WWMath::Sin(float val)
 {
 	float retval;
@@ -545,7 +547,7 @@ WWINLINE float WWMath::Asin(float val)
 // Sqrt
 // ----------------------------------------------------------------------------
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
 WWINLINE float WWMath::Sqrt(float val)
 {
 	float retval;
@@ -593,7 +595,7 @@ WWINLINE int WWMath::Float_To_Int_Floor (const float& f)
 // Inverse square root
 // ----------------------------------------------------------------------------
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
 WWINLINE __declspec(naked) float __fastcall WWMath::Inv_Sqrt(float a)
 {
 	__asm {

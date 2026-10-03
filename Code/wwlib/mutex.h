@@ -119,6 +119,22 @@ class FastCriticalSectionClass
 {
 	volatile unsigned Flag;
 
+#if defined(NXDK) || defined(__GNUC__)
+	// PORT: atomic test-and-set builtin instead of inline asm. The original
+	// asm clobbered ebx without telling the compiler, which modern optimizers
+	// do not tolerate.
+	void Thread_Safe_Set_Flag()
+	{
+		while (__sync_lock_test_and_set(&Flag, 1u)) {
+			ThreadClass::Switch_Thread();
+		}
+	}
+
+	WWINLINE void Thread_Safe_Clear_Flag()
+	{
+		__sync_lock_release(&Flag);
+	}
+#else
 	void Thread_Safe_Set_Flag()
 	{
 		volatile unsigned& nFlag=Flag;
@@ -144,6 +160,7 @@ class FastCriticalSectionClass
 	{
 		Flag = 0;
 	}
+#endif
 
 public:
 	// Name can (and usually should) be NULL. Use name only if you wish to create a globally unique mutex
