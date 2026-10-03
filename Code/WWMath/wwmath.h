@@ -313,8 +313,17 @@ WWINLINE long WWMath::Float_To_Long(float f)
 #else 
 WWINLINE long WWMath::Float_To_Long(float f)
 {
+#if defined(__i386__) && (defined(__GNUC__) || defined(__clang__))
+	// PORT: the original's fistp (round to nearest, ties to even, in the default FPU mode),
+	// written so the compiler knows exactly what it reads and writes. nxdk's lrintf is a
+	// placeholder that halts the program, so it can't be used.
+	int result;
+	__asm__ ("fistpl %0" : "=m" (result) : "t" (f) : "st");
+	return result;
+#else
 	// PORT: fistp rounds to nearest (default FPU mode); a cast would truncate.
 	return lrintf(f);
+#endif
 }
 #endif
 
@@ -325,6 +334,11 @@ WWINLINE long WWMath::Float_To_Long(double f)
 	__asm fld	qword ptr [f]
 	__asm fistp dword ptr [retval]
 	return retval;
+#elif defined(__i386__) && (defined(__GNUC__) || defined(__clang__))
+	// PORT: the original's fistp, written so the compiler understands it (see above).
+	int result;
+	__asm__ ("fistpl %0" : "=m" (result) : "t" (f) : "st");
+	return result;
 #else 
 	// PORT: fistp rounds to nearest (default FPU mode); a cast would truncate.
 	return lrint(f);
