@@ -26,6 +26,8 @@ typedef const char *LPCTSTR;
 
 #include <windows.h>
 #include <wchar.h>
+#include <stdarg.h>
+#include <stddef.h>
 
 /* Path size limits from the MSVC CRT (stdlib.h), same values. */
 #ifndef _MAX_PATH
@@ -72,6 +74,13 @@ int   MultiByteToWideChar(UINT code_page, DWORD flags, const char *src, int src_
 int   WideCharToMultiByte(UINT code_page, DWORD flags, const wchar_t *src, int src_len,
                           char *dst, int dst_len, const char *default_char, BOOL *used_default);
 void  DebugBreak(void);
+BOOL  DosDateTimeToFileTime(WORD fat_date, WORD fat_time, FILETIME *ft);
+
+/* Wide printf with Microsoft semantics (%s = wide string, %S/%hs = narrow string,
+** %c = wide char, %C/%hc = narrow char). Returns the character count, or -1 if the
+** output did not fit (like MSVC's _vsnwprintf, the buffer is then not terminated). */
+int   _vsnwprintf(wchar_t *buffer, size_t count, const wchar_t *format, va_list args);
+int   _snwprintf(wchar_t *buffer, size_t count, const wchar_t *format, ...);
 
 #ifdef __cplusplus
 }

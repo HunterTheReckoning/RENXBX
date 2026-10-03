@@ -39,9 +39,9 @@
 #include	"mpmath.h"
 #include	"rng.h"
 
-int bignum::Error = 0;
-bool bignum::Carry = false;
-bool bignum::Borrow = false;
+template<> int bignum::Error = 0;
+template<> bool bignum::Carry = false;
+template<> bool bignum::Borrow = false;
 bignum bignum::Remainder;
 
 

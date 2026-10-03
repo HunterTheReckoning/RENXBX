@@ -254,6 +254,11 @@ inline bool SimpleVecClass<T>::Uninitialised_Grow(int newsize)
 */
 template <class T> class SimpleDynVecClass : public SimpleVecClass<T>
 {
+protected:
+	// PORT: name dependent-base members for standard two-phase lookup.
+	using SimpleVecClass<T>::Vector;
+	using SimpleVecClass<T>::VectorMax;
+
 public:
 
 	SimpleDynVecClass(int size = 0);

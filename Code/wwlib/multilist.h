@@ -484,6 +484,10 @@ public:
 template <class ObjectType>
 class PriorityMultiListIterator : public MultiListIterator<ObjectType>
 {
+protected:
+	// PORT: name dependent-base members for standard two-phase lookup.
+	using MultiListIterator<ObjectType>::CurNode;
+
 public:
 	PriorityMultiListIterator(MultiListClass<ObjectType> *list)
 		:	OriginalHead (NULL),
