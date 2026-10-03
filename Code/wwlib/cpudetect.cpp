@@ -179,6 +179,18 @@ static unsigned Calculate_Processor_Speed(__int64& ticks_per_second)
 
 void CPUDetectClass::Init_Processor_Speed()
 {
+#ifdef NXDK
+	// PORT: no timing loop on the Xbox. nxdk works out the CPU's cycle-counter frequency
+	// from the hardware at start-up (733.33 MHz on a stock Xbox, which is also its default),
+	// and QueryPerformanceCounter reads that same counter. The original timing loop hung
+	// here during start-up, and would have cost 1.2 s on every boot.
+	LARGE_INTEGER freq;
+	QueryPerformanceFrequency(&freq);
+	ProcessorTicksPerSecond = freq.QuadPart;
+	ProcessorSpeed = (unsigned)((freq.QuadPart + 500000) / 1000000);
+	InvProcessorTicksPerSecond = 1.0 / double(ProcessorTicksPerSecond);
+	return;
+#endif
 	if (!Has_RDTSC_Instruction()) {
 		ProcessorSpeed=0;
 		return;

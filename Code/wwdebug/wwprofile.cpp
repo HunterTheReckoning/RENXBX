@@ -86,6 +86,10 @@ inline void WWProfile_Get_Ticks(_int64 * ticks)
 {
 #ifdef _UNIX
        *ticks = TIMEGETTIME();
+#elif defined(NXDK)
+	// PORT: the compiler's own cycle-counter read, instead of RDTSC emitted as raw bytes
+	// (which hides from the compiler which registers the instruction changes).
+	*ticks = (_int64)__builtin_ia32_rdtsc();
 #else
 	__asm
 	{
