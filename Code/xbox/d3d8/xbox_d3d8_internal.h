@@ -73,6 +73,10 @@ void Free_GPU_Memory(void *memory);
 /* Logs a feature the layer does not provide yet, once per call site. */
 void Log_Once(bool *done, const char *what);
 
+/* Start-up progress markers: shown on screen when a test program switches PORT_TRACE on
+** (see xbox_port.h); nothing in the game. */
+void Trace(const char *format, ...);
+
 } /* namespace XboxD3D */
 
 #endif /* XBOX_D3D8_INTERNAL_H */
