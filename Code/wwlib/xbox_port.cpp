@@ -15,6 +15,8 @@
 
 extern "C" {
 
+void (*XboxPort_Trace)(const char *message) = NULL;
+
 void _splitpath(const char *path, char *drive, char *dir, char *fname, char *ext)
 {
 	if (drive) drive[0] = 0;

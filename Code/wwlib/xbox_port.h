@@ -105,6 +105,11 @@ typedef void *HKEY;
 extern "C" {
 #endif
 
+/* Startup progress markers. A test program can point XboxPort_Trace at a print function
+** to see how far start-up gets; in the game it stays NULL and PORT_TRACE does nothing. */
+extern void (*XboxPort_Trace)(const char *message);
+#define PORT_TRACE(message) do { if (XboxPort_Trace) XboxPort_Trace(message); } while (0)
+
 /* MSVC CRT functions missing from nxdk (implemented in xbox_port.cpp). */
 void  _splitpath(const char *path, char *drive, char *dir, char *fname, char *ext);
 char *_strlwr(char *s);

@@ -17,6 +17,9 @@
 */
 
 #include "cpudetect.h"
+#ifndef PORT_TRACE
+#define PORT_TRACE(message)	// PORT: startup markers exist only in Xbox builds
+#endif
 #include "wwstring.h"
 #include "wwdebug.h"
 #include "thread.h"
@@ -1103,22 +1106,33 @@ static class CPUDetectInitClass
 public:
 	CPUDetectInitClass()
 	{
+		PORT_TRACE("cpudetect: CPUID check");
 		CPUDetectClass::Init_CPUID_Instruction();
 		// We pretty much need CPUID, but let's not crash if it doesn't exist.
 		// Every processor our games run should have CPUID so it would be extremely unlikely for it not to be present.
 		// One can never be sure about the clones though...
 		if (CPUDetectClass::Has_CPUID_Instruction()) {
+			PORT_TRACE("cpudetect: manufacturer");
 			CPUDetectClass::Init_Processor_Manufacturer();
+			PORT_TRACE("cpudetect: family");
 			CPUDetectClass::Init_Processor_Family();
+			PORT_TRACE("cpudetect: processor string");
 			CPUDetectClass::Init_Processor_String();
+			PORT_TRACE("cpudetect: features");
 			CPUDetectClass::Init_Processor_Features();
+			PORT_TRACE("cpudetect: memory");
 			CPUDetectClass::Init_Memory();
+			PORT_TRACE("cpudetect: OS version");
 			CPUDetectClass::Init_OS();
 		}
+		PORT_TRACE("cpudetect: clock speed (takes ~0.4 s)");
 		CPUDetectClass::Init_Processor_Speed();
 
+		PORT_TRACE("cpudetect: processor log");
 		CPUDetectClass::Init_Processor_Log();
+		PORT_TRACE("cpudetect: compact log");
 		CPUDetectClass::Init_Compact_Log();
+		PORT_TRACE("cpudetect: done");
 	}
 } _CPU_Detect_Init;
 

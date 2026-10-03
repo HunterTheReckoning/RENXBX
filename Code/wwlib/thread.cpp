@@ -140,7 +140,7 @@ void ThreadClass::Sleep_Ms(unsigned ms)
 	Sleep(ms);
 }
 
-#ifndef _UNIX
+#if !defined(_UNIX) && !defined(NXDK)  // PORT: on Xbox, Switch_Thread sleeps directly (no event needed)
 HANDLE test_event = ::CreateEvent (NULL, FALSE, FALSE, "");
 #endif
 
@@ -148,6 +148,9 @@ void ThreadClass::Switch_Thread()
 {
 	#ifdef _UNIX
 		return;
+	#elif defined(NXDK)
+		// PORT: waiting 1 ms on an event that is never signalled is a 1 ms sleep.
+		Sleep(1);
 	#else
 		//	::SwitchToThread ();
 		::WaitForSingleObject (test_event, 1);
