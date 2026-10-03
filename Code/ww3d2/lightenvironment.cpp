@@ -52,8 +52,10 @@ const float DIFFUSE_TO_AMBIENT_FRACTION = 1.0f;
 /*
 ** Static variables
 */
-static _LightingLODCutoff			= 0.5f;	
-static _LightingLODCutoff2			= 0.5f * 0.5f;
+// PORT: these had no type, which old MSVC treated as int, so both have always been 0 in the
+// shipped game (0.5 truncates to 0). The type is now explicit; the shipped value is kept.
+static int _LightingLODCutoff			= 0;		// original source: = 0.5f
+static int _LightingLODCutoff2			= 0;		// original source: = 0.5f * 0.5f
 
 
 /************************************************************************************************

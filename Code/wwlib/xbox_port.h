@@ -97,6 +97,28 @@ typedef void *HKEY;
 #define VER_PLATFORM_WIN32_NT      2
 #endif
 
+/* Old MSVC spellings without the leading underscore, and MSVC's _isnan. */
+#ifndef strupr
+#define strupr _strupr
+#endif
+#ifndef strlwr
+#define strlwr _strlwr
+#endif
+#ifndef _isnan
+#define _isnan(x) __builtin_isnan(x)
+#endif
+
+#ifndef GetCurrentDirectory
+#define GetCurrentDirectory GetCurrentDirectoryA
+#endif
+#ifndef lstrcpy
+#define lstrcpy  lstrcpyA
+#define lstrcpyn lstrcpynA
+#define lstrcat  lstrcatA
+#define lstrlen  lstrlenA
+#define lstrcmpi lstrcmpiA
+#endif
+
 #ifndef strcmpi
 #define strcmpi _stricmp
 #endif
@@ -126,6 +148,21 @@ int   WideCharToMultiByte(UINT code_page, DWORD flags, const wchar_t *src, int s
                           char *dst, int dst_len, const char *default_char, BOOL *used_default);
 void  DebugBreak(void);
 BOOL  DosDateTimeToFileTime(WORD fat_date, WORD fat_time, FILETIME *ft);
+
+/* kernel32's string functions, with Windows' rules: lstrcpyn copies at most n-1 characters
+** and always terminates; lstrlen(NULL) is 0; lstrcmpi compares without case (Windows uses
+** a locale-aware ordering, so only equality is guaranteed to match exactly). */
+char *lstrcpyA(char *dst, const char *src);
+char *lstrcpynA(char *dst, const char *src, int max_count);
+char *lstrcatA(char *dst, const char *src);
+int   lstrlenA(const char *s);
+int   lstrcmpiA(const char *a, const char *b);
+wchar_t *lstrcpynW(wchar_t *dst, const wchar_t *src, int max_count);
+
+/* No current directory on the Xbox: reports D:\, the folder the game runs from (nxdk mounts
+** it there). Windows rules: returns the length without the terminator, or the size needed
+** (with terminator) if the buffer is too small. */
+DWORD GetCurrentDirectoryA(DWORD buffer_size, char *buffer);
 
 /* MSVC's _beginthread, built on nxdk's _beginthreadex. Returns the thread handle, or
 ** (uintptr_t)-1 on failure as MSVC does. Unlike MSVC, the handle is not closed when the

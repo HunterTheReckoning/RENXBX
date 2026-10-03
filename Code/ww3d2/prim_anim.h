@@ -160,6 +160,14 @@ protected:
 template<class T>
 class LERPAnimationChannelClass : public PrimitiveAnimationChannelClass<T>
 {
+protected:
+	// PORT: name the dependent base's members and type for standard two-phase lookup.
+	using PrimitiveAnimationChannelClass<T>::m_Data;
+	using PrimitiveAnimationChannelClass<T>::m_LastIndex;
+public:
+	typedef typename PrimitiveAnimationChannelClass<T>::KeyClass KeyClass;
+protected:
+
 public:
 
 	/////////////////////////////////////////////////////////
@@ -182,7 +190,7 @@ int PrimitiveAnimationChannelClass<T>::Get_Key_Count (void) const
 //	Set_Key_Value
 /////////////////////////////////////////////////////////
 template<class T>
-const PrimitiveAnimationChannelClass<T>::KeyClass &PrimitiveAnimationChannelClass<T>::Get_Key (int index) const
+const typename PrimitiveAnimationChannelClass<T>::KeyClass &PrimitiveAnimationChannelClass<T>::Get_Key (int index) const
 {
 	return m_Data[index];
 }

@@ -314,6 +314,54 @@ uintptr_t _beginthread(void (__cdecl *start)(void *), unsigned stack_size, void 
 }
 
 
+/* --- kernel32 string functions ------------------------------------------------------ */
+
+char *lstrcpyA(char *dst, const char *src)
+{
+	return strcpy(dst, src);
+}
+
+char *lstrcpynA(char *dst, const char *src, int max_count)
+{
+	if (max_count <= 0) return dst;
+	int i = 0;
+	for (; i < max_count - 1 && src[i]; ++i) dst[i] = src[i];
+	dst[i] = 0;
+	return dst;
+}
+
+char *lstrcatA(char *dst, const char *src)
+{
+	return strcat(dst, src);
+}
+
+int lstrlenA(const char *s)
+{
+	return s ? (int)strlen(s) : 0;
+}
+
+int lstrcmpiA(const char *a, const char *b)
+{
+	return _stricmp(a, b);
+}
+
+DWORD GetCurrentDirectoryA(DWORD buffer_size, char *buffer)
+{
+	static const char dir[] = "D:\\";
+	if (!buffer || buffer_size < sizeof(dir)) return sizeof(dir);
+	memcpy(buffer, dir, sizeof(dir));
+	return sizeof(dir) - 1;
+}
+
+wchar_t *lstrcpynW(wchar_t *dst, const wchar_t *src, int max_count)
+{
+	if (max_count <= 0) return dst;
+	int i = 0;
+	for (; i < max_count - 1 && src[i]; ++i) dst[i] = src[i];
+	dst[i] = 0;
+	return dst;
+}
+
 void DebugBreak(void)
 {
 	__asm__ volatile("int3");

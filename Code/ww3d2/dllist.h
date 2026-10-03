@@ -76,7 +76,7 @@ class DLDestroyListClass : public DLListClass<T>
 public:
 	virtual ~DLDestroyListClass()
 	{
-		while (T* t=Head()) {		
+		while (T* t=this->Head()) {	// PORT: this-> for two-phase lookup		
 			delete t;
 		}
 	}
