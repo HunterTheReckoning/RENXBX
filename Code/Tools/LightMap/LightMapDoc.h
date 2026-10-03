@@ -38,7 +38,7 @@
 #define LIGHTMAPDOC_H
 
 // Includes.
-#include "Rawfile.h"
+#include "rawfile.h"
 #include "w3d_file.h"
 #include "Chunk.h"
 #include "Lightscape.h"

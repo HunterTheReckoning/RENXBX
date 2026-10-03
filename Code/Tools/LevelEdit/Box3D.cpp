@@ -63,11 +63,11 @@
 
 
 #include "stdafx.h"
-#include "box3d.h"
+#include "Box3D.h"
 #include "coltest.h"
 #include "tri.h"
-#include "leveleditdoc.h"
-#include "cameramgr.h"
+#include "LevelEditDoc.h"
+#include "CameraMgr.h"
 #include "camera.h"
 
 

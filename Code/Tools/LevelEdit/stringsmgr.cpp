@@ -37,19 +37,19 @@
 
 #include "stdafx.h"
 #include "stringsmgr.h"
-#include "filelocations.h"
-#include "filemgr.h"
+#include "FileLocations.h"
+#include "FileMgr.h"
 #include "assetdatabase.h"
 #include "chunkio.h"
 #include "rawfile.h"
 #include "saveload.h"
 #include "translatedb.h"
-#include "stringlibrarydialog.h"
+#include "StringLibraryDialog.h"
 #include "excel.h"
-#include "audiblesound.h"
+#include "AudibleSound.h"
 #include "definitionmgr.h"
 #include "definitionclassids.h"
-#include "utils.h"
+#include "Utils.h"
 
 
 /////////////////////////////////////////////////////////////////////////

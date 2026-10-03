@@ -27,7 +27,7 @@
 #include "scene.h"
 #include "rendobj.h"
 #include "camera.h"
-#include "enbassetmgr.H"
+#include "enbassetmgr.h"
 #include "msgloop.h"
 #include "part_ldr.h"
 #include "rendobj.h"

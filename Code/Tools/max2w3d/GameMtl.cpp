@@ -73,8 +73,8 @@
 #include "util.h"
 #include "meshsave.h"
 #include "gamemaps.h"
-#include "gameMtlForm.h"
-#include "notify.h"
+#include "GameMtlForm.h"
+#include "Notify.h"
 
  
 /*****************************************************************

@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "ResolutionDialog.h"
-#include "WW3D.H"
+#include "ww3d.h"
 #include "Globals.h"
 #include "GraphicView.h"
 #include "Utils.h"

@@ -36,8 +36,8 @@
 
 
 #include "stdafx.h"
-#include "directorydialog.h"
-#include "utils.h"
+#include "DirectoryDialog.h"
+#include "Utils.h"
 
 
 ////////////////////////////////////////////////////////////////////////////

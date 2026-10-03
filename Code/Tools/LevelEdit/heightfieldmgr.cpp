@@ -42,9 +42,9 @@
 #include "chunkio.h"
 #include "saveload.h"
 #include "staticphys.h"
-#include "sceneeditor.h"
-#include "utils.h"
-#include "nodemgr.h"
+#include "SceneEditor.h"
+#include "Utils.h"
+#include "NodeMgr.H"
 
 
 ///////////////////////////////////////////////////////////////////////

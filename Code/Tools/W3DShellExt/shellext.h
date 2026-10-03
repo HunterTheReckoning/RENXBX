@@ -47,9 +47,9 @@
 #define ODS3(sz)
 #endif
 
-#include "W3D_File.h"
+#include "w3d_file.h"
 #include "wdump.h"
-#include "WdumpDoc.h"
+#include "wdumpdoc.h"
 //#include "w3d2dat.h"			/// LFeenanEA: Header file missing, perhaps this tool is outdated?
 
 

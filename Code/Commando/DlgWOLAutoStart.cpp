@@ -36,10 +36,10 @@
 
 
 #include "always.h"
-#include "autostart.h"
+#include "AutoStart.h"
 #include "win.h"
 #include "listctrl.h"
-#include "dlgwolautostart.h"
+#include "DlgWOLAutoStart.h"
 #include "menubackdrop.h"
 #include "registry.h"
 #include "_globals.h"

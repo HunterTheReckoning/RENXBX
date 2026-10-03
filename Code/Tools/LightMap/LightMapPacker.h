@@ -45,7 +45,7 @@
 #include "vector2.h"
 #include "matrix3.h"
 #include "listnode.h"
-#include "Targa.h"
+#include "TARGA.H"
 #include "w3d_file.h"
 #include <srPixelConvert.hpp>
 #include <srColorSurface.hpp>

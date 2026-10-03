@@ -36,13 +36,13 @@
 
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "OverlapPage.h"
-#include "nodemgr.h"
-#include "node.h"
+#include "NodeMgr.H"
+#include "Node.h"
 #include "coltest.h"
-#include "icons.h"
-#include "cameramgr.h"
+#include "Icons.h"
+#include "CameraMgr.h"
 
 
 #ifdef _DEBUG

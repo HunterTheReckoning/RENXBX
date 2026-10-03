@@ -35,17 +35,17 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "spawnernode.h"
-#include "spawnpointnode.h"
-#include "sceneeditor.h"
-#include "collisiongroups.h"
+#include "SpawnerNode.h"
+#include "SpawnPointNode.h"
+#include "SceneEditor.h"
+#include "CollisionGroups.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "preset.h"
+#include "EditorChunkIDs.h"
+#include "Preset.h"
 #include "chunkio.h"
-#include "nodemgr.h"
+#include "NodeMgr.H"
 #include "soldier.h"
-#include "modelutils.h"
+#include "ModelUtils.h"
 
 
 //////////////////////////////////////////////////////////////////////////////

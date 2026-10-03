@@ -35,7 +35,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "StdAfx.H"
-#include "DialogToolbar.H"
+#include "DialogToolbar.h"
 #include "AfxPriv.H"
 
 

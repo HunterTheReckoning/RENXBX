@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "conversationpickerdialog.h"
+#include "LevelEdit.h"
+#include "ConversationPickerDialog.h"
 #include "conversationmgr.h"
 #include "conversation.h"
-#include "utils.h"
-#include "icons.h"
+#include "Utils.h"
+#include "Icons.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

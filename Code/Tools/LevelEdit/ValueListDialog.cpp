@@ -20,8 +20,8 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "ValueListDialog.H"
+#include "LevelEdit.h"
+#include "ValueListDialog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

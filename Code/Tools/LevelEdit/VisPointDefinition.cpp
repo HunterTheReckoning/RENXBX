@@ -35,13 +35,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "vispointdefinition.h"
+#include "VisPointDefinition.h"
 #include "simpledefinitionfactory.h"
 #include "definitionclassids.h"
 #include "definitionmgr.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "vispointnode.h"
+#include "EditorChunkIDs.h"
+#include "VisPointNode.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////

@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "heightfieldmaterialsettingsdialog.h"
+#include "LevelEdit.h"
+#include "HeightfieldMaterialSettingsDialog.h"
 #include "heightfieldeditor.h"
 #include "terrainmaterial.h"
-#include "utils.h"
-#include "filemgr.h"
+#include "Utils.h"
+#include "FileMgr.h"
 
 
 #ifdef _DEBUG

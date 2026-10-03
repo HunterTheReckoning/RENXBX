@@ -18,10 +18,10 @@
 
 #include "stdAfx.h"
 #include "priv.h"
-#include "Chunkio.h"
+#include "chunkio.h"
 #include "io.h"
 #include "wdump.h"
-#include "WdumpDoc.h"
+#include "wdumpdoc.h"
 //#include "w3d2dat.h"			/// LFeenanEA: Header file missing, perhaps this tool is outdated?
 //
 // Initialize GUIDs (should be done only and at-least once per DLL/EXE)

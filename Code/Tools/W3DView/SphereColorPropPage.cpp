@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
-#include "spherecolorproppage.h"
-#include "opacitysettingsdialog.h"
-#include "colorutils.h"
-#include "utils.h"
-#include "opacityvectordialog.h"
+#include "W3DView.h"
+#include "SphereColorPropPage.h"
+#include "OpacitySettingsDialog.h"
+#include "ColorUtils.h"
+#include "Utils.h"
+#include "OpacityVectorDialog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

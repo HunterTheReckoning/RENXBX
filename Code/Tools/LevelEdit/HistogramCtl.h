@@ -40,7 +40,7 @@
 #define __HISTOGRAM_CTL_H
 
 #include "Vector.H"
-#include "Vector3.H"
+#include "vector3.h"
 
 
 ///////////////////////////////////////////////////////////////////

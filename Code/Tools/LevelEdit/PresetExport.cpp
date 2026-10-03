@@ -36,14 +36,14 @@
 
 #include "stdafx.h"
 
-#include "presetexport.h"
-#include "preset.h"
-#include "presetmgr.h"
+#include "PresetExport.h"
+#include "Preset.h"
+#include "PresetMgr.h"
 #include "textfile.h"
-#include "utils.h"
+#include "Utils.h"
 #include "parameter.h"
 #include "simpleparameter.h"
-#include "presetslibform.h"
+#include "PresetsLibForm.h"
 
 
 ///////////////////////////////////////////////////////////////////////

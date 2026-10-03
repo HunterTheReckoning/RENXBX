@@ -73,7 +73,7 @@
 #include "wwprofile.h"
 #include "changeteamevent.h"
 #include "DlgMPTeamSelect.h"
-#include "dlgmessagebox.h"
+#include "DlgMessageBox.h"
 #include "apppacketstats.h"
 #include "clientpingmanager.h"
 #include "priority.h"
@@ -84,7 +84,7 @@
 #include "specialbuilds.h"
 #include "gameinitmgr.h"
 #include "dlgcncwinscreen.h"
-#include "consolemode.h"
+#include "ConsoleMode.h"
 #include "CDKeyAuth.h"
 
 static int LastSortedSecond;

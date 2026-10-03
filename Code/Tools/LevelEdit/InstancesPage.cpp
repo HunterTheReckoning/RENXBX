@@ -36,20 +36,20 @@
 
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "instancespage.h"
-#include "nodemgr.h"
-#include "node.h"
-#include "utils.h"
-#include "cameramgr.h"
-#include "gotoobjectdialog.h"
-#include "sceneeditor.h"
-#include "icons.h"
-#include "nodecategories.h"
+#include "LevelEdit.h"
+#include "InstancesPage.h"
+#include "NodeMgr.H"
+#include "Node.h"
+#include "Utils.h"
+#include "CameraMgr.h"
+#include "GotoObjectDialog.h"
+#include "SceneEditor.h"
+#include "Icons.h"
+#include "NodeCategories.h"
 #include "definition.h"
 #include "definitionfactory.h"
 #include "definitionfactorymgr.h"
-#include "preset.h"
+#include "Preset.h"
 
 
 #ifdef _DEBUG

@@ -20,8 +20,8 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "missingtranslationreportdialog.h"
+#include "LevelEdit.h"
+#include "MissingTranslationReportDialog.h"
 #include "reportmgr.h"
 #include "translatedb.h"
 

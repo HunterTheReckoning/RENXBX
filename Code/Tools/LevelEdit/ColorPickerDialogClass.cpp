@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "colorpickerdialogclass.h"
-#include "colorbar.h"
-#include "colorpicker.h"
+#include "ColorPickerDialogClass.h"
+#include "ColorBar.h"
+#include "ColorPicker.h"
 
 
 #ifdef _DEBUG

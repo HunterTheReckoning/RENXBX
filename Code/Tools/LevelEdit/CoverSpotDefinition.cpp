@@ -35,13 +35,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "coverspotdefinition.h"
+#include "CoverSpotDefinition.h"
 #include "simpledefinitionfactory.h"
 #include "definitionclassids.h"
 #include "definitionmgr.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "coverspotnode.h"
+#include "EditorChunkIDs.h"
+#include "CoverSpotNode.h"
 
 //////////////////////////////////////////////////////////////////////////////////
 //	Constants

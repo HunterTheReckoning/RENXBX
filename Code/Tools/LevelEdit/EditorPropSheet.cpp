@@ -20,9 +20,9 @@
 //
 
 #include "StdAfx.h"
-#include "leveledit.h"
-#include "EditorPropSheet.H"
-#include "Utils.H"
+#include "LevelEdit.h"
+#include "EditorPropSheet.h"
+#include "Utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

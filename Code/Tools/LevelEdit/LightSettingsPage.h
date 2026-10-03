@@ -34,9 +34,9 @@
 
 
 class LightInstanceClass;
-#include "DockableForm.H"
-#include "Vector3.H"
-#include "NodeSettingsInterface.H"
+#include "DockableForm.h"
+#include "vector3.h"
+#include "NodeSettingsInterface.h"
 
 
 //////////////////////////////////////////////////////////

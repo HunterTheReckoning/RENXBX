@@ -32,11 +32,11 @@
 
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "soundsettingspage.h"
-#include "utils.h"
-#include "filemgr.h"
-#include "audiblesound.h"
+#include "LevelEdit.h"
+#include "SoundSettingsPage.h"
+#include "Utils.h"
+#include "FileMgr.h"
+#include "AudibleSound.h"
 
 
 #ifdef _DEBUG

@@ -18,8 +18,8 @@
 
 #include "IMECandidateCtrl.h"
 #include "IMECandidate.h"
-#include "DialogBase.h"
-#include "StyleMgr.h"
+#include "dialogbase.h"
+#include "stylemgr.h"
 #include "MouseMgr.h"
 
 #define BORDER_WIDTH 2

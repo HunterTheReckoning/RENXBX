@@ -20,22 +20,22 @@
 //
 
 #include "stdafx.h"
-#include "wwconfig.h"
-#include "performanceconfigdialog.h"
+#include "WWConfig.h"
+#include "PerformanceConfigDialog.h"
 #include "registry.h"
 #include "ww3d.h"
 #include "pscene.h"
 #include "rendobj.h"
 #include "phys.h"
-#include "videoconfigdialog.h"
+#include "VideoConfigDialog.h"
 #include "dx8caps.h"
 #include "cpudetect.h"
 #include "formconv.h"
 
 #include "dx8wrapper.h"
-#include "locale_api.h"
+#include "Locale_API.h"
 #include "wwconfig_ids.h"
-#include "..\..\combat\specialbuilds.h"
+#include "../../Combat/specialbuilds.h"
 
 
 #ifdef _DEBUG

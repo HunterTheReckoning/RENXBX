@@ -24,16 +24,16 @@
 //
 
 #include "stdafx.h"
-#include "groupmgr.h"
-#include "leveleditdoc.h"
-#include "cameramgr.h"
-#include "node.h"
-#include "sceneeditor.h"
-#include "utils.h"
+#include "GroupMgr.h"
+#include "LevelEditDoc.h"
+#include "CameraMgr.h"
+#include "Node.h"
+#include "SceneEditor.h"
+#include "Utils.h"
 #include "wwmath.h"
 
-#include "waypointnode.h"
-#include "waypathnode.h"
+#include "WaypointNode.h"
+#include "WaypathNode.h"
 
 
 /////////////////////////////////////////////////////////////

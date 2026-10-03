@@ -25,7 +25,7 @@
 
 
 #include "resource.h"
-#include "stringpickerdialog.h"
+#include "StringPickerDialog.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

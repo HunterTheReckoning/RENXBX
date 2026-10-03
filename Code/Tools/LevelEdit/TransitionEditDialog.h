@@ -24,7 +24,7 @@
 #endif // _MSC_VER > 1000
 
 #include "resource.h"
-#include "dialogtoolbar.h"
+#include "DialogToolbar.h"
 #include "dx8wrapper.h"
 
 

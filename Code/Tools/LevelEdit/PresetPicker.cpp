@@ -35,9 +35,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "presetpicker.h"
-#include "selectpresetdialog.h"
-#include "preset.h"
+#include "PresetPicker.h"
+#include "SelectPresetDialog.h"
+#include "Preset.h"
 #include "resource.h"
 
 

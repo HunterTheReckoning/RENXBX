@@ -30,7 +30,7 @@
 #include <afxext.h>
 #endif
 
-#include "dialogtoolbar.h"
+#include "DialogToolbar.h"
 #include "bittype.h"
 #include "vector.h"
 #include "wwstring.h"

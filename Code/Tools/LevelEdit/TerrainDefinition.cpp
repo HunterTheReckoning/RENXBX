@@ -35,13 +35,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "terraindefinition.h"
+#include "TerrainDefinition.h"
 #include "simpledefinitionfactory.h"
 #include "definitionclassids.h"
 #include "definitionmgr.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "terrainnode.h"
+#include "EditorChunkIDs.h"
+#include "TerrainNode.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////

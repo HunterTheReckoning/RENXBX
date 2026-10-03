@@ -42,11 +42,11 @@
 #ifndef __SPAWN_POINT_NODE_H
 #define __SPAWN_POINT_NODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
-#include "icons.h"
+#include "Icons.h"
 #include "decophys.h"
-#include "spawnernode.h"
+#include "SpawnerNode.h"
 
 
 ////////////////////////////////////////////////////////////////////////////

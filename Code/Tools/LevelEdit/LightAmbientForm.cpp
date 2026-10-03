@@ -20,14 +20,14 @@
 //
 
 #include "Stdafx.H"
-#include "LevelEdit.H"
-#include "LightAmbientForm.H"
-#include "Vector3.H"
-#include "Utils.H"
-#include "SceneEditor.H"
+#include "LevelEdit.h"
+#include "LightAmbientForm.h"
+#include "vector3.h"
+#include "Utils.h"
+#include "SceneEditor.h"
 #include "rendobj.h"
 #include "phys.h"
-#include "colorpickerdialogclass.h"
+#include "ColorPickerDialogClass.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

@@ -36,10 +36,10 @@
 
 // Includes.
 #include "InstallMenuDialog.h"
-#include "AssetMgr.h"
-#include "HAnim.h"
-#include "MenuBackDrop.h"
-#include "Scene.h"
+#include "assetmgr.h"
+#include "hanim.h"
+#include "menubackdrop.h"
+#include "scene.h"
 #include "Translator.h"
  
 

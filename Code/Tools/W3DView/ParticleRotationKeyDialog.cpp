@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "ParticleRotationKeyDialog.h"
-#include "Utils.H"
+#include "Utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

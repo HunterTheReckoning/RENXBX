@@ -34,14 +34,14 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "WOLLocaleMgr.h"
+#include "wollocalemgr.h"
 #include "WOLLoginProfile.h"
 #include "WOLLogonMgr.h"
-#include "DlgMPWOLLocaleNag.h"
-#include "ComboBoxCtrl.h"
-#include "MPSettingsMgr.h"
-#include "String_IDs.h"
-#include "TranslateDB.h"
+#include "dlgmpwollocalenag.h"
+#include "comboboxctrl.h"
+#include "mpsettingsmgr.h"
+#include "string_ids.h"
+#include "translatedb.h"
 
 
 //////////////////////////////////////////////////////////////////////

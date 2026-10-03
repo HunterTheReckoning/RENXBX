@@ -37,9 +37,9 @@
 // Includes.
 #include "CardSelectionDialog.h"
 #include "ErrorHandler.h"
-#include "ListCtrl.h"
+#include "listctrl.h"
 #include "MessageBox.h"
-#include "RDDesc.h"
+#include "rddesc.h"
 #include "Translator.h"
 
 

@@ -42,13 +42,13 @@
 #ifndef __COVERSPOT_NODE_H
 #define __COVERSPOT_NODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
-#include "icons.h"
+#include "Icons.h"
 #include "decophys.h"
-#include "editorphys.h"
+#include "EditorPhys.h"
 #include "segline.h"
-#include "editorline.h"
+#include "EditorLine.h"
 
 
 ////////////////////////////////////////////////////////////////////////////

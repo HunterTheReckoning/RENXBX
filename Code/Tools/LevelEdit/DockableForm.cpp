@@ -20,7 +20,7 @@
 //
 
 #include "StdAfx.h"
-#include "DockableForm.H"
+#include "DockableForm.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

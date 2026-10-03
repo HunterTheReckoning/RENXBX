@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "SplashScreen.h"
 
 #ifdef _DEBUG

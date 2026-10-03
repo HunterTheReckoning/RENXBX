@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "NodeIDStartDialog.h"
-#include "regkeys.h"
-#include "utils.h"
-#include "nodemgr.h"
+#include "RegKeys.h"
+#include "Utils.h"
+#include "NodeMgr.H"
 
 
 #ifdef _DEBUG

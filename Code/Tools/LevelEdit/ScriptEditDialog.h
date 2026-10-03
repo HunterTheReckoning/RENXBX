@@ -24,7 +24,7 @@
 #endif // _MSC_VER > 1000
 
 
-#include "..\..\scripts\scriptevents.h"
+#include "../../Scripts/scriptevents.h"
 #include "EditScript.h"
 #include "Resource.h"
 #include "Vector3Dialog.h"

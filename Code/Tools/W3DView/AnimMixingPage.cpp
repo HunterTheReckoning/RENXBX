@@ -20,16 +20,16 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
-#include "W3dViewDoc.h"
+#include "W3DView.h"
+#include "W3DViewDoc.h"
 #include "AdvancedAnimSheet.h"
 #include "AnimMixingPage.h"
 
-#include "RendObj.h"
-#include "HTree.h"
-#include "HAnim.h"
+#include "rendobj.h"
+#include "htree.h"
+#include "hanim.h"
 #include "Utils.h"
-#include "AssetMgr.h"
+#include "assetmgr.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

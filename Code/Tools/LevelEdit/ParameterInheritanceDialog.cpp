@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "ParameterInheritanceDialog.h"
 #include "definition.h"
-#include "presetmgr.h"
-#include "preset.h"
+#include "PresetMgr.h"
+#include "Preset.h"
 #include "parameter.h"
-#include "definitionparameter.h"
+#include "DefinitionParameter.h"
 #include "combatchunkid.h"
 #include "soldier.h"
 

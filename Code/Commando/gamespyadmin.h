@@ -28,8 +28,8 @@
 
 #include "bittype.h"
 #include "DlgWOLWait.h"
-#include <WWLib\Notify.h>
-#include <WWOnline\RefPtr.h>
+#include <wwlib/Notify.h>
+#include <WWOnline/RefPtr.h>
 // #include <WWLib\RefCount.h>
 
 

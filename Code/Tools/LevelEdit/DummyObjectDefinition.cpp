@@ -35,13 +35,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "dummyobjectdefinition.h"
+#include "DummyObjectDefinition.h"
 #include "simpledefinitionfactory.h"
 #include "definitionclassids.h"
 #include "definitionmgr.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "dummyobjectnode.h"
+#include "EditorChunkIDs.h"
+#include "DummyObjectNode.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////

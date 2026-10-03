@@ -42,9 +42,9 @@
 #ifndef __GRABHANDLES_H
 #define __GRABHANDLES_H
 
-#include "box3d.h"
-#include "hittestinfo.h"
-#include "nodefunction.h"
+#include "Box3D.h"
+#include "HitTestInfo.h"
+#include "NodeFunction.h"
 
 
 // Forward declarations

@@ -36,10 +36,10 @@
 
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "generatingedgesampledvisdialog.h"
-#include "visgenprogress.h"
-#include "utils.h"
+#include "LevelEdit.h"
+#include "GeneratingEdgeSampledVisDialog.h"
+#include "VisGenProgress.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

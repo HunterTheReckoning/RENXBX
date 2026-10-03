@@ -36,19 +36,19 @@
 
 
 #include "stdafx.h"
-#include "tilenode.h"
+#include "TileNode.h"
 #include "staticphys.h"
-#include "sceneeditor.h"
-#include "tiledefinition.h"
-#include "filemgr.h"
+#include "SceneEditor.h"
+#include "TileDefinition.h"
+#include "FileMgr.h"
 #include "_assetmgr.h"
-#include "editorassetmgr.h"
+#include "EditorAssetMgr.h"
 #include "w3d_file.h"
-#include "cameramgr.h"
-#include "collisiongroups.h"
+#include "CameraMgr.h"
+#include "CollisionGroups.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "preset.h"
+#include "EditorChunkIDs.h"
+#include "Preset.h"
 
 
 //////////////////////////////////////////////////////////////////////////////

@@ -36,8 +36,8 @@
 ******************************************************************************/
 
 #include "scripts.h"
-#include "common.h"
-#include "dprint.h"
+#include "Common.h"
+#include "DPrint.h"
 #include <string.h>
 #include <assert.h>
 

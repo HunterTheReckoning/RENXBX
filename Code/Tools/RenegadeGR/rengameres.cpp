@@ -36,7 +36,7 @@ for sending to a WOL game results server.
 #include "packet.h"
 #include "tcpmgr.h"
 #include "tcpcon.h"
-#include "wencrypt.h"
+#include "WENCRYPT.H"
 #include "rengameres.h"
 
 

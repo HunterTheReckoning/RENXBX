@@ -36,8 +36,8 @@
 
 #include "StdAfx.h"
 #include "NvDXTLib.h"
-#include "Targa.h"
-#include "TGAToDXT.H"
+#include "TARGA.H"
+#include "TGAToDXT.h"
 #include <io.h>
 #include	<stdlib.h>
 

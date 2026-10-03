@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "EmitterUserPropPage.h"
-#include "W3D_File.H"
-#include "Part_Emt.H"
-#include "EmitterInstanceList.H"
+#include "w3d_file.h"
+#include "part_emt.h"
+#include "EmitterInstanceList.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

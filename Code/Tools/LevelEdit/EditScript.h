@@ -42,9 +42,9 @@
 #ifndef __EDIT_SCRIPT_H
 #define __EDIT_SCRIPT_H
 
-#include "..\..\scripts\scriptevents.h"
+#include "../../Scripts/scriptevents.h"
 #include "vector.h"
-#include "utils.h"
+#include "Utils.h"
 #include "wwstring.h"
 
 

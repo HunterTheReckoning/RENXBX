@@ -35,7 +35,7 @@
 #include <assert.h>
 #include "rawfile.h"
 #include "chunkio.h"
-#include "..\..\ww3d2\w3d_file.h"
+#include "../../ww3d2/w3d_file.h"
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.

@@ -35,13 +35,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "pathfindstartdefinition.h"
+#include "PathfindStartDefinition.h"
 #include "simpledefinitionfactory.h"
 #include "definitionclassids.h"
 #include "definitionmgr.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "pathfindstartnode.h"
+#include "EditorChunkIDs.h"
+#include "PathfindStartNode.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////

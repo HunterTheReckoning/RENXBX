@@ -37,7 +37,7 @@
 // Includes.
 #include "SerialDialog.h"
 #include "CodeControl.h"
-#include "EditCtrl.h"
+#include "editctrl.h"
 #include "Installer.h"
 #include "Resource.h"
 #include "Translator.h"

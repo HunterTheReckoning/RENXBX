@@ -22,7 +22,7 @@
 #include "stdafx.h"
 #include "wdump.h"
 #include "wdtview.h"
-#include "wdLview.h"
+#include "wdlview.h"
 
 #include "MainFrm.h"
 

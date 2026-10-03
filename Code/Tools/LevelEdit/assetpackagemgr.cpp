@@ -36,12 +36,12 @@
 
 #include "stdafx.h"
 #include "assetpackagemgr.h"
-#include "utils.h"
-#include "regkeys.h"
-#include "choosemodpackagedialog.h"
+#include "Utils.h"
+#include "RegKeys.h"
+#include "ChooseModPackageDialog.h"
 #include "editorbuild.h"
-#include "leveledit.h"
-#include "filelocations.h"
+#include "LevelEdit.h"
+#include "FileLocations.h"
 
 
 //////////////////////////////////////////////////////////////////////

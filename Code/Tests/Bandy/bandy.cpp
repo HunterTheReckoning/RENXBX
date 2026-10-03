@@ -43,7 +43,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <bandtest\bandtest.h>
+#include <BandTest/BandTest.h>
 
 char *ErrorList[13] = {
 	"BANDTEST_OK",

@@ -42,7 +42,7 @@
 #define __HEIGHTFIELDPAGE_H
 
 
-#include "nodetypes.h"
+#include "NodeTypes.h"
 #include "resource.h"
 #include "bittype.h"
 #include "vector.h"

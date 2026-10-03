@@ -46,7 +46,7 @@
 #include "definition.h"
 #include "vector.h"
 #include "wwstring.h"
-#include "editorchunkids.h"
+#include "EditorChunkIDs.h"
 
 //////////////////////////////////////////////////////////////////////////////////
 //

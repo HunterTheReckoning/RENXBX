@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "GotoGroupDialog.h"
-#include "Utils.H"
-#include "GroupMgr.H"
-#include "CameraMgr.H"
+#include "Utils.h"
+#include "GroupMgr.h"
+#include "CameraMgr.h"
 
 
 #ifdef _DEBUG

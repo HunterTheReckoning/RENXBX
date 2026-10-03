@@ -37,7 +37,7 @@
 // Includes.
 #include "DirectoryBrowser.h"
 #include "ErrorHandler.h"
-#include "TreeCtrl.h"
+#include "treectrl.h"
 #include <io.h>
 
 

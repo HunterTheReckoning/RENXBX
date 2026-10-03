@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "positionpage.h"
-#include "node.h"
-#include "utils.h"
-#include "sceneeditor.h"
-#include "mover.h"
+#include "LevelEdit.h"
+#include "PositionPage.h"
+#include "Node.h"
+#include "Utils.h"
+#include "SceneEditor.h"
+#include "Mover.h"
 
 
 #ifdef _DEBUG

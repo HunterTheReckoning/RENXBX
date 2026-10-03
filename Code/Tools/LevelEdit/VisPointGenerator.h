@@ -40,7 +40,7 @@
 
 #include "vector.h"
 #include "vector3.h"
-#include "grid3d.h"
+#include "Grid3D.h"
 #include "matrix3d.h"
 
 // Forward declarations

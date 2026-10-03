@@ -42,7 +42,7 @@
 #ifndef __PRESETPROPSHEET_H
 #define __PRESETPROPSHEET_H
 
-#include "editorpropsheet.h"
+#include "EditorPropSheet.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

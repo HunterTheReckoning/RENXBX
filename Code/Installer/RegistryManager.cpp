@@ -41,7 +41,7 @@
 #include "Resource.h"
 #include "Translator.h"
 #include "Utilities.h"
-#include "Win.h"
+#include "win.h"
 #include <mmsystem.h>
 #include	<winreg.h>
 

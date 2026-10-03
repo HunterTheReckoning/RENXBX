@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 
-#include "gotoobjectbyiddialog.h"
-#include "node.h"
-#include "nodemgr.h"
-#include "cameramgr.h"
-#include "utils.h"
+#include "GotoObjectByIDDialog.h"
+#include "Node.h"
+#include "NodeMgr.H"
+#include "CameraMgr.h"
+#include "Utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

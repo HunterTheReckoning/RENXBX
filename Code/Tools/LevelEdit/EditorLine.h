@@ -42,7 +42,7 @@
 #ifndef __EDITOR_LINE_H
 #define __EDITOR_LINE_H
 
-#include "editorphys.h"
+#include "EditorPhys.h"
 #include "segline.h"
 #include "vector3.h"
 

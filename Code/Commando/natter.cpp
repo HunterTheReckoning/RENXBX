@@ -55,17 +55,17 @@
 #include "crandom.h"
 #include	"registry.h"
 
-#include "wollogonmgr.h"
+#include "WOLLogonMgr.h"
 #include	"packettype.h"
 #include	"cnetwork.h"
 #include	"fromaddress.h"
 #include "packetmgr.h"
 
-#include "..\wwonline\wolchannel.h"
-#include "..\wwonline\wolgameoptions.h"
-#include "..\wwonline\wollogininfo.h"
-#include "..\wwonline\wolproduct.h"
-#include "..\wwonline\wolserver.h"
+#include "../WWOnline/WOLChannel.h"
+#include "../WWOnline/WOLGameOptions.h"
+#include "../WWOnline/WOLLoginInfo.h"
+#include "../WWOnline/WOLProduct.h"
+#include "../WWOnline/WOLServer.h"
 
 
 WOLNATInterfaceClass WOLNATInterface;

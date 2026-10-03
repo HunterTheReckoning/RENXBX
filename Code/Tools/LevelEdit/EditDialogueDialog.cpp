@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "editdialoguedialog.h"
+#include "LevelEdit.h"
+#include "EditDialogueDialog.h"
 #include "dialogue.h"
 #include "translatedb.h"
 #include "translateobj.h"
-#include "utils.h"
-#include "conversationpickerdialog.h"
+#include "Utils.h"
+#include "ConversationPickerDialog.h"
 #include "conversationmgr.h"
 #include "conversation.h"
 

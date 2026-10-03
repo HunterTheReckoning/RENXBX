@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "wwconfig.h"
-#include "wwconfigdlg.h"
-#include "videoconfigdialog.h"
-#include "audioconfigdialog.h"
-#include "performanceconfigdialog.h"
-#include "locale_api.h"
+#include "WWConfig.h"
+#include "WWConfigDlg.h"
+#include "VideoConfigDialog.h"
+#include "AudioConfigDialog.h"
+#include "PerformanceConfigDialog.h"
+#include "Locale_API.h"
 #include "wwconfig_ids.h"
 
 extern int GlobalExitValue;

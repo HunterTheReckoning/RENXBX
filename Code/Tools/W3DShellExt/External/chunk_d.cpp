@@ -37,9 +37,9 @@
 #include "w3d_file.h"
 #include "stdafx.h"
 #include "wdump.h"
-#include "Chunk_D.h"
+#include "chunk_d.h"
 #include "rawfilem.h"
-#include "finddialog.h"
+#include "FindDialog.h"
 
 #ifdef _DEBUG
 #undef THIS_FILE

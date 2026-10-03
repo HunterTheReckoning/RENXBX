@@ -35,8 +35,8 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "presetpropsheet.h"
-#include "parameterinheritancedialog.h"
+#include "PresetPropSheet.h"
+#include "ParameterInheritanceDialog.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

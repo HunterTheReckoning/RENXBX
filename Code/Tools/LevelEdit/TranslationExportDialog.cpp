@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "translationexportdialog.h"
+#include "LevelEdit.h"
+#include "TranslationExportDialog.h"
 #include "translatedb.h"
-#include "export.h"
-#include "utils.h"
+#include "Export.h"
+#include "Utils.h"
 #include "stringsmgr.h"
 
 

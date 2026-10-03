@@ -36,10 +36,10 @@
 
 
 #include "StdAfx.H"
-#include "EditorPhys.H"
+#include "EditorPhys.h"
 #include "persist.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
+#include "EditorChunkIDs.h"
 
 //
 // Persist factory for EditorPhysClass

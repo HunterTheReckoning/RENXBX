@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "NodeInfoPage.H"
+#include "LevelEdit.h"
+#include "NodeInfoPage.h"
 #include "NodeMgr.H"
 #include "rendobj.h"
-#include "node.h"
+#include "Node.h"
 
 
 #ifdef _DEBUG

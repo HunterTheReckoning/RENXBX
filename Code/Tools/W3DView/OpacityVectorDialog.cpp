@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "OpacityVectorDialog.h"
 #include "wwmath.h"
 #include "vector3.h"
 #include "sphereobj.h"
 #include "ringobj.h"
-#include "colorbar.h"
+#include "ColorBar.h"
 #include "euler.h"
 
 #ifdef _DEBUG

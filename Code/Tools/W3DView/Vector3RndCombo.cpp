@@ -33,7 +33,7 @@
 
 #include "StdAfx.H"
 #include "Vector3RndCombo.H"
-#include "V3_Rnd.H"
+#include "v3_rnd.h"
 
 const char * const RANDOMIZER_NAMES[Vector3Randomizer::CLASSID_MAXKNOWN] = 
 {

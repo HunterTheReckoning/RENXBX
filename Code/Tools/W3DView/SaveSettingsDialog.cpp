@@ -22,8 +22,8 @@
 #include "stdafx.h"
 #include "W3DView.h"
 #include "SaveSettingsDialog.h"
-#include "W3DViewDoc.H"
-#include "Utils.H"
+#include "W3DViewDoc.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

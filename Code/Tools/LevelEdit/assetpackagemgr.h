@@ -42,7 +42,7 @@
 #define __ASSETPACKAGEMGR_H
 
 #include "wwstring.h"
-#include "listtypes.h"
+#include "ListTypes.h"
 
 
 //////////////////////////////////////////////////////////////////////

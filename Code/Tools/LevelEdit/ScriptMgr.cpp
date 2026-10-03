@@ -36,8 +36,8 @@
 
 
 #include "stdafx.h"
-#include "scriptmgr.h"
-#include "..\..\scripts\ScriptEvents.H"
+#include "ScriptMgr.h"
+#include "../../Scripts/scriptevents.h"
 #include "EditScript.h"
 #include "Utils.h"
 #include "FileMgr.h"

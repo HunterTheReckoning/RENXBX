@@ -35,9 +35,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
-#include "pathfind.h"
-#include "pathfindportal.h"
-#include "path.h"
+#include "Pathfind.h"
+#include "PathfindPortal.h"
+#include "Path.h"
 #include "pscene.h"
 #include "boxrobj.h"
 #include "decophys.h"
@@ -45,7 +45,7 @@
 #include "assetmgr.h"
 #include "chunkio.h"
 #include "wwphysids.h"
-#include "pathdebugplotter.h"
+#include "PathDebugPlotter.h"
 #include "persistfactory.h"
 #include "waypath.h"
 #include "waypoint.h"

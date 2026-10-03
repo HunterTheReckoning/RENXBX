@@ -43,7 +43,7 @@
 #define __SCRIPT_MGR_H
 
 #include "vector.h"
-#include "listtypes.h"
+#include "ListTypes.h"
 
 
 // Forward declarations

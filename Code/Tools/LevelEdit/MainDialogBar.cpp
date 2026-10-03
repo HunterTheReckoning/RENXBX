@@ -21,13 +21,13 @@
 
 #include "stdafx.h"
 
-#include "leveledit.h"
-#include "maindialogbar.h"
-#include "presetslibform.h"
-#include "utils.h"
-#include "instancespage.h"
-#include "overlappage.h"
-#include "conversationpage.h"
+#include "LevelEdit.h"
+#include "MainDialogBar.h"
+#include "PresetsLibForm.h"
+#include "Utils.h"
+#include "InstancesPage.h"
+#include "OverlapPage.h"
+#include "ConversationPage.h"
 #include "mainfrm.h"
 #include "heightfieldpage.h"
 

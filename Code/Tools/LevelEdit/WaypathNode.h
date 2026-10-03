@@ -42,12 +42,12 @@
 #ifndef __WAYPATH_NODE_H
 #define __WAYPATH_NODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
 #include "vector3.h"
-#include "icons.h"
+#include "Icons.h"
 #include "decophys.h"
-#include "waypointnode.h"
+#include "WaypointNode.h"
 #include "waypath.h"
 
 

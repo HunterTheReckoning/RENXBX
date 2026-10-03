@@ -22,8 +22,8 @@
 #include "stdafx.h"
 #include "wdump.h"
 
-#include "wdumpDoc.h"
-#include "wdView.h"
+#include "wdumpdoc.h"
+#include "wdview.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "BackgroundObjectDialog.h"
-#include "AssetMgr.H"
-#include "Utils.H"
-#include "W3DViewDoc.H"
+#include "assetmgr.h"
+#include "Utils.h"
+#include "W3DViewDoc.h"
 
 
 #ifdef _DEBUG

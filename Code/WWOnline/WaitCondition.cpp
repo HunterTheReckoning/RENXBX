@@ -43,7 +43,7 @@
 
 #include "WaitCondition.h"
 #include "WOLString.h"
-#include <WWLib\Win.h>
+#include <wwlib/win.h>
 
 #ifdef _MSC_VER
 #pragma warning (push,3)

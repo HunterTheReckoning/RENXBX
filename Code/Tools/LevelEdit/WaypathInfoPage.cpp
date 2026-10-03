@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "waypathinfopage.h"
-#include "waypathnode.h"
-#include "waypointnode.h"
+#include "LevelEdit.h"
+#include "WaypathInfoPage.h"
+#include "WaypathNode.h"
+#include "WaypointNode.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

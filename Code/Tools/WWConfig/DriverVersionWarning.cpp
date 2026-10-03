@@ -20,15 +20,15 @@
 //
 
 #include "stdafx.h"
-#include "wwconfig.h"
-#include "videoconfigdialog.h"
+#include "WWConfig.h"
+#include "VideoConfigDialog.h"
 #include "DriverVersionWarning.h"
 #include "dx8caps.h"
 #include "cpudetect.h"
 #include "dx8wrapper.h"
 #include "registry.h"
 #include "formconv.h"
-#include "locale_api.h"
+#include "Locale_API.h"
 #include "wwconfig_ids.h"
 
 

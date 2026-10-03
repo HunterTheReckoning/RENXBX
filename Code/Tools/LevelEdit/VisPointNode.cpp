@@ -36,19 +36,19 @@
 
 
 #include "stdafx.h"
-#include "vispointnode.h"
-#include "sceneeditor.h"
-#include "collisiongroups.h"
+#include "VisPointNode.h"
+#include "SceneEditor.h"
+#include "CollisionGroups.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "preset.h"
+#include "EditorChunkIDs.h"
+#include "Preset.h"
 #include "chunkio.h"
 #include "visenum.h"
 #include "camera.h"
 #include "ccamera.h"
 #include "combat.h"
-#include "nodemgr.h"
-#include "modelutils.h"
+#include "NodeMgr.H"
+#include "ModelUtils.h"
 
 //////////////////////////////////////////////////////////////////////////////
 //	Persist factory

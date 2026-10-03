@@ -35,8 +35,8 @@
 *
 ******************************************************************************/
 
-#include "groupcontrol.h"
-#include "group.h"
+#include "GroupControl.h"
+#include "Group.h"
 #include "scripts.h"
 #include <assert.h>
 

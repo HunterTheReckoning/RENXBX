@@ -35,8 +35,8 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "stringpicker.h"
-#include "stringpickermaindialog.h"
+#include "StringPicker.h"
+#include "StringPickerMainDialog.h"
 #include "translatedb.h"
 #include "translateobj.h"
 

@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "GotoLocationDialog.h"
 #include "CameraMgr.h"
 #include "Utils.h"

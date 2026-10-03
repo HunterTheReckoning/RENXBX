@@ -37,7 +37,7 @@
 // Includes.
 #include "ReviewDialog.h"
 #include "Installer.h"
-#include "ListCtrl.h"
+#include "listctrl.h"
 #include "Translator.h"
 
 

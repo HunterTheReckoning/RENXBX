@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "specsheet.h"
+#include "LevelEdit.h"
+#include "SpecSheet.h"
 #include "definition.h"
-#include "parameterctrls.h"
+#include "ParameterCtrls.h"
 #include "wwstring.h"
 
 #ifdef _DEBUG

@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "editfilenamelistdialog.h"
-#include "utils.h"
-#include "filemgr.h"
+#include "LevelEdit.h"
+#include "EditFilenameListDialog.h"
+#include "Utils.h"
+#include "FileMgr.h"
 
 
 #ifdef _DEBUG

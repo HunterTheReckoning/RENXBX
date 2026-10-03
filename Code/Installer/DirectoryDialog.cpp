@@ -36,8 +36,8 @@
 
 // Includes.
 #include "DirectoryDialog.h"
-#include "DialogBase.h"
-#include "DialogText.h"
+#include "dialogbase.h"
+#include "dialogtext.h"
 #include "DirectoryBrowser.h"
 #include "ErrorHandler.h"
 #include "RegistryManager.h"

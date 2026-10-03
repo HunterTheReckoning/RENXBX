@@ -25,7 +25,7 @@
 // OutputFormClass.h : header file
 //
 
-#include "dockableform.h"
+#include "DockableForm.h"
 #include "resource.h"
 #include "textfile.h"
 

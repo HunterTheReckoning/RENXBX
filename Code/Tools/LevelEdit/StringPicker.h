@@ -42,7 +42,7 @@
 #ifndef __STRINGPICKER_H
 #define __STRINGPICKER_H
 
-#include "picker.h"
+#include "Picker.h"
 
 
 /////////////////////////////////////////////////////////////////////////

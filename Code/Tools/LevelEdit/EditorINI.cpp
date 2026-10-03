@@ -36,13 +36,13 @@
 
 
 #include "StdAfx.H"
-#include "EditorINI.H"
+#include "EditorINI.h"
 #include "b64pipe.h"
 #include "b64straw.h"
 #include "xstraw.h"
 #include "xpipe.h"
 #include "xstraw.h"
-#include "INISup.h"
+#include "inisup.h"
 
 ///////////////////////////////////////////////////////////////////
 //

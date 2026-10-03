@@ -36,7 +36,7 @@
 
 // Includes.
 #include "WhatToInstallDialog.h"
-#include "CheckBoxCtrl.h"
+#include "checkboxctrl.h"
 #include "Resource.h"
 #include "Installer.h"
 #include "Translator.h"

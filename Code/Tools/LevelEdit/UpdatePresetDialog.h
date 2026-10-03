@@ -39,7 +39,7 @@
 #endif // _MSC_VER > 1000
 
 #include "resource.h"
-#include "listtypes.h"
+#include "ListTypes.h"
 
 //
 // Forward delcarations

@@ -23,10 +23,10 @@
 //
 
 #include "stdafx.h"
-#include "colorpicker.h"
-#include "colorpickerdialogclass.h"
+#include "ColorPicker.h"
+#include "ColorPickerDialogClass.h"
 #include <math.h>
-#include "utils.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

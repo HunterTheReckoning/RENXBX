@@ -24,8 +24,8 @@
 
 #if 0
 
-#include "leveledit.h"
-#include "editremarkdialog.h"
+#include "LevelEdit.h"
+#include "EditRemarkDialog.h"
 #include "dialogue.h"
 #include "translatedb.h"
 #include "translateobj.h"

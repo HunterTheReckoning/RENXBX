@@ -42,11 +42,11 @@
 #ifndef __SOUND_NODE_H
 #define __SOUND_NODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
-#include "icons.h"
+#include "Icons.h"
 #include "decophys.h"
-#include "audiblesound.h"
+#include "AudibleSound.h"
 #include "AttenuationSphere.h"
 #include "definitionclassids.h"
 

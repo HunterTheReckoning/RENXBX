@@ -26,7 +26,7 @@
 //
 
 #include "Resource.h"
-#include "dockableform.h"
+#include "DockableForm.h"
 
 
 // Forward declaration

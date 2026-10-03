@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
-#include "ringcolorproppage.h"
-#include "opacitysettingsdialog.h"
-#include "colorutils.h"
-#include "utils.h"
+#include "W3DView.h"
+#include "RingColorPropPage.h"
+#include "OpacitySettingsDialog.h"
+#include "ColorUtils.h"
+#include "Utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

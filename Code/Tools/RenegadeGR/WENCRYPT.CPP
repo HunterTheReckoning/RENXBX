@@ -38,7 +38,7 @@ to work only with unsigned char buffers of least 15 bytes long.
 
 #include <malloc.h>
 #include <winsock2.h>
-#include "wencrypt.h"
+#include "WENCRYPT.H"
 #include "wnet/packet.h"
 
 /*extern "C" {

@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "GenerateVisDialog.h"
-#include "GeneratingVisDialog.H"
-#include "Utils.H"
-#include "SceneEditor.H"
+#include "GeneratingVisDialog.h"
+#include "Utils.h"
+#include "SceneEditor.h"
 #include "rendobj.h"
 #include "phys.h"
 

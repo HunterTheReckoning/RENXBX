@@ -36,8 +36,8 @@
 
 #include "DlgMessageBox.h"
 #include "Resource.h"
-#include <WWTranslateDB\TranslateDB.h>
-#include "WWDebug.h"
+#include <wwtranslatedb/translatedb.h>
+#include "wwdebug.h"
 
 //
 // Class statics

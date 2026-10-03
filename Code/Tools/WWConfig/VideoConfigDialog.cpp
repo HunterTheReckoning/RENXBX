@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "wwconfig.h"
-#include "videoconfigdialog.h"
+#include "WWConfig.h"
+#include "VideoConfigDialog.h"
 #include "ww3d.h"
 #include "assetmgr.h"
-#include "locale_api.h"
+#include "Locale_API.h"
 #include "wwconfig_ids.h"
 #include	"assetstatus.h"
 

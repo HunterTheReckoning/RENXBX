@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "LightSolveProgressDialog.h"
-#include "utils.h"
-#include "sceneeditor.h"
+#include "Utils.h"
+#include "SceneEditor.h"
 #include "lightsolvecontext.h"
 #include "lightsolveprogress.h"
 #include "phys.h"

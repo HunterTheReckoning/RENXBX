@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "mixviewer.h"
+#include "MixViewer.h"
 #include "MakeMixFileDialog.h"
 #include "wwstring.h"
 #include "MainFrm.h"

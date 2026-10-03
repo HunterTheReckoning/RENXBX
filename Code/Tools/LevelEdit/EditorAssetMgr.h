@@ -43,8 +43,8 @@
 #ifndef __LEVELEDITASSETMGR_H
 #define __LEVELEDITASSETMGR_H
 
-#include "AssetMgr.H"
-#include "FFactory.H"
+#include "assetmgr.h"
+#include "ffactory.h"
 
 /////////////////////////////////////////////////////////////////////////////
 //

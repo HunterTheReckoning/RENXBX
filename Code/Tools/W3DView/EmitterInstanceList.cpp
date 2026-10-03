@@ -32,8 +32,8 @@
 
 
 #include "StdAfx.H"
-#include "EmitterInstanceList.H"
-#include "Utils.H"
+#include "EmitterInstanceList.h"
+#include "Utils.h"
 
 /////////////////////////////////////////////////////////////////////
 //

@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "TerrainLODPage.h"
-#include "LODSettingsDialog.H"
+#include "LODSettingsDialog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

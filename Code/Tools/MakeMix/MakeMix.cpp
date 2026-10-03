@@ -21,7 +21,7 @@
 
 // Includes.
 #include "stdafx.h"
-#include "MixFile.h"
+#include "mixfile.h"
 
 
 // Private functions.

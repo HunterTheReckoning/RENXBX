@@ -34,7 +34,7 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "consolemode.h"
+#include "ConsoleMode.h"
 #include "consolefunction.h"
 #include "wwdebug.h"
 #include "conio.h"
@@ -51,7 +51,7 @@
 #include "init.h"
 #include "gamesideservercontrol.h"
 #include "specialbuilds.h"
-#include "serversettings.h"
+#include "ServerSettings.h"
 
 /*
 ** Single instance of console.

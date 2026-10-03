@@ -42,16 +42,16 @@
 #ifndef __PARAMETER_CTRLS_H
 #define __PARAMETER_CTRLS_H
 
-#include "presetpicker.h"
-#include "filepicker.h"
-#include "presetpicker.h"
-#include "stringpicker.h"
+#include "PresetPicker.h"
+#include "FilePicker.h"
+#include "PresetPicker.h"
+#include "StringPicker.h"
 #include "parameter.h"
 #include "simpleparameter.h"
 #include "ntree.h"
 #include "bittype.h"
 #include "definitionclassids.h"
-#include "icons.h"
+#include "Icons.h"
 #include "combatchunkid.h"
 
 

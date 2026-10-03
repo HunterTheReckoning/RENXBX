@@ -37,15 +37,15 @@
 
 #include "stdafx.h"
 
-#include "leveledit.h"
-#include "conversationpage.h"
-#include "nodemgr.h"
-#include "node.h"
-#include "icons.h"
+#include "LevelEdit.h"
+#include "ConversationPage.h"
+#include "NodeMgr.H"
+#include "Node.h"
+#include "Icons.h"
 #include "conversation.h"
 #include "conversationmgr.h"
-#include "editconversationdialog.h"
-#include "conversationeditormgr.h"
+#include "EditConversationDialog.h"
+#include "ConversationEditorMgr.h"
 
 
 #ifdef _DEBUG

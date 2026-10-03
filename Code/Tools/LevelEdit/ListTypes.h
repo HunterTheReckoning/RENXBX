@@ -42,7 +42,7 @@
 #ifndef __LISTTYPES_H
 #define __LISTTYPES_H
 
-#include "UniqueList.H"
+#include "UniqueList.h"
 
 //////////////////////////////////////////////////////////////////////////
 //	Typedefs and structs

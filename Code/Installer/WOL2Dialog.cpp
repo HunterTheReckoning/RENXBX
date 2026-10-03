@@ -37,7 +37,7 @@
 // Includes.
 #include "WOL2Dialog.h"
 #include "Installer.h"
-#include "ListCtrl.h"
+#include "listctrl.h"
 #include "Resource.h"
 #include "Translator.h"
 

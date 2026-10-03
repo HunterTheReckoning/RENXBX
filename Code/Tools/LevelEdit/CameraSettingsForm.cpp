@@ -20,10 +20,10 @@
 //
 
 #include "StdAfx.h"
-#include "leveledit.h"
-#include "CameraSettingsForm.H"
-#include "Utils.H"
-#include "CameraMgr.H"
+#include "LevelEdit.h"
+#include "camerasettingsform.h"
+#include "Utils.h"
+#include "CameraMgr.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

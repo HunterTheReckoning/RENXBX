@@ -34,8 +34,8 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include <Gamespy\gs_patch_usage.h>
-#include <Gamespy\gcdkeyserver.h>
+#include <Gamespy/gs_patch_usage.h>
+#include <Gamespy/gcdkeyserver.h>
 #include "specialbuilds.h"
 #include "dlgcncteaminfo.h"
 #include "resource.h"
@@ -58,22 +58,22 @@
 #include "vehicle.h"
 #include "assets.h"
 #include "translatedb.h"
-#include "WOLGMode.h"
-#include <WWOnline\WOLUser.h>
+#include "wolgmode.h"
+#include <WWOnline/WOLUser.h>
 #include "string_ids.h"
 #include "mousemgr.h"
 #include "directinput.h"
 #include "GameSpy_QnR.h"
 #include "verchk.h"
 #include "buildnum.h"
-#include "serversettings.h"
-#include "consolemode.h"
+#include "ServerSettings.h"
+#include "ConsoleMode.h"
 #include "useroptions.h"
 #include "gdcnc.h"
 #include "rawfile.h"
 #include "shellapi.h"
 #include "netutil.h"
-#include "gamespybanlist.h"
+#include "GameSpyBanList.h"
 
 CGameSpyQnR GameSpyQnR;
 

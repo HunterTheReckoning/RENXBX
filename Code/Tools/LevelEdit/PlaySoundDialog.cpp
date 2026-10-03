@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "PlaySoundDialog.h"
-#include "Utils.H"
-#include "AudibleSound.H"
-#include "FileMgr.H"
+#include "Utils.h"
+#include "AudibleSound.h"
+#include "FileMgr.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

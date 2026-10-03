@@ -29,9 +29,9 @@
 #include <afxext.h>
 #endif
 
-#include "nodetypes.h"
+#include "NodeTypes.h"
 #include "resource.h"
-#include "dialogtoolbar.h"
+#include "DialogToolbar.h"
 #include "bittype.h"
 #include "vector.h"
 

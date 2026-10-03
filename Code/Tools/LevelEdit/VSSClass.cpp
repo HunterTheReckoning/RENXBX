@@ -37,9 +37,9 @@
 
 #include "stdafx.h"
 
-#include "vssclass.h"
-#include "utils.h"
-#include "filemgr.h"
+#include "VSSClass.h"
+#include "Utils.h"
+#include "FileMgr.h"
 #include "oleauto.h"
 #include "afxdisp.h"
 #include "rawfile.h"

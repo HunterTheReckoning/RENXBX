@@ -45,7 +45,7 @@
 #include "saveloadsubsystem.h"
 #include "vector.h"
 #include "bittype.h"
-#include "editorchunkids.h"
+#include "EditorChunkIDs.h"
 
 
 //////////////////////////////////////////////////////////////////////////

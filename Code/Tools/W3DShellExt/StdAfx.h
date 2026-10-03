@@ -47,7 +47,7 @@
 #include "BitType.h"
 #include "vector3i.h"
 #include "w3d_file.h"
-#include "IOStruct.h"
+#include "iostruct.h"
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.

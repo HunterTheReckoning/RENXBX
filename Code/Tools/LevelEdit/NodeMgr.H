@@ -45,8 +45,8 @@
 #include "saveloadsubsystem.h"
 #include "vector.h"
 #include "bittype.h"
-#include "nodetypes.h"
-#include "listtypes.h"
+#include "NodeTypes.h"
+#include "ListTypes.h"
 
 
 //////////////////////////////////////////////////////////////////////////

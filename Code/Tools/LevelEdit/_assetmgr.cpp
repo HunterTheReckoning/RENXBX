@@ -37,7 +37,7 @@
 
 
 #include "StdAfx.h"
-#include "_AssetMgr.H"
-#include "EditorAssetMgr.H"
+#include "_assetmgr.h"
+#include "EditorAssetMgr.h"
 
 EditorAssetMgrClass *_pThe3DAssetManager;

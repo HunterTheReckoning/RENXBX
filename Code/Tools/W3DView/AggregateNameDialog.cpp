@@ -32,9 +32,9 @@
 
 
 #include "StdAfx.H"
-#include "W3DView.H"
-#include "AggregateNameDialog.H"
-#include "W3D_File.H"
+#include "W3DView.h"
+#include "AggregateNameDialog.h"
+#include "w3d_file.h"
 
 
 #ifdef _DEBUG

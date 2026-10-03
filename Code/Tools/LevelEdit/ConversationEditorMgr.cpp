@@ -36,17 +36,17 @@
 
 
 #include "stdafx.h"
-#include "conversationeditormgr.h"
-#include "filelocations.h"
-#include "filemgr.h"
+#include "ConversationEditorMgr.h"
+#include "FileLocations.h"
+#include "FileMgr.h"
 #include "assetdatabase.h"
 #include "chunkio.h"
 #include "rawfile.h"
 #include "saveload.h"
 #include "translatedb.h"
 #include "conversationmgr.h"
-#include "conversationpage.h"
-#include "utils.h"
+#include "ConversationPage.h"
+#include "Utils.h"
 
 
 /////////////////////////////////////////////////////////////////////////

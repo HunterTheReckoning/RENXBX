@@ -49,7 +49,7 @@
 #include "obbox.h"
 #include "wwmath.h"
 #include "colmath.h"
-#include "p_timer.h"
+#include "P_timer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

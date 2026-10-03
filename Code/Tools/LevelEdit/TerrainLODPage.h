@@ -24,7 +24,7 @@
 #endif // _MSC_VER > 1000
 
 
-#include "DockableForm.H"
+#include "DockableForm.h"
 #include "Resource.H"
 #include "Vector.H"
 

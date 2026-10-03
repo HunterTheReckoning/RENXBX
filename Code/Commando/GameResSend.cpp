@@ -33,20 +33,20 @@
 ******************************************************************************/
 
 #include "GameResSend.h"
-#include "GameData.h"
-#include "Player.h"
-#include "consolemode.h"
-#include <Combat\PlayerType.h>
-#include <WWOnline\GameResPacket.h>
-#include <WWOnline\WOLSession.h>
-#include <WWOnline\WOLProduct.h>
-#include <WWOnline\WOLUser.h>
-#include <WWLib\CPUDetect.h>
-#include <WWLib\VerChk.h>
-#include <WWLib\CPUDetect.h>
-#include <WWLib\global.h>
-#include <WWLib\md5.h>
-#include <WW3D2\DX8Wrapper.h>
+#include "gamedata.h"
+#include "player.h"
+#include "ConsoleMode.h"
+#include <Combat/playertype.h>
+#include <WWOnline/GameResPacket.h>
+#include <WWOnline/WOLSession.h>
+#include <WWOnline/WOLProduct.h>
+#include <WWOnline/WOLUser.h>
+#include <wwlib/cpudetect.h>
+#include <wwlib/verchk.h>
+#include <wwlib/cpudetect.h>
+#include <wwlib/global.h>
+#include <wwlib/md5.h>
+#include <ww3d2/dx8wrapper.h>
 #include <windows.h>
 
 using namespace WWOnline;

@@ -36,22 +36,22 @@
 
 
 #include "stdafx.h"
-#include "buildingnode.h"
+#include "BuildingNode.h"
 #include "buildingchildnode.h"
-#include "sceneeditor.h"
-#include "filemgr.h"
+#include "SceneEditor.h"
+#include "FileMgr.h"
 #include "_assetmgr.h"
-#include "editorassetmgr.h"
+#include "EditorAssetMgr.h"
 #include "w3d_file.h"
-#include "cameramgr.h"
-#include "collisiongroups.h"
+#include "CameraMgr.h"
+#include "CollisionGroups.h"
 #include "persistfactory.h"
-#include "preset.h"
-#include "editorchunkids.h"
-#include "modelutils.h"
+#include "Preset.h"
+#include "EditorChunkIDs.h"
+#include "ModelUtils.h"
 #include "vehiclefactorygameobj.h"
 #include "refinerygameobj.h"
-#include "nodemgr.h"
+#include "NodeMgr.H"
 
 
 //////////////////////////////////////////////////////////////////////////////

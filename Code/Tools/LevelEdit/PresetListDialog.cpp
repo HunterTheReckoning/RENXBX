@@ -20,15 +20,15 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "PresetListDialog.h"
-#include "presetmgr.h"
+#include "PresetMgr.h"
 #include "definition.h"
 #include "definitionfactory.h"
 #include "definitionfactorymgr.h"
-#include "icons.h"
-#include "utils.h"
-#include "preset.h"
+#include "Icons.h"
+#include "Utils.h"
+#include "Preset.h"
 #include "persistfactory.h"
 
 

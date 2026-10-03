@@ -42,10 +42,10 @@
 #endif // _MSC_VER > 1000
 
 #include "Vector.H"
-#include "RendObj.H"
-#include "Utils.H"
+#include "rendobj.h"
+#include "Utils.h"
 #include "Resource.H"
-#include "DialogToolbar.H"
+#include "DialogToolbar.h"
 #include "texture.h"
 
 // Forward declarations

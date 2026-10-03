@@ -44,7 +44,7 @@
 
 #define NOMINMAX
 
-#include "winmain.h"
+#include "WINMAIN.H"
 #include <sr.hpp>
 #include "win.h"
 #include "wwmouse.h"

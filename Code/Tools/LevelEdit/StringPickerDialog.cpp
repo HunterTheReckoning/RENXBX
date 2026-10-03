@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "stringpickerdialog.h"
-#include "stringscategoryviewdialog.h"
+#include "LevelEdit.h"
+#include "StringPickerDialog.h"
+#include "StringsCategoryViewDialog.h"
 #include "translatedb.h"
 #include "translateobj.h"
-#include "utils.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

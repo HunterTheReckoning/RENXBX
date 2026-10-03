@@ -25,7 +25,7 @@
 
 #include "resource.h"
 #include "vector.h"
-#include "stringscategoryviewdialog.h"
+#include "StringsCategoryViewDialog.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

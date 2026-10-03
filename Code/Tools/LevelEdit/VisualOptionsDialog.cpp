@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "VisualOptionsDialog.h"
-#include "Utils.H"
-#include "WW3D.H"
+#include "Utils.h"
+#include "ww3d.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

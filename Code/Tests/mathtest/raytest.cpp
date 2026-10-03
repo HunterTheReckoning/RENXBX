@@ -44,7 +44,7 @@
 #include "aabox.h"
 #include "obbox.h"
 #include "colmath.h"
-#include "p_timer.h"
+#include "P_timer.h"
 #include <stdio.h>
 
 

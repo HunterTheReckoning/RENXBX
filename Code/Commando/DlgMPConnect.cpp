@@ -34,13 +34,13 @@
 *
 ******************************************************************************/
 
-#include "dlgmpconnect.h"
+#include "DlgMPConnect.h"
 #include "gamedata.h"
 #include "gameinitmgr.h"
 #include "campaign.h"
 #include "cnetwork.h"
 #include "resource.h"
-#include <wwdebug\wwdebug.h>
+#include <wwdebug/wwdebug.h>
 #include "dlgmainmenu.h"
 #include "gamespyadmin.h"
 #include "specialbuilds.h"

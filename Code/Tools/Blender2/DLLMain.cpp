@@ -16,7 +16,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "blender2.h"
+#include "Blender2.h"
 
 HINSTANCE hInstance;
 

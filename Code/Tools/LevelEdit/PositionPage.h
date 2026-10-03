@@ -30,7 +30,7 @@
 
 
 class NodeClass;
-#include "DockableForm.H"
+#include "DockableForm.h"
 
 
 //////////////////////////////////////////////////////////

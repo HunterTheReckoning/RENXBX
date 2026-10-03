@@ -20,14 +20,14 @@
 //
 
 #include "StdAfx.H"
-#include "W3DView.H"
-#include "BoneMgrDialog.H"
-#include "HTree.H"
-#include "AssetMgr.H"
-#include "Utils.H"
+#include "W3DView.h"
+#include "BoneMgrDialog.h"
+#include "htree.h"
+#include "assetmgr.h"
+#include "Utils.h"
 #include "MainFrm.H"
-#include "W3DViewDoc.H"
-#include "DataTreeView.H"
+#include "W3DViewDoc.h"
+#include "DataTreeView.h"
 //#include "HModel.H"
 
 #ifdef _DEBUG

@@ -41,7 +41,7 @@
 #include "_viewpt.h"
 #include "_scenes.h"
 #include "ww3d.h"
-#include "winmain.h"
+#include "WINMAIN.H"
 
 bool Init(void)
 {

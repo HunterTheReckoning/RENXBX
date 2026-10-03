@@ -40,8 +40,8 @@
 // NodeScriptsPropPage.h : header file
 //
 
-#include "dockableform.h"
-#include "listtypes.h"
+#include "DockableForm.h"
+#include "ListTypes.h"
 #include "resource.h"
 
 

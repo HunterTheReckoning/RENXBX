@@ -42,11 +42,11 @@
 #ifndef __BUILDINGCHILDNODE_H
 #define __BUILDINGCHILDNODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
-#include "icons.h"
+#include "Icons.h"
 #include "decophys.h"
-#include "buildingnode.h"
+#include "BuildingNode.h"
 
 
 ////////////////////////////////////////////////////////////////////////////

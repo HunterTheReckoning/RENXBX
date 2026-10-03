@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "Vector3Dialog.h"
-#include "utils.h"
+#include "Utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

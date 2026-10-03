@@ -22,8 +22,8 @@
 #include "stdafx.h"
 #include "MixViewer.h"
 
-#include "mixviewerdoc.h"
-#include "mixviewerview.h"
+#include "MixViewerDoc.h"
+#include "MixViewerView.h"
 #include "ffactory.h"
 #include "mixfile.h"
 

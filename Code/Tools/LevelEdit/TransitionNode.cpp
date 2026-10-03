@@ -36,24 +36,24 @@
 
 
 #include "stdafx.h"
-#include "transitionnode.h"
-#include "sceneeditor.h"
+#include "TransitionNode.h"
+#include "SceneEditor.h"
 
-#include "filemgr.h"
+#include "FileMgr.h"
 #include "_assetmgr.h"
-#include "editorassetmgr.h"
+#include "EditorAssetMgr.h"
 #include "w3d_file.h"
-#include "cameramgr.h"
-#include "collisiongroups.h"
+#include "CameraMgr.h"
+#include "CollisionGroups.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "preset.h"
+#include "EditorChunkIDs.h"
+#include "Preset.h"
 #include "spawn.h"
 #include "physicalgameobj.h"
-#include "presetmgr.h"
+#include "PresetMgr.h"
 #include "decophys.h"
-#include "nodemgr.h"
-#include "modelutils.h"
+#include "NodeMgr.H"
+#include "ModelUtils.h"
 
 
 //////////////////////////////////////////////////////////////////////////////

@@ -25,8 +25,8 @@
 // LevelSettingsDialog.h : header file
 //
 
-#include "filepicker.h"
-#include "stringpicker.h"
+#include "FilePicker.h"
+#include "StringPicker.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

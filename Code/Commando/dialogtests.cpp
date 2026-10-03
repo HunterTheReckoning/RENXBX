@@ -88,8 +88,8 @@
 #include "gamespyadmin.h"
 #include "dlgmpwolmain.h"
 #include "specialbuilds.h"
-#include "gamespy_qnr.h"
-#include <WWUI\ImageCtrl.h>
+#include "GameSpy_QnR.h"
+#include <wwui/imagectrl.h>
 #include "bandwidthcheck.h"
 
 

@@ -20,14 +20,14 @@
 //
 
 #include "stdafx.h"
-#include "weatherproppage.h"
+#include "WeatherPropPage.h"
 #include "backgroundmgr.h"
-#include "leveledit.h"
-#include "sceneeditor.h"
+#include "LevelEdit.h"
+#include "SceneEditor.h"
 #include "phys.h"
-#include "utils.h"
-#include "weathermgr.h"
-#include "colorpickerdialogclass.h"
+#include "Utils.h"
+#include "WeatherMgr.h"
+#include "ColorPickerDialogClass.h"
 
 
 #ifdef _DEBUG

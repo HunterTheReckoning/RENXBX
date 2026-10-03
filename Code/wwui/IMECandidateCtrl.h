@@ -19,10 +19,10 @@
 #ifndef __IMECANDIDATECTRL_H__
 #define __IMECANDIDATECTRL_H__
 
-#include "DialogControl.h"
-#include "ScrollBarCtrl.h"
-#include "Render2D.h"
-#include "Render2DSentence.h"
+#include "dialogcontrol.h"
+#include "scrollbarctrl.h"
+#include "render2d.h"
+#include "render2dsentence.h"
 #include "Vector.h"
 
 namespace IME

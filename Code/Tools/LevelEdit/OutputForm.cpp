@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "outputform.h"
-#include "utils.h"
+#include "LevelEdit.h"
+#include "OutputForm.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

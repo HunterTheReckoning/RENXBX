@@ -40,15 +40,15 @@
 #include "translatedb.h"
 #include "string_ids.h"
 #include "dialogmgr.h"
-#include "dlgmessagebox.h"
-#include "dlgdownload.h"
-#include "dlgquickmatch.h"
+#include "DlgMessageBox.h"
+#include "DlgDownload.h"
+#include "DlgQuickmatch.h"
 #include "dlgmpwolgamelist.h"
 #include "mpsettingsmgr.h"
 #include "dlgsidebarhelp.h"
 #include "WOLLoginProfile.h"
 #include "bandwidthcheck.h"
-#include "autostart.h"
+#include "AutoStart.h"
 
 ////////////////////////////////////////////////////////////////
 //	Static member initialization

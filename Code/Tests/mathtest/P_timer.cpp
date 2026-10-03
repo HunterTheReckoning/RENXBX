@@ -35,7 +35,7 @@
  * Functions:                                                                                  * 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "p_timer.h"
+#include "P_timer.h"
 
 #ifndef __WATCOMC__
 unsigned Get_CPU_Clock ( void )

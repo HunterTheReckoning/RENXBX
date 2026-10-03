@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "gotoobjectdialog.h"
-#include "utils.h"
-#include "node.h"
-#include "cameramgr.h"
+#include "LevelEdit.h"
+#include "GotoObjectDialog.h"
+#include "Utils.h"
+#include "Node.h"
+#include "CameraMgr.h"
 
 
 #ifdef _DEBUG

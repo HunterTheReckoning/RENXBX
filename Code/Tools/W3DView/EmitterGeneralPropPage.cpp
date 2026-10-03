@@ -20,14 +20,14 @@
 //
 
 #include "StdAfx.H"
-#include "W3DView.H"
-#include "EmitterGeneralPropPage.H"
-#include "EmitterPropertySheet.H"
-#include "Part_Emt.H"
-#include "Utils.H"
+#include "W3DView.h"
+#include "EmitterGeneralPropPage.h"
+#include "EmitterPropertySheet.h"
+#include "part_emt.h"
+#include "Utils.h"
 #include "texture.h"
-#include "Shader.H"
-#include "EmitterInstanceList.H"
+#include "shader.h"
+#include "EmitterInstanceList.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

@@ -42,8 +42,8 @@
 #ifndef __DUMMY_OBJECT_NODE_H
 #define __DUMMY_OBJECT_NODE_H
 
-#include "node.h"
-#include "icons.h"
+#include "Node.h"
+#include "Icons.h"
 #include "decophys.h"
 
 

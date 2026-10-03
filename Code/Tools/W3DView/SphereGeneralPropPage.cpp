@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "SphereGeneralPropPage.h"
-#include "utils.h"
+#include "Utils.h"
 #include "assetmgr.h"
 #include "texture.h"
 

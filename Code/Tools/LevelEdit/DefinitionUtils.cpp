@@ -43,11 +43,11 @@
 #include "phys.h"
 #include "Utils.h"
 #include "physicalgameobj.h"
-#include "tiledefinition.h"
+#include "TileDefinition.h"
 #include "combatchunkid.h"
 #include "dialogue.h"
 #include "soldier.h"
-#include "presetmgr.h"
+#include "PresetMgr.h"
 
 
 ///////////////////////////////////////////////////////////////////////

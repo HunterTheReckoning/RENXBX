@@ -32,10 +32,10 @@
 
 
 #include "StdAfx.H"
-#include "LevelEdit.H"
-#include "LightSettingsPage.H"
-#include "Utils.H"
-#include "ColorSelectionDialog.H"
+#include "LevelEdit.h"
+#include "LightSettingsPage.h"
+#include "Utils.h"
+#include "ColorSelectionDialog.h"
 
 
 #ifdef _DEBUG

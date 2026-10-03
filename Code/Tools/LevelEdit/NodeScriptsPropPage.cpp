@@ -32,12 +32,12 @@
 
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "nodescriptsproppage.h"
-#include "editscript.h"
-#include "scriptmgr.h"
-#include "utils.h"
-#include "scripteditdialog.h"
+#include "LevelEdit.h"
+#include "NodeScriptsPropPage.h"
+#include "EditScript.h"
+#include "ScriptMgr.h"
+#include "Utils.h"
+#include "ScriptEditDialog.h"
 #include "parameter.h"
 
 

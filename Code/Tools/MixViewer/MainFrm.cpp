@@ -20,19 +20,19 @@
 //
 
 #include "stdafx.h"
-#include "mixviewer.h"
+#include "MixViewer.h"
 #include "mainfrm.h"
 #include "wwstring.h"
 #include "duplicatecombiner.h"
 #include "wwfile.h"
 #include "ffactory.h"
 #include "mixfile.h"
-#include "avassetsuck.h"
-#include "mixpatchmaker.h"
+#include "AVAssetSuck.h"
+#include "MixPatchMaker.h"
 #include "ffactory.h"
 #include "mixfile.h"
-#include "mixviewerdoc.h"
-#include "makemixfiledialog.h"
+#include "MixViewerDoc.h"
+#include "MakeMixFileDialog.h"
 
 
 #ifdef _DEBUG

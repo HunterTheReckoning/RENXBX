@@ -20,15 +20,15 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "stringscategoryviewdialog.h"
+#include "LevelEdit.h"
+#include "StringsCategoryViewDialog.h"
 #include "translateobj.h"
 #include "translatedb.h"
 #include "tdbcategory.h"
-#include "editstringdialog.h"
-#include "editstringtwiddlerdialog.h"
-#include "utils.h"
-#include "stringlibrarydialog.h"
+#include "EditStringDialog.h"
+#include "EditStringTwiddlerDialog.h"
+#include "Utils.h"
+#include "StringLibraryDialog.h"
 #include "stringtwiddler.h"
 
 

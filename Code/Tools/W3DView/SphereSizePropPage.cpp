@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
-#include "spheresizeproppage.h"
-#include "colorutils.h"
-#include "utils.h"
-#include "scaledialog.h"
+#include "W3DView.h"
+#include "SphereSizePropPage.h"
+#include "ColorUtils.h"
+#include "Utils.h"
+#include "ScaleDialog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

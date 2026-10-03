@@ -20,14 +20,14 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "exportpresetsdialog.h"
-#include "presetmgr.h"
-#include "nodecategories.h"
-#include "utils.h"
+#include "LevelEdit.h"
+#include "ExportPresetsDialog.h"
+#include "PresetMgr.h"
+#include "NodeCategories.h"
+#include "Utils.h"
 #include "definitionfactory.h"
 #include "definitionfactorymgr.h"
-#include "presetexport.h"
+#include "PresetExport.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

@@ -37,10 +37,10 @@
 // Includes.
 #include "StdAfx.h"
 #include "LightMap.h"
-#include "LightmapPacker.h"
+#include "LightMapPacker.h"
 #include "OptionsDialog.h"
 #include "StringBuilder.h"
-#include "Targa.h"
+#include "TARGA.H"
 #include "TextureNameNode.h"
 #include "srFilter.hpp"
 #include <direct.h>

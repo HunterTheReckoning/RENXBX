@@ -33,7 +33,7 @@
 #endif
 
 class ZoneInstanceClass;
-#include "DockableForm.H"
+#include "DockableForm.h"
 
 
 //////////////////////////////////////////////////////////

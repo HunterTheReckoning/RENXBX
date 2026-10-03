@@ -36,8 +36,8 @@
 
 #include <limits.h>
 #include "PerlinNoise.h"
-#include "Random.h"
-#include "WWMath.h"
+#include "random.h"
+#include "wwmath.h"
 
 // Static data.
 float PerlinNoise::_NoiseTable [NOISE_TABLE_SIZE];

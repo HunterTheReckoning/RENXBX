@@ -36,15 +36,15 @@
 
 
 #include "stdafx.h"
-#include "undomgr.h"
-#include "utils.h"
-#include "nodemgr.h"
-#include "node.h"
-#include "leveleditdoc.h"
-#include "leveleditview.h"
-#include "mover.h"
-#include "zonenode.h"
-#include "damagezonenode.h"
+#include "UndoMgr.h"
+#include "Utils.h"
+#include "NodeMgr.H"
+#include "Node.h"
+#include "LevelEditDoc.h"
+#include "LevelEditView.h"
+#include "Mover.h"
+#include "ZoneNode.h"
+#include "DamageZoneNode.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////////

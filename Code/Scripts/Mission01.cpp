@@ -37,8 +37,8 @@
 
 #include "scripts.h"
 #include <string.h>
-#include "toolkit.h"
-#include "mission1.h"
+#include "Toolkit.h"
+#include "Mission1.h"
 
 DECLARE_SCRIPT(M01_Mission_Controller_JDG, "")//this guys ID number is 100376
 {

@@ -36,11 +36,11 @@
 
 
 #include "stdafx.h"
-#include "grabhandles.h"
-#include "sceneeditor.h"
-#include "node.h"
-#include "hittestinfo.h"
-#include "utils.h"
+#include "GrabHandles.h"
+#include "SceneEditor.h"
+#include "Node.h"
+#include "HitTestInfo.h"
+#include "Utils.h"
 #include "mousemgr.h"
 
 

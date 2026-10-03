@@ -42,12 +42,12 @@
 #ifndef __BUILDING_NODE_H
 #define __BUILDING_NODE_H
 
-#include "objectnode.h"
+#include "ObjectNode.h"
 #include "vector.h"
-#include "icons.h"
+#include "Icons.h"
 #include "decophys.h"
 #include "building.h"
-#include "editorline.h"
+#include "EditorLine.h"
 
 
 ////////////////////////////////////////////////////////////////////////////

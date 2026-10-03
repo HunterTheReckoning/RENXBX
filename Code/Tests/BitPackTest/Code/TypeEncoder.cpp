@@ -33,8 +33,8 @@
 *
 ****************************************************************************/
 
-#include "typeencoder.h"
-#include "bitpacker.h"
+#include "TypeEncoder.h"
+#include "BitPacker.h"
 #include <limits.h>
 #include <stdlib.h>
 #include <assert.h>

@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "wwconfig.h"
-#include "audioconfigdialog.h"
-#include "wwaudio.h"
-#include "locale_api.h"
+#include "WWConfig.h"
+#include "AudioConfigDialog.h"
+#include "WWAudio.h"
+#include "Locale_API.h"
 #include "wwconfig_ids.h"
-#include "..\..\combat\specialbuilds.h"
+#include "../../Combat/specialbuilds.h"
 
 
 

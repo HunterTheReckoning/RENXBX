@@ -32,11 +32,11 @@
 
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "includefilesdialog.h"
-#include "filemgr.h"
-#include "icons.h"
-#include "utils.h"
+#include "LevelEdit.h"
+#include "IncludeFilesDialog.h"
+#include "FileMgr.h"
+#include "Icons.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

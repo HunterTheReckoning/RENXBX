@@ -47,7 +47,7 @@
 #include "bittype.h"
 #include "w3d_file.h"
 #include "chunkio.h"
-#include "progress.h"
+#include "PROGRESS.H"
 #include "nodelist.h"
 #include "util.h"
 #include "w3dmtl.h"

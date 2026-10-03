@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "SelectPresetDialog.h"
-#include "presetmgr.h"
-#include "preset.h"
-#include "icons.h"
-#include "nodecategories.h"
+#include "PresetMgr.h"
+#include "Preset.h"
+#include "Icons.h"
+#include "NodeCategories.h"
 #include "definitionfactory.h"
 #include "definitionfactorymgr.h"
 

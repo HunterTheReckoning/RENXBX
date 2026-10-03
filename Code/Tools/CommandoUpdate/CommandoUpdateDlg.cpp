@@ -22,7 +22,7 @@
 #include "stdafx.h"
 #include "CommandoUpdate.h"
 #include "CommandoUpdateDlg.h"
-#include "FileCopyDialog.H"
+#include "FileCopyDialog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

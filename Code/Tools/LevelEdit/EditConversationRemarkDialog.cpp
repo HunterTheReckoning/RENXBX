@@ -20,8 +20,8 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "editconversationremarkdialog.h"
+#include "LevelEdit.h"
+#include "EditConversationRemarkDialog.h"
 #include "stringsmgr.h"
 #include "translatedb.h"
 #include "translateobj.h"

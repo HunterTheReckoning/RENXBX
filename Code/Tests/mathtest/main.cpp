@@ -48,7 +48,7 @@
 #include <math.h>
 #include <assert.h>
 
-#include "p_timer.h"
+#include "P_timer.h"
 #include "output.h"
 #include "odetest.h"
 #include "raytest.h"

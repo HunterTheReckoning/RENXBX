@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "VisStatsDialog.h"
-#include "cameramgr.h"
-#include "utils.h"
+#include "CameraMgr.h"
+#include "Utils.h"
 #include "pscene.h"
 #include "staticphys.h"
 

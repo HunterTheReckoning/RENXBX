@@ -22,8 +22,8 @@
 #include "resource.h"
 #include <stdio.h>
 #include "wdump.h"
-#include "WdumpDoc.h"
-#include "W3D_File.h"
+#include "wdumpdoc.h"
+#include "w3d_file.h"
 #include <commctrl.h>
 
 

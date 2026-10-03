@@ -42,10 +42,10 @@
 #ifndef __DAMAGE_ZONE_NODE_H
 #define __DAMAGE_ZONE_NODE_H
 
-#include "objectnode.h"
-#include "icons.h"
+#include "ObjectNode.h"
+#include "Icons.h"
 #include "spawn.h"
-#include "grabhandles.h"
+#include "GrabHandles.h"
 
 
 ////////////////////////////////////////////////////////////////////////////

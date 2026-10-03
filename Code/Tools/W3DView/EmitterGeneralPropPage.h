@@ -26,7 +26,7 @@
 //
 
 #include "Resource.H"
-#include "Shader.H"
+#include "shader.h"
 
 // Forward delcarations
 class EmitterInstanceListClass;

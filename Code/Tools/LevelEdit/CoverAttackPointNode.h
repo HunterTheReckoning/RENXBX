@@ -42,11 +42,11 @@
 #ifndef __COVER_ATTACK_POINT_NODE_H
 #define __COVER_ATTACK_POINT_NODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
-#include "icons.h"
+#include "Icons.h"
 #include "decophys.h"
-#include "coverspotnode.h"
+#include "CoverSpotNode.h"
 
 
 ////////////////////////////////////////////////////////////////////////////

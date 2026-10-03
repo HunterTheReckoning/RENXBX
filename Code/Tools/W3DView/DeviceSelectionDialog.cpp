@@ -23,11 +23,11 @@
 
 #include "W3DView.h"
 #include "DeviceSelectionDialog.h"
-#include "WW3D.H"
+#include "ww3d.h"
 #include "Resource.H"
 #include "Globals.h"
-#include "W3DView.H"
-#include "Utils.H"
+#include "W3DView.h"
+#include "Utils.h"
 #include "rddesc.h"
 
 #ifdef _DEBUG

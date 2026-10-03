@@ -22,10 +22,10 @@
 #include "stdafx.h"
 #include "W3DView.h"
 #include "HierarchyPropPage.h"
-#include "AssetMgr.H"
-#include "RendObj.H"
-#include "AssetPropertySheet.H"
-#include "MeshPropPage.H"
+#include "assetmgr.h"
+#include "rendobj.h"
+#include "AssetPropertySheet.h"
+#include "MeshPropPage.h"
 
 
 #ifdef _DEBUG

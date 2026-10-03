@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "SpherePropertySheet.h"
-#include "utils.h"
+#include "Utils.h"
 #include "W3DViewDoc.h"
 #include "assetmgr.h"
-#include "datatreeview.h"
+#include "DataTreeView.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

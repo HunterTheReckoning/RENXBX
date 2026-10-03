@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "phystest.h"
+#include "PhysTest.h"
 #include "RbodyPropertiesDialog.h"
 #include "movephys.h"
 #include "rbody.h"

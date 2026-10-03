@@ -41,7 +41,7 @@
 #include "mixfile.h"
 #include "rawfile.h"
 #include "bittype.h"
-#include "mixcombiningdialog.h"
+#include "MixCombiningDialog.h"
 
 
 //////////////////////////////////////////////////////////////

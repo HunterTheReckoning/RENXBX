@@ -43,7 +43,7 @@
 
 #include "vector.h"
 #include "saveloadsubsystem.h"
-#include "editorchunkids.h"
+#include "EditorChunkIDs.h"
 
 
 ///////////////////////////////////////////////////////////////////////

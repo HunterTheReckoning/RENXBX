@@ -42,8 +42,8 @@
 #ifndef __TRANSITION_NODE_H
 #define __TRANSITION_NODE_H
 
-#include "node.h"
-#include "icons.h"
+#include "Node.h"
+#include "Icons.h"
 #include "transitiongameobj.h"
 
 

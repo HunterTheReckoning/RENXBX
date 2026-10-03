@@ -42,13 +42,13 @@
 #ifndef __LIGHT_NODE_H
 #define __LIGHT_NODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
-#include "icons.h"
+#include "Icons.h"
 #include "lightphys.h"
-#include "lightdefinition.h"
-#include "attenuationsphere.h"
-#include "sceneeditor.h"
+#include "LightDefinition.h"
+#include "AttenuationSphere.h"
+#include "SceneEditor.h"
 
 // Forward declarations
 class PresetClass;

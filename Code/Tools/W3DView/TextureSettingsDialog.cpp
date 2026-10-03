@@ -32,11 +32,11 @@
 
 
 #include "StdAfx.H"
-#include "Texture.H"
-#include "W3DView.H"
-#include "TextureSettingsDialog.H"
-#include "Utils.H"
-#include "AssetMgr.H"
+#include "texture.h"
+#include "W3DView.h"
+#include "TextureSettingsDialog.h"
+#include "Utils.h"
+#include "assetmgr.h"
 
 /*#ifdef _DEBUG
 #define new DEBUG_NEW

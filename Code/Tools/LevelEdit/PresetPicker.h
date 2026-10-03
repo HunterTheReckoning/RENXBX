@@ -42,7 +42,7 @@
 #ifndef __PRESETPICKER_H
 #define __PRESETPICKER_H
 
-#include "picker.h"
+#include "Picker.h"
 
 
 /////////////////////////////////////////////////////////////////////////

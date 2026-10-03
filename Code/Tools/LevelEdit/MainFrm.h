@@ -27,8 +27,8 @@
 #pragma once
 #endif // _MSC_VER >= 1000
 
-#include "formtoolbar.h"
-#include "maindialogbar.h"
+#include "FormToolbar.h"
+#include "MainDialogBar.h"
 #include "vector.h"
 #include "wwstring.h"
 

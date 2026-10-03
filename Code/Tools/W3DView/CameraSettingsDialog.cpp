@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
-#include "w3dviewdoc.h"
-#include "graphicview.h"
+#include "W3DView.h"
+#include "W3DViewDoc.h"
+#include "GraphicView.h"
 #include "CameraSettingsDialog.h"
-#include "utils.h"
+#include "Utils.h"
 #include "camera.h"
-#include "viewerscene.h"
+#include "ViewerScene.h"
 
 
 #ifdef _DEBUG

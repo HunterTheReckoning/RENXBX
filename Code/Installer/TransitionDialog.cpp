@@ -36,21 +36,21 @@
 
 // Includes.
 #include "TransitionDialog.h"
-#include "AssetMgr.h"
-#include "DialogText.h"
-#include "HAnim.h"
-#include "MenuBackDrop.h"
-#include "Mesh.h"
-#include "MeshMdl.h"
+#include "assetmgr.h"
+#include "dialogtext.h"
+#include "hanim.h"
+#include "menubackdrop.h"
+#include "mesh.h"
+#include "meshmdl.h"
 #include "MessageBox.h"
 #include "MouseMgr.h"
-#include "RendObj.h"
+#include "rendobj.h"
 #include "Resource.h"
-#include "StyleMgr.h"
+#include "stylemgr.h"
 #include "Translator.h"
-#include "Scene.h"
-#include "TooltipMgr.h"
-#include "Ww3D.h"
+#include "scene.h"
+#include "tooltipmgr.h"
+#include "ww3d.h"
  
 
 /***********************************************************************************************

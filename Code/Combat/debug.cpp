@@ -43,10 +43,10 @@
 #include "mono.h"
 #include "registry.h"
 #include <stdio.h>
-#include "wwaudio.h"
+#include "WWAudio.h"
 #include "combat.h"
 #include "wwmemlog.h"
-#include "fastallocator.h"
+#include "FastAllocator.h"
 
 #ifndef 	STEVES_NEW_CATCHER
 #define LOG_MEMORY 1		// enable this to turn on memory logging

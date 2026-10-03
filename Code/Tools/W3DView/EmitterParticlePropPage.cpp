@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "EmitterParticlePropPage.h"
-#include "Part_Emt.H"
-#include "Utils.H"
+#include "part_emt.h"
+#include "Utils.h"
 #include "Vector3RndCombo.H"
-#include "VolumeRandomDialog.H"
-#include "EmitterInstanceList.H"
+#include "VolumeRandomDialog.h"
+#include "EmitterInstanceList.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

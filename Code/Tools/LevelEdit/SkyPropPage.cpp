@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "skyproppage.h"
+#include "SkyPropPage.h"
 #include "backgroundmgr.h"
 #include "combat.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "phys.h"
 #include "pscene.h"
 

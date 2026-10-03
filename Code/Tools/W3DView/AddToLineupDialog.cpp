@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "AddToLineupDialog.h"
 
 #include "ViewerScene.h"

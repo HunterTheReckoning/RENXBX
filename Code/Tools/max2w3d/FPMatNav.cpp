@@ -33,7 +33,7 @@
 #include "Max.h"
 #include "GMaxMtlDlg.h"
 #include "GameMtlForm.h"
-#include "GameMtl.h"
+#include "gamemtl.h"
 #include "resource.h"
 
 extern GMaxMtlDlg		* GMaxMaterialDialog;

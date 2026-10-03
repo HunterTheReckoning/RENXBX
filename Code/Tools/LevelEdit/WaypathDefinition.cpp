@@ -35,13 +35,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "waypathdefinition.h"
+#include "WaypathDefinition.h"
 #include "simpledefinitionfactory.h"
 #include "definitionclassids.h"
 #include "definitionmgr.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "waypathnode.h"
+#include "EditorChunkIDs.h"
+#include "WaypathNode.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////

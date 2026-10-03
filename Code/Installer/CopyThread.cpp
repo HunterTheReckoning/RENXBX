@@ -42,7 +42,7 @@
 #include "RegistryManager.h"
 #include "Resource.h"
 #include "Translator.h"
-#include "Verchk.h"
+#include "verchk.h"
 #include <io.h>
 #include <fcntl.h>
 #include <sys/stat.h>

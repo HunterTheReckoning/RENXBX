@@ -42,8 +42,8 @@
 #ifndef __ZONE_NODE_H
 #define __ZONE_NODE_H
 
-#include "objectnode.h"
-#include "icons.h"
+#include "ObjectNode.h"
+#include "Icons.h"
 #include "spawn.h"
 #include "GrabHandles.h"
 

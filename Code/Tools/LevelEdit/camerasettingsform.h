@@ -30,7 +30,7 @@
 #endif
 
 
-#include "DockableForm.H"
+#include "DockableForm.h"
 #include "Resource.H"
 
 

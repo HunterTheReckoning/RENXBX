@@ -42,9 +42,9 @@
 #ifndef __TILE_NODE_H
 #define __TILE_NODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
-#include "icons.h"
+#include "Icons.h"
 #include "staticphys.h"
 
 // Forward declarations

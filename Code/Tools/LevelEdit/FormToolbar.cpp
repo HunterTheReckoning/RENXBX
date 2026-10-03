@@ -26,8 +26,8 @@
 //
 
 #include "StdAfx.H"
-#include "FormToolbar.H"
-#include "DockableForm.H"
+#include "FormToolbar.h"
+#include "DockableForm.h"
 
 
 BEGIN_MESSAGE_MAP(FormToolbarClass, CControlBar)

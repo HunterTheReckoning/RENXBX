@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "mixviewer.h"
-#include "mixviewerdoc.h"
-#include "mixviewerview.h"
+#include "MixViewer.h"
+#include "MixViewerDoc.h"
+#include "MixViewerView.h"
 
 
 #ifdef _DEBUG

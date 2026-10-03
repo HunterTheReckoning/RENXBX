@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "editstringdialog.h"
+#include "LevelEdit.h"
+#include "EditStringDialog.h"
 #include "translateobj.h"
 #include "definitionclassids.h"
-#include "presetmgr.h"
-#include "preset.h"
+#include "PresetMgr.h"
+#include "Preset.h"
 
 
 #ifdef _DEBUG

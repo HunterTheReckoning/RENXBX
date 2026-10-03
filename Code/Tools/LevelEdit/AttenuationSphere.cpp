@@ -36,7 +36,7 @@
 
 #include "StdAfx.h"
 #include "AttenuationSphere.h"
-#include "SphereObj.h"
+#include "sphereobj.h"
 #include "Utils.h"
 #include "Node.h"
 #include "SceneEditor.h"

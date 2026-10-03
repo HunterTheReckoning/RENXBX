@@ -44,9 +44,9 @@
 #define __BOX3D_H
 
 
-#include "Dynamesh.H"
-#include "EditorPhys.H"
-#include "Utils.H"
+#include "dynamesh.h"
+#include "EditorPhys.h"
+#include "Utils.h"
 
 
 /////////////////////////////////////////////////////////////////////////

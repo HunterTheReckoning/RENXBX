@@ -21,7 +21,7 @@
 
 #include "stdafx.h"
 #include <afxdllx.h>
-#include "WWCtrl.H"
+#include "WWCtrl.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

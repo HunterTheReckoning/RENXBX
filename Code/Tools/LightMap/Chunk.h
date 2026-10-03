@@ -38,7 +38,7 @@
 #define CHUNK_H
 
 // Includes.
-#include "Chunkio.h"
+#include "chunkio.h"
 
 
 class ChunkClass : public ChunkHeader

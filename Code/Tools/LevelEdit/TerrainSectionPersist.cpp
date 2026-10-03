@@ -36,13 +36,13 @@
 
 
 #include "stdafx.h"
-#include "terrainsectionpersist.h"
-#include "node.h"
+#include "TerrainSectionPersist.h"
+#include "Node.h"
 #include "chunkio.h"
 #include "staticphys.h"
-#include "lightnode.h"
-#include "terrainnode.h"
-#include "nodemgr.h"
+#include "LightNode.h"
+#include "TerrainNode.h"
+#include "NodeMgr.H"
 
 
 //////////////////////////////////////////////////////////////////////////////

@@ -24,7 +24,7 @@
 #include "MusicPropPage.h"
 #include "AudibleSound.h"
 #include "FileMgr.h"
-#include "Phys.h"
+#include "phys.h"
 #include "SceneEditor.h"
 #include "SoundBuffer.h"
 #include "Utils.h"

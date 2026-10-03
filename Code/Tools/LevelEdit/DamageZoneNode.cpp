@@ -36,23 +36,23 @@
 
 
 #include "stdafx.h"
-#include "damagezonenode.h"
-#include "sceneeditor.h"
+#include "DamageZoneNode.h"
+#include "SceneEditor.h"
 
-#include "filemgr.h"
+#include "FileMgr.h"
 #include "_assetmgr.h"
-#include "editorassetmgr.h"
+#include "EditorAssetMgr.h"
 #include "w3d_file.h"
-#include "cameramgr.h"
-#include "collisiongroups.h"
+#include "CameraMgr.h"
+#include "CollisionGroups.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "preset.h"
-#include "presetmgr.h"
+#include "EditorChunkIDs.h"
+#include "Preset.h"
+#include "PresetMgr.h"
 #include "decophys.h"
 #include "damagezone.h"
 #include "chunkio.h"
-#include "nodemgr.h"
+#include "NodeMgr.H"
 
 
 //////////////////////////////////////////////////////////////////////////////

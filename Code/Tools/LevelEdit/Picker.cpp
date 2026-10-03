@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "picker.h"
-#include "utils.h"
-#include "filemgr.h"
+#include "LevelEdit.h"
+#include "Picker.h"
+#include "Utils.h"
+#include "FileMgr.h"
 
 
 #ifdef _DEBUG

@@ -20,8 +20,8 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "memlogdialog.h"
+#include "LevelEdit.h"
+#include "MemLogDialog.h"
 #include "wwmemlog.h"
 
 

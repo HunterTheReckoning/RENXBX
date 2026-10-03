@@ -23,9 +23,9 @@
 #include "W3DView.h"
 #include "AnimationSpeed.h"
 #include "MainFrm.H"
-#include "GraphicView.H"
-#include "Utils.H"
-#include "W3DViewDoc.H"
+#include "GraphicView.h"
+#include "Utils.h"
+#include "W3DViewDoc.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

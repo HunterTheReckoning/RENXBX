@@ -20,10 +20,10 @@
 //
 
 #include "StdAfx.H"
-#include "ColorPickerDialogClass.H"
-#include "ColorBar.H"
-#include "ColorPicker.H"
-#include "WWCtrl.H"
+#include "ColorPickerDialogClass.h"
+#include "ColorBar.h"
+#include "ColorPicker.h"
+#include "WWCtrl.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

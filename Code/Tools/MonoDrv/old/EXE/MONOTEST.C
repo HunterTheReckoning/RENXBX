@@ -20,7 +20,7 @@
 #include "winioctl.h"
 #include "stdio.h"
 #include "stdlib.h"
-#include "monopub.h"
+#include "MONOPUB.H"
 #include	"conio.h"
 
 

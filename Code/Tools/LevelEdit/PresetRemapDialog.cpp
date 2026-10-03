@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "leveleditdoc.h"
-#include "presetremapdialog.h"
-#include "selectpresetdialog.h"
-#include "node.h"
-#include "nodemgr.h"
-#include "presetmgr.h"
+#include "LevelEdit.h"
+#include "LevelEditDoc.h"
+#include "PresetRemapDialog.h"
+#include "SelectPresetDialog.h"
+#include "Node.h"
+#include "NodeMgr.H"
+#include "PresetMgr.h"
 
 
 #ifdef _DEBUG

@@ -20,9 +20,9 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "CheckinStyleDialog.h"
-#include "RegKeys.H"
+#include "RegKeys.h"
 
 
 #ifdef _DEBUG

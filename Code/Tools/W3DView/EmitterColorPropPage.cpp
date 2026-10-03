@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
-#include "emittercolorproppage.h"
+#include "W3DView.h"
+#include "EmitterColorPropPage.h"
 #include "part_emt.h"
-#include "utils.h"
-#include "opacitysettingsdialog.h"
-#include "colorutils.h"
-#include "emitterinstancelist.h"
+#include "Utils.h"
+#include "OpacitySettingsDialog.h"
+#include "ColorUtils.h"
+#include "EmitterInstanceList.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

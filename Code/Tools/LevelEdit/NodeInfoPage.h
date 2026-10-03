@@ -31,7 +31,7 @@
 #endif
 
 #include "Resource.H"
-#include "DockableForm.H"
+#include "DockableForm.h"
 
 class NodeClass;
 

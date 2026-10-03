@@ -36,8 +36,8 @@
 
 // Includes.
 #include "RAMFileFactory.h"
-#include "BuffFile.h"
-#include "RamFile.h"
+#include "bufffile.h"
+#include "ramfile.h"
 
 
 /***********************************************************************************************

@@ -42,10 +42,10 @@
 #ifndef __OBJECT_NODE_H
 #define __OBJECT_NODE_H
 
-#include "node.h"
-#include "icons.h"
+#include "Node.h"
+#include "Icons.h"
 #include "physicalgameobj.h"
-#include "listtypes.h"
+#include "ListTypes.h"
 
 ////////////////////////////////////////////////////////////////////////////
 // Forward declarations

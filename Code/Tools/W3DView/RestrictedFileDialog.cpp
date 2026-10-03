@@ -20,9 +20,9 @@
 //
 
 #include "StdAfx.H"
-#include "W3DView.H"
-#include "RestrictedFileDialog.H"
-#include "Utils.H"
+#include "W3DView.h"
+#include "RestrictedFileDialog.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

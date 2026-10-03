@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "PresetTransitionTab.h"
 #include "definition.h"
-#include "preset.h"
-#include "utils.h"
+#include "Preset.h"
+#include "Utils.h"
 #include "TransitionEditDialog.h"
-#include "objectnode.h"
+#include "ObjectNode.h"
 #include "rendobj.h"
 #include "SceneEditor.h"
 #include "decophys.h"
@@ -34,7 +34,7 @@
 #include "staticphys.h"
 #include "transition.h"
 #include "wheelvehicle.h"
-#include "cameramgr.h"
+#include "CameraMgr.h"
 #include "hlod.h"
 #include "rinfo.h"
 

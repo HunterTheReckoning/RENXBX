@@ -36,21 +36,21 @@
 
 
 #include "stdafx.h"
-#include "waypathnode.h"
-#include "sceneeditor.h"
-#include "collisiongroups.h"
+#include "WaypathNode.h"
+#include "SceneEditor.h"
+#include "CollisionGroups.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "preset.h"
+#include "EditorChunkIDs.h"
+#include "Preset.h"
 #include "chunkio.h"
-#include "nodemgr.h"
+#include "NodeMgr.H"
 #include "segline.h"
-#include "waypointnode.h"
-#include "waypathnode.h"
-#include "waypathinfopage.h"
-#include "nodeinfopage.h"
-#include "positionpage.h"
-#include "editorpropsheet.h"
+#include "WaypointNode.h"
+#include "WaypathNode.h"
+#include "WaypathInfoPage.h"
+#include "NodeInfoPage.h"
+#include "PositionPage.h"
+#include "EditorPropSheet.h"
 
 
 //////////////////////////////////////////////////////////////////////////////

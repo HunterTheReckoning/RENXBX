@@ -34,22 +34,22 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "DlgMPWolBuddies.h"
-#include "RenegadeDialogMgr.h"
+#include "dlgmpwolbuddies.h"
+#include "renegadedialogmgr.h"
 #include "WOLBuddyMgr.h"
-#include "DlgMPWolPageBuddy.h"
-#include "DlgMPWolAddBuddy.h"
-#include "DlgMPWoldeletebuddy.h"
-#include "DlgMPWolIgnoreList.h"
+#include "dlgmpwolpagebuddy.h"
+#include "dlgmpwoladdbuddy.h"
+#include "dlgmpwoldeletebuddy.h"
+#include "dlgmpwolignorelist.h"
 #include "ww3d.h"
 #include "translatedb.h"
 #include "string_ids.h"
-#include <WWUI\ListCtrl.h>
-#include <WWUI\ComboBoxCtrl.h>
-#include <WWUI\DialogMgr.h>
-#include <WWUI\shortcutbarctrl.h>
-#include <WWOnline\WOLUser.h>
-#include <WWOnline\WOLSquad.h>
+#include <wwui/listctrl.h>
+#include <wwui/comboboxctrl.h>
+#include <wwui/dialogmgr.h>
+#include <wwui/shortcutbarctrl.h>
+#include <WWOnline/WOLUser.h>
+#include <WWOnline/WOLSquad.h>
 
 
 ////////////////////////////////////////////////////////////////

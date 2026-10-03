@@ -37,17 +37,17 @@
 
 #include "stdafx.h"
 
-#include "editorassetmgr.h"
+#include "EditorAssetMgr.h"
 #include "texture.h"
 #include "proto.h"
-#include "editorini.h"
+#include "EditorINI.h"
 #include "ffactory.h"
 #include "ww3d.h"
-#include "utils.h"
-#include "filemgr.h"
+#include "Utils.h"
+#include "FileMgr.h"
 #include "rawfile.h"
 #include "rcfile.h"
-#include "filelocations.h"
+#include "FileLocations.h"
 #include "editorbuild.h"
 #include "assetdatabase.h"
 

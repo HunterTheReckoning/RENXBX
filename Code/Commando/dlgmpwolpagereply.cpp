@@ -34,13 +34,13 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "DlgMPWOLPageReply.h"
-#include "DlgMPWOLAddBuddy.h"
-#include "DlgMPWOLAddIgnoreEntry.h"
+#include "dlgmpwolpagereply.h"
+#include "dlgmpwoladdbuddy.h"
+#include "dlgmpwoladdignoreentry.h"
 #include "WOLLogonMgr.h"
 #include "Resource.h"
-#include "consolemode.h"
-#include <WWUI\ListCtrl.h>
+#include "ConsoleMode.h"
+#include <wwui/listctrl.h>
 
 DlgWOLPageReply* DlgWOLPageReply::_mInstance = NULL;
 

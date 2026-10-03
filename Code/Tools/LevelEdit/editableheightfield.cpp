@@ -37,7 +37,7 @@
 #include "stdafx.h"
 
 #include "editableheightfield.h"
-#include "utils.h"
+#include "Utils.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
@@ -45,16 +45,16 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "dx8fvf.h"
-#include "filemgr.h"
+#include "FileMgr.h"
 #include "vector2i.h"
 #include "terrainmaterial.h"
 #include "renegadeterrainpatch.h"
 #include "renegadeterrainmaterialpass.h"
 #include "terrainmaterial.h"
 #include "staticphys.h"
-#include "sceneeditor.h"
-#include "filemgr.h"
-#include "nodemgr.h"
+#include "SceneEditor.h"
+#include "FileMgr.h"
+#include "NodeMgr.H"
 
 ////////////////////////////////////////////////////////////////
 //	Local constants

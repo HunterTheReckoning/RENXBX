@@ -44,11 +44,11 @@
 
 
 #include "pscene.h"
-#include "listtypes.h"
-#include "undomgr.h"
+#include "ListTypes.h"
+#include "UndoMgr.h"
 #include "vector.h"
-#include "vislog.h"
-#include "viswindowdialog.h"
+#include "VisLog.h"
+#include "VisWindowDialog.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

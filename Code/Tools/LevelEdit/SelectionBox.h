@@ -27,9 +27,9 @@
 #define __SELECTIONBOX_H
 
 
-#include "Utils.H"
-#include "Line3D.H"
-#include "EditorPhys.H"
+#include "Utils.h"
+#include "line3d.h"
+#include "EditorPhys.h"
 
 
 // Forward declarations

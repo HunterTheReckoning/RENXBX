@@ -36,7 +36,7 @@
 
 
 #include "StdAfx.H"
-#include "Icons.H"
+#include "Icons.h"
 
 
 const UINT ICON_RESOURCE_IDS[ICON_COUNT] =

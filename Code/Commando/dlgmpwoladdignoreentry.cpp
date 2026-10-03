@@ -35,10 +35,10 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
-#include "DlgMPWolAddIgnoreEntry.h"
+#include "dlgmpwoladdignoreentry.h"
 #include "WOLBuddyMgr.h"
-#include <WWUI\EditCtrl.h>
-#include <WWDebug\WWDebug.h>
+#include <wwui/editctrl.h>
+#include <wwdebug/wwdebug.h>
 
 
 bool MPWolAddIgnoreEntry::DoDialog(const WCHAR* defaultUser)

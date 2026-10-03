@@ -36,23 +36,23 @@
 
 
 // Include files.
-#include "Argv.h"
-#include "Bufffile.h"
-#include "Chunkio.h"
+#include "argv.h"
+#include "bufffile.h"
+#include "chunkio.h"
 #include "ErrorHandler.h"
-#include "FFactory.h"
+#include "ffactory.h"
 #include "Installer.h"
-#include "MixFile.h"
-#include "Msgloop.h"
+#include "mixfile.h"
+#include "msgloop.h"
 #include "RAMFileFactory.h"
 #include "Resource.h"
 #include "SafeTimer.h"
-#include "SaveLoad.h"
-#include "Timer.h"
+#include "saveload.h"
+#include "timer.h"
 #include "Translator.h"
-#include "Win.h"
-#include "WW3D.h"
-#include "WWFile.h"
+#include "win.h"
+#include "ww3d.h"
+#include "wwfile.h"
 #include <malloc.h>
 #include <dbt.h>
 

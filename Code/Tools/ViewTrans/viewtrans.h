@@ -39,7 +39,7 @@
 #define VIEWTRANS_H
 
 #include <Max.h>
-#include <Quat.h>
+#include <quat.h>
 #include <UTILAPI.H>
 
 

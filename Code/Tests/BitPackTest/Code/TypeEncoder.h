@@ -36,7 +36,7 @@
 #ifndef _TYPEENCODER_H_
 #define _TYPEENCODER_H_
 
-#include "bitpacker.h"
+#include "BitPacker.h"
 
 class TypeEncoder : public BitPacker
 	{

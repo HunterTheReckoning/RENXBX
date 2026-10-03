@@ -17,12 +17,12 @@
 */
 
 #include "stdafx.h"
-#include "mixpatchmaker.h"
+#include "MixPatchMaker.h"
 #include "ffactory.h"
 #include "mixfile.h"
 #include "rawfile.h"
 #include "bittype.h"
-#include "mixcombiningdialog.h"
+#include "MixCombiningDialog.h"
 
 
 

@@ -25,7 +25,7 @@
 // EditorPropSheetClass.h : header file
 //
 
-#include "dockableform.h"
+#include "DockableForm.h"
 #include "vector.h"
 #include "resource.h"
 

@@ -36,8 +36,8 @@
 
 // Includes.
 #include "FinalDialog.h"
-#include "ButtonCtrl.h"
-#include "CheckBoxCtrl.h"
+#include "buttonctrl.h"
+#include "checkboxctrl.h"
 #include "Installer.h"
 #include "Translator.h"
 

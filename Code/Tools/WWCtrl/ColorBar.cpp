@@ -23,8 +23,8 @@
 //
 
 #include "StdAfx.H"
-#include "ColorBar.H"
-#include "Utils.H"
+#include "ColorBar.h"
+#include "Utils.h"
 #include "Resource.H"
 #include <Math.H>
 

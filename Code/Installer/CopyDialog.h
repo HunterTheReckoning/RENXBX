@@ -39,9 +39,9 @@
 // Includes.
 #include "CopyThread.h"
 #include "InstallMenuDialog.h"
-#include "Mutex.h"
+#include "mutex.h"
 #include "SafeTimer.h"
-#include "Timer.h"
+#include "timer.h"
 
 
 // Forward declarations.

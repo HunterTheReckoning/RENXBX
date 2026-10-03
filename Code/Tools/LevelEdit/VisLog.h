@@ -45,7 +45,7 @@
 
 
 #include "Vector.H"
-#include "VisSample.H"
+#include "vissample.h"
 
 // Forward declarations
 class ChunkLoadClass;

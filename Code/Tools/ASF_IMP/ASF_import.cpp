@@ -33,7 +33,7 @@
 #include <splshape.h>
 #include <dummy.h>
 
-#include "asf_resource.h"
+#include "Asf_resource.h"
 #include "asf_data.h"
 #include "read_asf.h"
 #include "exception.h"

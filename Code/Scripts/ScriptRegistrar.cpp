@@ -34,9 +34,9 @@
 ******************************************************************************/
 
 #include "always.h"
-#include "scriptregistrar.h"
-#include "scriptfactory.h"
-#include "dprint.h"
+#include "ScriptRegistrar.h"
+#include "ScriptFactory.h"
+#include "DPrint.h"
 #include <string.h>
 #include <assert.h>
 

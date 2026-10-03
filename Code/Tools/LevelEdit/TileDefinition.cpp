@@ -35,13 +35,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "tiledefinition.h"
+#include "TileDefinition.h"
 #include "simpledefinitionfactory.h"
 #include "definitionclassids.h"
 #include "definitionmgr.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "tilenode.h"
+#include "EditorChunkIDs.h"
+#include "TileNode.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////

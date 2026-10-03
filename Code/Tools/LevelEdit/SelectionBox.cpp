@@ -25,11 +25,11 @@
 
 
 #include "stdafx.h"
-#include "selectionbox.h"
+#include "SelectionBox.h"
 #include "matrix3d.h"
-#include "sceneeditor.h"
+#include "SceneEditor.h"
 #include "rendobj.h"
-#include "node.h"
+#include "Node.h"
 
 
 //////////////////////////////////////////////////////////////////////

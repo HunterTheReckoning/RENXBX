@@ -23,8 +23,8 @@
 #include "wdump.h"
 
 #include "MainFrm.h"
-#include "wdumpDoc.h"
-#include "wdView.h"
+#include "wdumpdoc.h"
+#include "wdview.h"
 
 #include "FCNTL.H"
 

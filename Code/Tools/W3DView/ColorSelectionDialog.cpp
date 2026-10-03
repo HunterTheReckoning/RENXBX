@@ -20,9 +20,9 @@
 //
 
 #include "StdAfx.H"
-#include "W3DView.H"
-#include "ColorSelectionDialog.H"
-#include "Utils.H"
+#include "W3DView.h"
+#include "ColorSelectionDialog.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

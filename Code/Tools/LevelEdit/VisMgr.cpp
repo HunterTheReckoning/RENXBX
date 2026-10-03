@@ -36,19 +36,19 @@
 
 
 #include "stdafx.h"
-#include "vismgr.h"
-#include "sceneeditor.h"
+#include "VisMgr.h"
+#include "SceneEditor.h"
 #include "matrix3d.h"
 #include "w3d_file.h"
 #include "chunkio.h"
-#include "utils.h"
+#include "Utils.h"
 #include "staticphys.h"
-#include "node.h"
-#include "nodemgr.h"
-#include "cameramgr.h"
+#include "Node.h"
+#include "NodeMgr.H"
+#include "CameraMgr.h"
 #include "camera.h"
-#include "vispointnode.h"
-#include "groupmgr.h"
+#include "VisPointNode.h"
+#include "GroupMgr.h"
 
 
 ///////////////////////////////////////////////////////////////////////

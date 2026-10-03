@@ -20,14 +20,14 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "stringlibrarydialog.h"
+#include "LevelEdit.h"
+#include "StringLibraryDialog.h"
 #include "translatedb.h"
 #include "translateobj.h"
-#include "editstringdialog.h"
-#include "utils.h"
-#include "stringscategoryviewdialog.h"
-#include "stringscategorynamedialog.h"
+#include "EditStringDialog.h"
+#include "Utils.h"
+#include "StringsCategoryViewDialog.h"
+#include "StringsCategoryNameDialog.h"
 
 
 #ifdef _DEBUG

@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "editstringtwiddlerdialog.h"
-#include "editstringdialog.h"
+#include "LevelEdit.h"
+#include "EditStringTwiddlerDialog.h"
+#include "EditStringDialog.h"
 #include "stringtwiddler.h"
-#include "stringpickermaindialog.h"
+#include "StringPickerMainDialog.h"
 
 
 #ifdef _DEBUG

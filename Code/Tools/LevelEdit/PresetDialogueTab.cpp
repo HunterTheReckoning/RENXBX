@@ -20,17 +20,17 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "presetdialoguetab.h"
+#include "LevelEdit.h"
+#include "PresetDialogueTab.h"
 #include "definition.h"
-#include "preset.h"
-#include "utils.h"
+#include "Preset.h"
+#include "Utils.h"
 #include "dialogue.h"
 #include "combatchunkid.h"
 #include "soldier.h"
 #include "translateobj.h"
 #include "translatedb.h"
-#include "editdialoguedialog.h"
+#include "EditDialogueDialog.h"
 #include "conversationmgr.h"
 #include "conversation.h"
 

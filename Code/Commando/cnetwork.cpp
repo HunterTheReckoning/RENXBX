@@ -47,7 +47,7 @@
 #include "textdisplay.h"
 #include "gameobjmanager.h"
 #include "multihud.h"
-#include "WWAudio.H"
+#include "WWAudio.h"
 #include "useroptions.h"
 #include "devoptions.h"
 #include "translatedb.h"
@@ -70,7 +70,7 @@
 #include	"natter.h"
 #include	"vistable.h"
 #include "gameinitmgr.h"
-#include "dlgmessagebox.h"
+#include "DlgMessageBox.h"
 #include "apppacketstats.h"
 #include "clientfps.h"
 #include "gamechanlist.h"
@@ -80,16 +80,16 @@
 #include "buildnum.h"
 #include "messagewindow.h"
 #include "wwmemlog.h"
-#include "consolemode.h"
+#include "ConsoleMode.h"
 #include "slavemaster.h"
 #include "gamedataupdateevent.h"
 #include "gamespyadmin.h"
 #include "demosupport.h"
-#include "serversettings.h"
-#include "dlgmpconnectionrefused.h"
+#include "ServerSettings.h"
+#include "DlgMPConnectionRefused.h"
 
 #include "Resource.h"
-#include <WWUI\DialogMgr.h>
+#include <wwui/dialogmgr.h>
 #include "ffactory.h"
 #include "realcrc.h"
 

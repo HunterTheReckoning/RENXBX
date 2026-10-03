@@ -22,7 +22,7 @@
 #include "stdafx.h"
 #include "W3DUpdate.h"
 #include "W3DUpdateDlg.h"
-#include "FileCopyDialog.H"
+#include "FileCopyDialog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

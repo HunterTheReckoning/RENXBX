@@ -20,23 +20,23 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "generatingvisdialog.h"
-#include "utils.h"
-#include "sceneeditor.h"
-#include "nodemgr.h"
-#include "vispointgenerator.h"
-#include "leveleditview.h"
-#include "groupmgr.h"
-#include "node.h"
+#include "LevelEdit.h"
+#include "GeneratingVisDialog.h"
+#include "Utils.h"
+#include "SceneEditor.h"
+#include "NodeMgr.H"
+#include "VisPointGenerator.h"
+#include "LevelEditView.h"
+#include "GroupMgr.h"
+#include "Node.h"
 #include "VisPointNode.h"
 #include "camera.h"
-#include "cameramgr.h"
-#include "vismgr.h"
+#include "CameraMgr.h"
+#include "VisMgr.h"
 
-#include "vissectorsampler.h"
-#include "visgenprogress.h"
-#include "collisiongroups.h"
+#include "VisSectorSampler.h"
+#include "VisGenProgress.h"
+#include "CollisionGroups.h"
 
 
 #ifdef _DEBUG

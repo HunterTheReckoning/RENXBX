@@ -29,7 +29,7 @@
 
 
 #include "resource.h"
-#include "dockableform.h"
+#include "DockableForm.h"
 #include "vector.h"
 #include "transition.h"
 

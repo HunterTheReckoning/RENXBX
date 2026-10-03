@@ -35,10 +35,10 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "presetlogger.h"
+#include "PresetLogger.h"
 #include "textfile.h"
 #include "wwstring.h"
-#include "preset.h"
+#include "Preset.h"
 #include "definitionfactorymgr.h"
 #include "definitionfactory.h"
 

@@ -36,9 +36,9 @@
 
 
 #include "StdAfx.H"
-#include "VisLog.H"
-#include "Utils.H"
-#include "ChunkIO.H"
+#include "VisLog.h"
+#include "Utils.h"
+#include "chunkio.h"
 
 enum
 {

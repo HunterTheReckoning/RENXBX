@@ -33,9 +33,9 @@
 ******************************************************************************/
 
 #include "WOLErrorUtil.h"
-#include <WOLAPI\ChatDefs.h>
-#include <WOLAPI\NetUtilDefs.h>
-#include <WOLAPI\DownloadDefs.h>
+#include <wolapi/chatdefs.h>
+#include <wolapi/netutildefs.h>
+#include <wolapi/downloaddefs.h>
 
 namespace WWOnline {
 

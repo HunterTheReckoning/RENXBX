@@ -42,10 +42,10 @@
 #ifndef __SPAWNER_NODE_H
 #define __SPAWNER_NODE_H
 
-#include "node.h"
-#include "icons.h"
+#include "Node.h"
+#include "Icons.h"
 #include "spawn.h"
-#include "editorline.h"
+#include "EditorLine.h"
 
 
 ////////////////////////////////////////////////////////////////////////////

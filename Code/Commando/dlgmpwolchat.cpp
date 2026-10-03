@@ -34,21 +34,21 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "DlgMPWOLChat.h"
-#include "RenegadeDialogMgr.h"
-#include "WOLLocaleMgr.h"
+#include "dlgmpwolchat.h"
+#include "renegadedialogmgr.h"
+#include "wollocalemgr.h"
 #include "DlgMessageBox.h"
-#include <WOLAPI\ChatDefs.h>
-#include <WWOnline\WOLChannel.h>
-#include <WWUI\StyleMgr.h>
-#include <WWUI\DialogMgr.h>
-#include <WWUI\EditCtrl.h>
-#include <WWUI\Listctrl.h>
-#include <WWUI\MenuEntryCtrl.h>
-#include <WWUI\ShortcutBarCtrl.h>
-#include <WW3D2\Render2D.h>
-#include "String_IDs.h"
-#include <WWTranslateDB\TranslateDB.h>
+#include <wolapi/chatdefs.h>
+#include <WWOnline/WOLChannel.h>
+#include <wwui/stylemgr.h>
+#include <wwui/dialogmgr.h>
+#include <wwui/editctrl.h>
+#include <wwui/listctrl.h>
+#include <wwui/menuentryctrl.h>
+#include <wwui/shortcutbarctrl.h>
+#include <ww3d2/render2d.h>
+#include "string_ids.h"
+#include <wwtranslatedb/translatedb.h>
 
 using namespace WWOnline;
 

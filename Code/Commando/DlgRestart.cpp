@@ -36,10 +36,10 @@
 
 #include "DlgRestart.h"
 #include "Resource.h"
-#include "MainLoop.h"
-#include "String_IDs.h"
-#include <WWTranslateDB\TranslateDB.h>
-#include <WWDebug\WWDebug.h>
+#include "mainloop.h"
+#include "string_ids.h"
+#include <wwtranslatedb/translatedb.h>
+#include <wwdebug/wwdebug.h>
 
 /******************************************************************************
 *

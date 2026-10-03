@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "optimizingvisdialog.h"
-#include "utils.h"
-#include "sceneeditor.h"
+#include "LevelEdit.h"
+#include "OptimizingVisDialog.h"
+#include "Utils.h"
+#include "SceneEditor.h"
 #include "rendobj.h"
 #include "phys.h"
 

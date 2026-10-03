@@ -25,8 +25,8 @@
 // GeneratingVisDialog.h : header file
 //
 
-#include "listtypes.h"
-#include "vispointgenerator.h"
+#include "ListTypes.h"
+#include "VisPointGenerator.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

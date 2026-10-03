@@ -44,7 +44,7 @@
 #define __WAYPATH_DEFINITION_H
 
 #include "definition.h"
-#include "editorchunkids.h"
+#include "EditorChunkIDs.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////

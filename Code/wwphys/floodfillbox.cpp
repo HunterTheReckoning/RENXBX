@@ -35,9 +35,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "floodfillbox.h"
-#include "pathfindsector.h"
-#include "pathfindportal.h"
-#include "pathfind.h"
+#include "PathfindSector.h"
+#include "PathfindPortal.h"
+#include "Pathfind.h"
 
 
 //////////////////////////////////////////////////////////////////////////

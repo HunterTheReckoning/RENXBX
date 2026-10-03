@@ -40,7 +40,7 @@
 #include <sr.hpp>
 #include "_viewpt.h"
 #include "_world.h"
-#include "winmain.h"
+#include "WINMAIN.H"
 #include "ww3d.h"
 
 bool Init(void)

@@ -35,8 +35,8 @@
 *
 ******************************************************************************/
 
-#include "toolkit.h"
-#include "mission1.h"
+#include "Toolkit.h"
+#include "Mission1.h"
 
 /* GENERAL TOOLKIT INFORMATION
 

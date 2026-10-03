@@ -26,7 +26,7 @@
 //
 
 #include "Resource.H"
-#include "WWAudio.H"
+#include "WWAudio.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // PlaySoundDialogClass dialog

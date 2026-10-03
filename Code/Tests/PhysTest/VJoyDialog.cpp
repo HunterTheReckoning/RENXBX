@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "phystest.h"
+#include "PhysTest.h"
 #include "VJoyDialog.h"
 #include "vector2.h"
 #include "vector3.h"

@@ -36,7 +36,7 @@
 
 // Includes.
 #include "LicenseDialog.h"
-#include "CheckBoxCtrl.h"
+#include "checkboxctrl.h"
 #include "ErrorHandler.h"
 #include "MessageBox.h"
 #include "Resource.h"

@@ -27,12 +27,12 @@
 #define __GROUPMGR_H
 
 
-#include "utils.h"
+#include "Utils.h"
 #include "vector3.h"
 #include "aabox.h"
 #include "sphere.h"
-#include "uniquelist.h"
-#include "listtypes.h"
+#include "UniqueList.h"
+#include "ListTypes.h"
 
 class NodeClass;
 class PresetClass;

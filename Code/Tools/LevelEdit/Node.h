@@ -44,11 +44,11 @@
 
 #include "refcount.h"
 #include "phys.h"
-#include "utils.h"
+#include "Utils.h"
 #include "quat.h"
 #include "persist.h"
-#include "hittestinfo.h"
-#include "preset.h"
+#include "HitTestInfo.h"
+#include "Preset.h"
 #include "wwstring.h"
 
 //////////////////////////////////////////////////////////////////

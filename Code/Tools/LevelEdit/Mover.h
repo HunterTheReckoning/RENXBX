@@ -42,13 +42,13 @@
 #ifndef __MOVER_H
 #define __MOVER_H
 
-#include "listtypes.h"
+#include "ListTypes.h"
 #include "bittype.h"
-#include "collisiongroups.h"
+#include "CollisionGroups.h"
 #include "coltest.h"
 #include "physcoltest.h"
-#include "utils.h"
-#include "sceneeditor.h"
+#include "Utils.h"
+#include "SceneEditor.h"
 
 
 // Forward declarations

@@ -25,9 +25,9 @@
 // VisErrorReportDialog.h : header file
 //
 
-#include "HistogramCtl.H"
+#include "HistogramCtl.h"
 #include "Resource.H"
-#include "VisLog.H"
+#include "VisLog.h"
 
 
 // Forward delcarations

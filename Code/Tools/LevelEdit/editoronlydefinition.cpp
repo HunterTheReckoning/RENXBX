@@ -41,7 +41,7 @@
 #include "definitionclassids.h"
 #include "definitionmgr.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
+#include "EditorChunkIDs.h"
 #include "editoronlyobjectnode.h"
 
 

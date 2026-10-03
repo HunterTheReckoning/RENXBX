@@ -20,12 +20,12 @@
 //
 
 #include "StdAfx.H"
-#include "W3DView.H"
-#include "EmitterPhysicsPropPage.H"
-#include "Utils.H"
-#include "Part_Emt.H"
-#include "VolumeRandomDialog.H"
-#include "EmitterInstanceList.H"
+#include "W3DView.h"
+#include "EmitterPhysicsPropPage.h"
+#include "Utils.h"
+#include "part_emt.h"
+#include "VolumeRandomDialog.h"
+#include "EmitterInstanceList.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

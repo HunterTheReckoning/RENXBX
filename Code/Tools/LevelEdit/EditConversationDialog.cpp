@@ -20,16 +20,16 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "editconversationdialog.h"
+#include "LevelEdit.h"
+#include "EditConversationDialog.h"
 #include "conversation.h"
 #include "translatedb.h"
 #include "translateobj.h"
-#include "editconversationremarkdialog.h"
+#include "EditConversationRemarkDialog.h"
 #include "playertype.h"
 #include "orator.h"
 #include "oratortypes.h"
-#include "utils.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

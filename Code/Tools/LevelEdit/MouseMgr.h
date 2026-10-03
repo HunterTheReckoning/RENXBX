@@ -28,10 +28,10 @@
 
 
 #include "refcount.h"
-#include "utils.h"
+#include "Utils.h"
 #include "rendobj.h"
 #include "assetmgr.h"
-#include "cameramgr.h"
+#include "CameraMgr.h"
 
 
 class WaypathNodeClass;

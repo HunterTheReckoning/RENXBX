@@ -20,12 +20,12 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
+#include "LevelEdit.h"
 #include "PresetDependencyTab.h"
 #include "definition.h"
-#include "preset.h"
-#include "utils.h"
-#include "filemgr.h"
+#include "Preset.h"
+#include "Utils.h"
+#include "FileMgr.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

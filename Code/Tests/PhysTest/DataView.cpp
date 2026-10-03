@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "phystest.h"
+#include "PhysTest.h"
 #include "DataView.h"
 #include "PhysTestDoc.h"
 #include "assetmgr.h"

@@ -32,10 +32,10 @@
 
 
 #include "StdAfx.H"
-#include "LevelEdit.H"
-#include "UpdateAssetsDialog.H"
-#include "FileMgr.H"
-#include "Utils.H"
+#include "LevelEdit.h"
+#include "UpdateAssetsDialog.h"
+#include "FileMgr.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

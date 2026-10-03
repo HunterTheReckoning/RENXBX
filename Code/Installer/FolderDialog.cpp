@@ -37,9 +37,9 @@
 // Includes.
 #include "FolderDialog.h"
 #include "ErrorHandler.h"
-#include "DialogText.h"
+#include "dialogtext.h"
 #include "Installer.h"
-#include "ListCtrl.h"
+#include "listctrl.h"
 #include	"RegistryManager.h"
 #include "Resource.h"
 #include "Translator.h"

@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "EmitterFramePropPage.h"
-#include "Utils.H"
-#include "ParticleFrameKeyDialog.H"
-#include "EmitterInstanceList.H"
+#include "Utils.h"
+#include "ParticleFrameKeyDialog.h"
+#include "EmitterInstanceList.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

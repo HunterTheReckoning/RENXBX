@@ -20,11 +20,11 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "levelsettingsdialog.h"
+#include "LevelEdit.h"
+#include "LevelSettingsDialog.h"
 #include "combat.h"
-#include "scriptmgr.h"
-#include "editscript.h"
+#include "ScriptMgr.h"
+#include "EditScript.h"
 #include "mapmgr.h"
 
 

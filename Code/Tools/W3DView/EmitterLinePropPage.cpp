@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "EmitterLinePropPage.h"
 #include "w3d_file.h"
 #include "EmitterInstanceList.h"

@@ -28,10 +28,10 @@
 #endif
 
 #include "resource.h"
-#include "dockableform.h"
+#include "DockableForm.h"
 #include "vector.h"
 #include "zone.h"
-#include "listtypes.h"
+#include "ListTypes.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

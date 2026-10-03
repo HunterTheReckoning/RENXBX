@@ -20,11 +20,11 @@
 //
 
 #include "StdAfx.H"
-#include "LevelEdit.H"
-#include "WelcomeDialog.H"
-#include "Utils.H"
-#include "FileMgr.H"
-#include "RegKeys.H"
+#include "LevelEdit.h"
+#include "WelcomeDialog.h"
+#include "Utils.h"
+#include "FileMgr.h"
+#include "RegKeys.h"
 
 
 #ifdef _DEBUG

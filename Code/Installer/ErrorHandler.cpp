@@ -39,7 +39,7 @@
 #include "CodeControl.h"
 #include "Resource.h"
 #include "Translator.h"
-#include "Win.h"
+#include "win.h"
 
 
 // Defines.

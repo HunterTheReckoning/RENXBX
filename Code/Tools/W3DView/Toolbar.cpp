@@ -24,7 +24,7 @@
 //
 
 #include "stdafx.h"
-#include "Toolbar.H"
+#include "Toolbar.h"
 
 
 

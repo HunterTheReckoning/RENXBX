@@ -20,10 +20,10 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "choosemodpackagedialog.h"
+#include "LevelEdit.h"
+#include "ChooseModPackageDialog.h"
 #include "assetpackagemgr.h"
-#include "newassetpackagedialog.h"
+#include "NewAssetPackageDialog.h"
 
 
 #ifdef _DEBUG

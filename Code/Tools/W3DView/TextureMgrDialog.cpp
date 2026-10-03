@@ -36,12 +36,12 @@
 
 
 #include "StdAfx.H"
-#include "W3DView.H"
-#include "TextureMgrDialog.H"
-#include "Mesh.H"
-#include "MatInfo.H"
-#include "TextureSettingsDialog.H"
-#include "AssetMgr.H"
+#include "W3DView.h"
+#include "TextureMgrDialog.h"
+#include "mesh.h"
+#include "matinfo.h"
+#include "TextureSettingsDialog.h"
+#include "assetmgr.h"
 #include "texture.h"
 
 

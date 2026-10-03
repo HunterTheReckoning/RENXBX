@@ -29,11 +29,11 @@
 
 #include "refcount.h"
 #include "shlobj.h"
-#include "listtypes.h"
-#include "nodetypes.h"
+#include "ListTypes.h"
+#include "NodeTypes.h"
 #include "assetmgr.h"
 #include "_assetmgr.h"
-#include "editorassetmgr.h"
+#include "EditorAssetMgr.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

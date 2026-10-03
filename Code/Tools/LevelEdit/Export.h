@@ -43,7 +43,7 @@
 #define __EXPORT_H
 
 #include "vector.h"
-#include "listtypes.h"
+#include "ListTypes.h"
 #include "wwstring.h"
 #include "editormixfile.h"
 

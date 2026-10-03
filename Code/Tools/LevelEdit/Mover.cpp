@@ -35,12 +35,12 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "mover.h"
-#include "utils.h"
-#include "cameramgr.h"
-#include "leveleditdoc.h"
-#include "leveleditview.h"
-#include "node.h"
+#include "Mover.h"
+#include "Utils.h"
+#include "CameraMgr.h"
+#include "LevelEditDoc.h"
+#include "LevelEditView.h"
+#include "Node.h"
 #include "phys3.h"
 
 

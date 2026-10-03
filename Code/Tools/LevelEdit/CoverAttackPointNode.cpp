@@ -35,18 +35,18 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "coverspotnode.h"
-#include "coverattackpointnode.h"
-#include "sceneeditor.h"
-#include "collisiongroups.h"
+#include "CoverSpotNode.h"
+#include "CoverAttackPointNode.h"
+#include "SceneEditor.h"
+#include "CollisionGroups.h"
 #include "persistfactory.h"
-#include "editorchunkids.h"
-#include "preset.h"
+#include "EditorChunkIDs.h"
+#include "Preset.h"
 #include "chunkio.h"
-#include "nodemgr.h"
-#include "modelutils.h"
+#include "NodeMgr.H"
+#include "ModelUtils.h"
 #include "soldier.h"
-#include "presetmgr.h"
+#include "PresetMgr.h"
 
 //////////////////////////////////////////////////////////////////////////////
 //	Persist factory

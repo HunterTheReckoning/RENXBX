@@ -25,7 +25,7 @@
 // ColorPickerDialogClass.h : header file
 //
 #include "Resource.H"
-#include "WWCtrl.H"
+#include "WWCtrl.h"
 
 // Forward declarations
 class ColorBarClass;

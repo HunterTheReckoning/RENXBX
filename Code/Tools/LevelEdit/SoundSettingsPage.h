@@ -28,7 +28,7 @@
 #endif
 
 
-#include "dockableform.h"
+#include "DockableForm.h"
 
 
 //////////////////////////////////////////////////////////

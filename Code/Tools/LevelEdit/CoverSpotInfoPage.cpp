@@ -21,13 +21,13 @@
 
 #include "stdafx.h"
 #include "CoverSpotInfoPage.h"
-#include "leveledit.h"
-#include "coverspotnode.h"
-#include "node.h"
-#include "utils.h"
-#include "sceneeditor.h"
+#include "LevelEdit.h"
+#include "CoverSpotNode.h"
+#include "Node.h"
+#include "Utils.h"
+#include "SceneEditor.h"
 #include "mousemgr.h"
-#include "coverattackpointnode.h"
+#include "CoverAttackPointNode.h"
 
 
 #ifdef _DEBUG

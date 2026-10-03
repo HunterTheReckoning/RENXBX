@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "leveledit.h"
-#include "presetzonetab.h"
+#include "LevelEdit.h"
+#include "PresetZoneTab.h"
 #include "definition.h"
-#include "preset.h"
-#include "utils.h"
-#include "zoneeditdialog.h"
-#include "objectnode.h"
+#include "Preset.h"
+#include "Utils.h"
+#include "ZoneEditDialog.h"
+#include "ObjectNode.h"
 #include "rendobj.h"
 #include "SceneEditor.h"
 #include "decophys.h"
@@ -34,7 +34,7 @@
 #include "staticphys.h"
 #include "zone.h"
 #include "wheelvehicle.h"
-#include "cameramgr.h"
+#include "CameraMgr.h"
 #include "hlod.h"
 #include "parameter.h"
 

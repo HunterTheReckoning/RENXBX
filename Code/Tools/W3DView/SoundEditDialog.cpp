@@ -35,14 +35,14 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "stdafx.h"
-#include "soundeditdialog.h"
+#include "SoundEditDialog.h"
 #include "soundrobj.h"
-#include "audiblesound.h"
-#include "utils.h"
-#include "sound3d.h"
-#include "playsounddialog.h"
-#include "w3dviewdoc.h"
-#include "datatreeview.h"
+#include "AudibleSound.h"
+#include "Utils.h"
+#include "Sound3D.h"
+#include "PlaySoundDialog.h"
+#include "W3DViewDoc.h"
+#include "DataTreeView.h"
 #include "assetmgr.h"
 
 

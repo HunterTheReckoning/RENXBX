@@ -21,10 +21,10 @@
 
 #include "stdafx.h"
 #include "wdump.h"
-#include "WDTView.h"
+#include "wdtview.h"
 #include "wdumpdoc.h"
 #include "chunk_d.h"
-#include "finddialog.h"
+#include "FindDialog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

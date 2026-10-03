@@ -20,7 +20,7 @@
 //
 
 #include "stdafx.h"
-#include "phystest.h"
+#include "PhysTest.h"
 #include "MotorcycleDialog.h"
 #include "motorcycle.h"
 

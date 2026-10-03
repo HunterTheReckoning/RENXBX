@@ -20,13 +20,13 @@
 //
 
 #include "stdafx.h"
-#include "w3dview.h"
+#include "W3DView.h"
 #include "AnimationPropPage.h"
-#include "RendObj.H"
-#include "AssetMgr.H"
-#include "Mesh.H"
-#include "W3DViewDoc.H"
-#include "Utils.H"
+#include "rendobj.h"
+#include "assetmgr.h"
+#include "mesh.h"
+#include "W3DViewDoc.h"
+#include "Utils.h"
 
 
 #ifdef _DEBUG

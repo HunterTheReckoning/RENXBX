@@ -43,8 +43,8 @@
 #define __NODE_CATEGORIES_H
 
 #include "definitionclassids.h"
-#include "icons.h"
-#include "editorchunkids.h"
+#include "Icons.h"
+#include "EditorChunkIDs.h"
 #include "combatchunkid.h"
 
 

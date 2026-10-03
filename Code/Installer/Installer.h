@@ -39,7 +39,7 @@
 // Includes.
 #include "RegistryManager.h"
 #include "Utilities.h"
-#include "Wwuiinput.h"
+#include "wwuiinput.h"
 
 
 // Forward declarations.

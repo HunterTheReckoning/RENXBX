@@ -36,8 +36,8 @@
 
 #include "stdafx.h"
 #include "heightfieldeditor.h"
-#include "sceneeditor.h"
-#include "mover.h"
+#include "SceneEditor.h"
+#include "Mover.h"
 #include "rendobj.h"
 #include "phys.h"
 #include "editableheightfield.h"

@@ -42,11 +42,11 @@
 #ifndef __TERRAIN_NODE_H
 #define __TERRAIN_NODE_H
 
-#include "node.h"
+#include "Node.h"
 #include "vector.h"
-#include "icons.h"
-#include "tilenode.h"
-#include "terrainsectionpersist.h"
+#include "Icons.h"
+#include "TileNode.h"
+#include "TerrainSectionPersist.h"
 #include "proxy.h"
 
 ////////////////////////////////////////////////////////////////////////////

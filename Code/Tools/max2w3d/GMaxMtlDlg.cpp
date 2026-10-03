@@ -41,13 +41,13 @@
 #include <bmmlib.h>
 
 #include "GMaxMtlDlg.h"
-#include "GameMtl.h"
+#include "gamemtl.h"
 #include "GameMtlPassDlg.h"
 #include "dllmain.h"
 #include "resource.h"
 #include "w3d_file.h"
 #include "prsht.h"
-#include "gameMtlForm.h"
+#include "GameMtlForm.h"
 
 
 extern GMaxMtlDlg * GMaxMaterialDialog;
