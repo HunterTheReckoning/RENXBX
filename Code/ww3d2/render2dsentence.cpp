@@ -1178,7 +1178,13 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	//	Get the size of the character we just drew
 	//
 	SIZE char_size = { 0 };
+#ifdef NXDK
+	// PORT (placeholder until the SDL_ttf font replacement): half an em wide, full height.
+	char_size.cx = (CharHeight + 1) / 2;
+	char_size.cy = CharHeight;
+#else
 	::GetTextExtentPoint32W( MemDC, &ch, 1, &char_size );
+#endif
 	int x_pos = 0;
 
 	//
@@ -1193,8 +1199,10 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	//
 	//	Draw the character into the memory DC
 	//
+#ifndef NXDK  // PORT: the glyph bitmap stays empty until the SDL_ttf font replacement draws into it
 	RECT rect = { 0, 0, width, height };
 	::ExtTextOutW( MemDC, x_pos, 0, ETO_OPAQUE, &rect, &ch, 1, NULL);
+#endif
 
 	//
 	//	Get a pointer to the surface that this character should use
@@ -1311,6 +1319,19 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 void
 FontCharsClass::Create_GDI_Font (const char *font_name)
 {
+#ifdef NXDK
+	// PORT (placeholder until the SDL_ttf font replacement): no GDI on the Xbox. Provide the
+	// same 24-bit glyph bitmap GDI would (PointSize * 2 square, rows padded to 4 bytes), left
+	// empty, and a typical line height (about 1.15 em at 96 DPI) so text layout gets real sizes.
+	(void)font_name;
+	int size = PointSize * 2;
+	int stride = (((size * 3) + 3) & ~3);
+	GDIBitmapBits = new uint8[stride * size];
+	memset(GDIBitmapBits, 0, stride * size);
+	int em = (PointSize * 96 + 36) / 72;
+	CharHeight = em + (em + 3) / 6;
+	return;
+#else
 	HDC screen_dc = ::GetDC (NULL);
 
 	//
@@ -1407,6 +1428,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	//
 	::ReleaseDC (NULL, screen_dc);
 	return ;
+#endif
 }
 
 
@@ -1418,6 +1440,12 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 void
 FontCharsClass::Free_GDI_Font (void)
 {
+#ifdef NXDK
+	// PORT (placeholder until the SDL_ttf font replacement): free the glyph bitmap.
+	delete [] GDIBitmapBits;
+	GDIBitmapBits = NULL;
+	return;
+#else
 	//
 	//	Select the old font back into the DC and delete
 	// our font object
@@ -1447,6 +1475,7 @@ FontCharsClass::Free_GDI_Font (void)
 	}
 
 	return ;
+#endif
 }
 
 
@@ -1524,8 +1553,8 @@ FontCharsClass::Grow_Unicode_Array (WCHAR ch)
 		return ;
 	}
 
-	uint16 first_index	= min( FirstUnicodeChar, ch );
-	uint16 last_index		= max( LastUnicodeChar, ch );
+	uint16 first_index	= min( FirstUnicodeChar, (uint16)ch );	// PORT: WCHAR is wchar_t now; same 16-bit value
+	uint16 last_index		= max( LastUnicodeChar, (uint16)ch );
 	uint16 count			= (last_index - first_index) + 1;
 
 	//

@@ -19,6 +19,11 @@ typedef struct tagRECT {
 } RECT, *PRECT, *LPRECT;
 typedef const RECT *LPCRECT;
 
+typedef struct tagSIZE {
+	LONG cx;
+	LONG cy;
+} SIZE, *PSIZE, *LPSIZE;
+
 typedef struct tagPOINT {
 	LONG x;
 	LONG y;

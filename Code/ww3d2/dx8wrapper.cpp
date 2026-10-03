@@ -164,6 +164,11 @@ static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
 
 typedef IDirect3D8* (WINAPI *Direct3DCreate8Type) (UINT SDKVersion);
 Direct3DCreate8Type	Direct3DCreate8Ptr = NULL;
+#ifdef NXDK
+// PORT: on the Xbox the Direct3D layer is linked into the program (no DLLs). This WINAPI
+// wrapper keeps the engine's function-pointer type, whose calling convention differs.
+static IDirect3D8* WINAPI Xbox_Direct3DCreate8(UINT SDKVersion) { return Direct3DCreate8(SDKVersion); }
+#endif
 HINSTANCE D3D8Lib = NULL;
 
 
@@ -245,11 +250,15 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	Invalidate_Cached_Render_States();
 
 	if (!lite) {
+#ifdef NXDK
+		Direct3DCreate8Ptr = Xbox_Direct3DCreate8;
+#else
 		D3D8Lib = LoadLibrary("D3D8.DLL");
 
 		if (D3D8Lib == NULL) return false;
 
 		Direct3DCreate8Ptr = (Direct3DCreate8Type) GetProcAddress(D3D8Lib, "Direct3DCreate8");
+#endif
 		if (Direct3DCreate8Ptr) {
 
 			/*
@@ -316,10 +325,12 @@ void DX8Wrapper::Shutdown(void)
 	_RenderDeviceShortNameTable.Delete_All();
 	_RenderDeviceDescriptionTable.Delete_All();
 
+#ifndef NXDK
 	if (D3D8Lib) {
 		FreeLibrary(D3D8Lib);
 		D3D8Lib = NULL;
 	}
+#endif
 
 	IsInitted = false;
 }
