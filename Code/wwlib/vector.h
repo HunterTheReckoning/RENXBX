@@ -486,7 +486,17 @@ bool VectorClass<T>::Resize(int newsize, T const * array)
 template<class T>
 class DynamicVectorClass : public VectorClass<T>
 {
+	protected:
+		// PORT: name base-class members explicitly. MSVC6 found these without
+		// two-phase lookup; standard C++ compilers need to be told.
+		using VectorClass<T>::Vector;
+		using VectorClass<T>::VectorMax;
+		using VectorClass<T>::IsValid;
+		using VectorClass<T>::IsAllocated;
+
 	public:
+		using VectorClass<T>::Length;
+
 		DynamicVectorClass(unsigned size=0, T const * array=0);
 
 		// Stubbed equality operators so you can have dynamic vectors of dynamic vectors
