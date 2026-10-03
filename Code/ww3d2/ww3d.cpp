@@ -1283,7 +1283,15 @@ void WW3D::Make_Screen_Shot( const char * filename_base )
 	fb->GetDesc(&desc);
 
 	RECT bounds;
+#ifdef NXDK
+	// PORT: the game is the whole screen on Xbox, so capture the whole front buffer.
+	bounds.left = 0;
+	bounds.top = 0;
+	bounds.right = desc.Width;
+	bounds.bottom = desc.Height;
+#else
 	GetWindowRect(_Hwnd,&bounds);
+#endif
 
 	D3DLOCKED_RECT lrect;
 
@@ -1565,7 +1573,15 @@ void WW3D::Update_Movie_Capture( void )
 	fb->GetDesc(&desc);
 
 	RECT bounds;
+#ifdef NXDK
+	// PORT: the game is the whole screen on Xbox, so capture the whole front buffer.
+	bounds.left = 0;
+	bounds.top = 0;
+	bounds.right = desc.Width;
+	bounds.bottom = desc.Height;
+#else
 	GetWindowRect(_Hwnd,&bounds);
+#endif
 
 	D3DLOCKED_RECT lrect;
 

@@ -46,6 +46,26 @@
 #include "always.h"
 #endif
 
+#ifdef NXDK
+// PORT: movie capture records AVI files through Windows' Video for Windows, which the Xbox
+// doesn't have. ww3d.cpp only creates a FrameGrabClass in WW3D::Start_Movie_Capture, inside
+// #ifdef _WINDOWS, so on Xbox none is ever created; this keeps the interface it compiles
+// against. (framgrab.cpp itself is left out of the Xbox build.)
+class FrameGrabClass
+{
+public:
+	enum MODE { RAW, AVI };
+	FrameGrabClass(const char *, MODE, int, int, int, float framerate) : FrameRate(framerate) {}
+	virtual ~FrameGrabClass() {}
+	void ConvertGrab(void *) {}
+	void Grab(void *) {}
+	long *GetBuffer() { return 0; }
+	float GetFrameRate() { return FrameRate; }
+protected:
+	float FrameRate;
+};
+#else
+
 #if defined (_MSC_VER)
 #pragma warning (push, 3)	// (gth) system headers complain at warning level 4...
 #endif
@@ -113,5 +133,7 @@ protected:
 	void ConvertFrame(void *BitmapPointer);
 
 };
+
+#endif // NXDK
 
 #endif

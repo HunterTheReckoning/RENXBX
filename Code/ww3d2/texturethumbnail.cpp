@@ -16,6 +16,8 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>	// PORT: sprintf, for the Xbox search path below
+#include <string.h>
 #include "texturethumbnail.h"
 #include "hashtemplate.h"
 #include "missingtexture.h"
@@ -613,6 +615,10 @@ void ThumbnailManagerClass::Update_Thumbnail_File(const char* mix_file_name,bool
 
 	if (display_message_box && !message_box_displayed) {
 		message_box_displayed=true;
+#ifdef NXDK
+		// PORT: no dialog boxes on the Xbox; log the same notice and carry on.
+		WWDEBUG_SAY(("Updating texture thumbnails: some or all need updating; this will take a while.\n"));
+#else
 		::MessageBox(NULL,
 			"Some or all texture thumbnails need to be updated.\n"
 			"This will take a while. The update will only be done once\n"
@@ -620,6 +626,7 @@ void ThumbnailManagerClass::Update_Thumbnail_File(const char* mix_file_name,bool
 			"updated.",
 			"Updating texture thumbnails",
 			MB_OK);
+#endif
 	}
 
 	// we don't currently have a thumbnail file (either we just deleted it or it never existed, we don't care)
@@ -650,10 +657,20 @@ void ThumbnailManagerClass::Pre_Init(bool display_message_box)
 	GetCurrentDirectory(sizeof(cur_dir),cur_dir);
 	StringClass new_dir(cur_dir,true);
 	new_dir+="\\Data";
+#ifdef NXDK
+	// PORT: no current directory on the Xbox. Search Data\ next to the game with a full path
+	// instead of changing into it (cur_dir is "D:\", so add a separator only if missing).
+	char pattern[300];
+	size_t cur_len = strlen(cur_dir);
+	sprintf(pattern, "%s%sData\\*.mix", cur_dir, (cur_len && cur_dir[cur_len-1] == '\\') ? "" : "\\");
+	WIN32_FIND_DATA find_data;
+	HANDLE handle=FindFirstFile(pattern,&find_data);
+#else
 	SetCurrentDirectory(new_dir);
 
 	WIN32_FIND_DATA find_data;
 	HANDLE handle=FindFirstFile("*.mix",&find_data);
+#endif
 	if (handle!=INVALID_HANDLE_VALUE) {
 		for (;;) {
 			if (!(find_data.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)) {
@@ -665,7 +682,9 @@ void ThumbnailManagerClass::Pre_Init(bool display_message_box)
 			}
 		}
 	}
+#ifndef NXDK
 	SetCurrentDirectory(cur_dir);
+#endif
 
 	// First generate thumbnails for always.dat
 	Update_Thumbnail_File("always.dat",display_message_box);

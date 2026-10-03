@@ -66,7 +66,7 @@
 #include "missingtexture.h"
 #include "thread.h"
 #include <stdio.h>
-#include <D3dx8core.h>
+#include <d3dx8core.h>
 #include "pot.h"
 #include "wwprofile.h"
 #include "ffactory.h"
@@ -652,7 +652,7 @@ bool DX8Wrapper::Set_Any_Render_Device(void)
 	}
 
 	// Try windowed first
-	for (dev_number = 0; dev_number < _RenderDeviceNameTable.Count(); dev_number++) {
+	for (int dev_number = 0; dev_number < _RenderDeviceNameTable.Count(); dev_number++) {
 		if (Set_Render_Device(dev_number,-1,-1,-1,1,false)) {
 			return true;
 		}
@@ -754,12 +754,14 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		** Enforce a required set of window styles and size if the main window
 		** IS NOT A CHILD WINDOW.  :)
 		*/
+#ifndef NXDK  // PORT: window management; the Xbox has no windows (always full screen)
 		if ((::GetWindowLong(_Hwnd, GWL_STYLE) & WS_CHILD) == 0) {
 			::SetWindowLong(_Hwnd, GWL_STYLE, WS_SYSMENU|WS_CAPTION|WS_MINIMIZEBOX|WS_CLIPCHILDREN);
 
 			// Always resize the window to the desired resolution in windowed mode.
 			resize_window = true;
 		}
+#endif
 // End Denzil - DX window initialzaion
 
 		// In windowed mode, define the bitdepth from desktop mode (as it can't be changed)
@@ -803,6 +805,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 // 10/23/01 - Denzil - DX Window initialization
 		// For fullscreen set the window style to WS_POPUP (Recommended in DX docs)
+#ifndef NXDK  // PORT: window management; the Xbox has no windows (always full screen)
 		SetWindowLong(_Hwnd, GWL_STYLE, WS_POPUP);
 
 		// Set fullscreen window position to top left and resize to cover entire display.
@@ -815,6 +818,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 		// We already resized the window
 		resize_window = false;
+#endif
 // End Denzil - DX window initialization
 
 		WWDEBUG_SAY(("Initializing full-screen mode\r\n"));
@@ -1236,7 +1240,8 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 	bool found = false;
 	unsigned int mode = 0;
 
-	for (int format_index=0; format_index < format_count; format_index++) {
+	int format_index;	// PORT: used after the loop (MSVC6 leaked loop variables)
+	for (format_index=0; format_index < format_count; format_index++) {
 		found |= Find_Color_Mode(format_table[format_index],resx,resy,&mode);
 		if (found) break;
 	}
@@ -2423,7 +2428,8 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 		::ZeroMemory(&light, sizeof(D3DLIGHT8));
 		light.Type=D3DLIGHT_DIRECTIONAL;
 
-		for (int l=0;l<light_count;++l) {
+		int l;	// PORT: used after the loop (MSVC6 leaked loop variables)
+		for (l=0;l<light_count;++l) {
 			(Vector3&)light.Diffuse=light_env->Get_Light_Diffuse(l);
 			Vector3 dir=-light_env->Get_Light_Direction(l);
 			light.Direction=(const D3DVECTOR&)(dir);
@@ -2749,7 +2755,9 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
 
 	if (Get_Current_Caps()->Support_Gamma())	{
 		DX8Wrapper::_Get_D3D_Device8()->SetGammaRamp(flag,&ramp);
-	} else {
+	}
+#ifndef NXDK  // PORT: desktop gamma via GDI; the Xbox's video hardware always does gamma itself
+	else {
 		HWND hwnd = GetDesktopWindow();
 		HDC hdc = GetDC(hwnd);
 		if (hdc)
@@ -2758,6 +2766,7 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
 			ReleaseDC (hwnd, hdc);
 		}
 	}
+#endif
 }
 
 const char* DX8Wrapper::Get_DX8_Render_State_Name(D3DRENDERSTATETYPE state)

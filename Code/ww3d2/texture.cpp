@@ -39,7 +39,7 @@
 
 #include <d3d8.h>
 #include <stdio.h>
-#include <D3dx8core.h>
+#include <d3dx8core.h>
 #include "dx8wrapper.h"
 #include "TARGA.H"
 #include <nstrdup.h>
@@ -884,7 +884,7 @@ void TextureClass::_Init_Filters(TextureClass::TextureFilterMode filter_type)
 	}
 
 	// Set default to best. The level of best filter mode is controlled by the input parameter.
-	for (i=0;i<MAX_TEXTURE_STAGES;++i) {
+	for (int i=0;i<MAX_TEXTURE_STAGES;++i) {
 		_MinTextureFilters[i][FILTER_TYPE_DEFAULT]=_MinTextureFilters[i][FILTER_TYPE_BEST];
 		_MagTextureFilters[i][FILTER_TYPE_DEFAULT]=_MagTextureFilters[i][FILTER_TYPE_BEST];
 		_MipMapFilters[i][FILTER_TYPE_DEFAULT]=_MipMapFilters[i][FILTER_TYPE_BEST];

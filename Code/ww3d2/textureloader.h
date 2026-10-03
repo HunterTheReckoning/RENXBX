@@ -80,6 +80,8 @@ private:
 	static bool TextureLoadSuspended;
 };
 
+class TextureLoadTaskListClass;	// PORT: a friend declaration alone doesn't declare the name in standard C++
+
 class TextureLoadTaskListNodeClass
 {
 	friend class TextureLoadTaskListClass;

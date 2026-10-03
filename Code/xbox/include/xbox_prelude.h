@@ -20,6 +20,8 @@ typedef wchar_t WCHAR;        /* the engine's WCHAR: native 16-bit wchar_t */
 
 #include <wchar.h>
 #include "../../wwlib/xbox_port.h"   /* port shims, for files that don't include always.h */
+#include "xbox_win32_types.h"         /* RECT, POINT, GUID, GDI handles... (windows.h has them on PC) */
+#include <mmsystem.h>                 /* timeGetTime, timeBeginPeriod (windows.h includes it on PC) */
 
 static_assert(sizeof(wchar_t) == 2, "Xbox build expects a 16-bit wchar_t");
 static_assert(sizeof(NXDK_WCHAR) == sizeof(wchar_t), "nxdk WCHAR size changed");

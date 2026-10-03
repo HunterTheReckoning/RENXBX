@@ -31,7 +31,7 @@
 #include "dx8caps.h"
 #include "missingtexture.h"
 #include "TARGA.H"
-#include <D3dx8tex.h>
+#include <d3dx8tex.h>
 #include <cstdio>
 #include "wwmemlog.h"
 #include "texture.h"

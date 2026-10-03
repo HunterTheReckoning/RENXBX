@@ -759,6 +759,18 @@ WWINLINE unsigned int DX8Wrapper::Convert_Color(const Vector4& color)
 
 WWINLINE unsigned int DX8Wrapper::Convert_Color(const Vector3& color,float alpha)
 {
+#ifdef NXDK
+	// PORT: what the assembly below computes: each component times 255, truncated toward
+	// zero (the assembly switches the FPU to truncation), packed as AARRGGBB without masking.
+	// The products are taken in double, where they are exact, as in the x87's extended
+	// precision. (Tested: this matches the x87 result for every value near each k/255 boundary
+	// and for millions of random values in [0, 1].)
+	const int a = (int)((double)alpha * 255.0);
+	const int r = (int)((double)color.X * 255.0);
+	const int g = (int)((double)color.Y * 255.0);
+	const int b = (int)((double)color.Z * 255.0);
+	return (unsigned int)b | ((unsigned int)a << 24) | ((unsigned int)r << 16) | ((unsigned int)g << 8);
+#else
 	const float scale = 255.0;
 	unsigned int col;
 
@@ -827,6 +839,7 @@ not_changed:
 		mov	col,eax
 	}
 	return col;
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -837,6 +850,18 @@ not_changed:
 
 WWINLINE void DX8Wrapper::Clamp_Color(Vector4& color)
 {
+#ifdef NXDK
+	// PORT: the CMOV assembly path below (the one every Xbox CPU takes), done on the float
+	// bits as it does: a negative sign (including -0 and negative NaN) gives +0, and any bit
+	// pattern at or above 1.0's (including +inf and positive NaN) gives 1.0.
+	for (int i=0;i<4;++i) {
+		unsigned int bits;
+		__builtin_memcpy(&bits,&color[i],sizeof(bits));
+		bits &= ~(unsigned int)((int)bits >> 31);
+		if (bits >= 0x3f800000u) bits = 0x3f800000u;
+		__builtin_memcpy(&color[i],&bits,sizeof(bits));
+	}
+#else
 	if (!CPUDetectClass::Has_CMOV_Instruction()) {
 		for (int i=0;i<4;++i) {
 			float f=(color[i]<0.0f) ? 0.0f : color[i];
@@ -887,6 +912,7 @@ WWINLINE void DX8Wrapper::Clamp_Color(Vector4& color)
 		cmovnb edi,edx
 		mov dword ptr[esi+12],edi
 	}
+#endif
 }
 
 // ----------------------------------------------------------------------------
