@@ -55,6 +55,7 @@ void __cdecl ThreadClass::Internal_Thread_Function(void* params)
 #ifdef _WIN32
 	Register_Thread_ID(tc->ThreadID, tc->ThreadName);
 
+#ifndef NXDK  // PORT: no structured exception handling on the Xbox build; just run the thread
 	if (tc->ExceptionHandler != NULL) {
 		__try {
 			tc->Thread_Function();
@@ -62,6 +63,9 @@ void __cdecl ThreadClass::Internal_Thread_Function(void* params)
 	} else {
 		tc->Thread_Function();
 	}
+#else
+	tc->Thread_Function();
+#endif
 
 #else //_WIN32
 	tc->Thread_Function();

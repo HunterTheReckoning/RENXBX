@@ -51,6 +51,11 @@ typedef const char *LPCTSTR;
 #define CP_ACP 0
 #endif
 
+/* Single-underscore MSVC spelling of __int64. */
+#ifndef _int64
+#define _int64 __int64
+#endif
+
 #ifndef strcmpi
 #define strcmpi _stricmp
 #endif

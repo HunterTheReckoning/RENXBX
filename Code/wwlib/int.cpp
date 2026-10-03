@@ -42,7 +42,7 @@
 template<> int bignum::Error = 0;
 template<> bool bignum::Carry = false;
 template<> bool bignum::Borrow = false;
-bignum bignum::Remainder;
+template<> bignum bignum::Remainder{};  // PORT: {} makes this a definition, not just a declaration
 
 
 

@@ -452,7 +452,7 @@ class BlitTransLucent75 : public Blitter {
 */
 #if defined(_MSC_VER)
 
-inline void BlitTrans<unsigned char>::BlitForward(void * dest, void const * source, int len) const
+template<> inline void BlitTrans<unsigned char>::BlitForward(void * dest, void const * source, int len) const
 {
 	__asm {
 		mov	esi,[source]
@@ -477,7 +477,7 @@ fini:;
 }
 
 
-inline void BlitTransXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
+template<> inline void BlitTransXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
 {
 	unsigned short const * xlator = TranslateTable;
 
@@ -507,7 +507,7 @@ over:;
 }
 
 
-inline void BlitTransRemapXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
+template<> inline void BlitTransRemapXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
 {
 	unsigned short const * translator = TranslateTable;
 	unsigned char const * remapper = RemapTable;
@@ -544,7 +544,7 @@ over:;
 }
 
 
-inline void BlitTransZRemapXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
+template<> inline void BlitTransZRemapXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
 {
 	unsigned short const * translator = TranslateTable;
 	unsigned char const * remapper = *RemapTable;
@@ -581,7 +581,7 @@ over:;
 }
 
 
-inline void BlitPlainXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
+template<> inline void BlitPlainXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
 {
 	unsigned short const * remapper = TranslateTable;
 	__asm {
