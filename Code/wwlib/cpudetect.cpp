@@ -916,7 +916,7 @@ void CPUDetectClass::Init_OS()
 	OSVersionNumberMajor = XboxKrnlVersion.Major;
 	OSVersionNumberMinor = XboxKrnlVersion.Minor;
 	OSVersionBuildNumber = XboxKrnlVersion.Build;
-	OSVersionPlatformId = 0;
+	OSVersionPlatformId = 0xFFFFFFFF;   // not a Windows platform (0 would mean "Windows 3.1")
 	OSVersionExtraInfo = "Xbox";
 #else
 	OSVERSIONINFO os;
@@ -979,6 +979,9 @@ void CPUDetectClass::Init_Processor_Log()
 	case VER_PLATFORM_WIN32s: SYSLOG(("Windows 3.1")); break;
 	case VER_PLATFORM_WIN32_WINDOWS: SYSLOG(("Windows 9x")); break;
 	case VER_PLATFORM_WIN32_NT: SYSLOG(("Windows NT")); break;
+#ifdef NXDK
+	default: SYSLOG(("Xbox")); break;	// PORT
+#endif
 	}
 	SYSLOG(("\r\n"));
 
@@ -987,7 +990,7 @@ void CPUDetectClass::Init_Processor_Log()
 		(OSVersionBuildNumber&0xff000000)>>24,
 		(OSVersionBuildNumber&0xff0000)>>16,
 		(OSVersionBuildNumber&0xffff)));
-	SYSLOG(("OS-Info: %s\r\n",OSVersionExtraInfo));
+	SYSLOG(("OS-Info: %s\r\n",(const char *)OSVersionExtraInfo));	// PORT: text, not the object
 
 	SYSLOG(("Processor: %s\r\n",CPUDetectClass::Get_Processor_String()));
 	SYSLOG(("Clock speed: ~%dMHz\r\n",CPUDetectClass::Get_Processor_Speed()));
@@ -998,7 +1001,7 @@ void CPUDetectClass::Init_Processor_Log()
 	case 2: cpu_type="Dual"; break;
 	case 3: cpu_type="*Intel Reserved*"; break;
 	}
-	SYSLOG(("Processor type: %s\r\n",cpu_type));
+	SYSLOG(("Processor type: %s\r\n",(const char *)cpu_type));	// PORT: text, not the object
 
 	SYSLOG(("\r\n"));
 
@@ -1098,7 +1101,7 @@ void CPUDetectClass::Init_Compact_Log()
 static class CPUDetectInitClass
 {
 public:
-	CPUDetectInitClass::CPUDetectInitClass()
+	CPUDetectInitClass()
 	{
 		CPUDetectClass::Init_CPUID_Instruction();
 		// We pretty much need CPUID, but let's not crash if it doesn't exist.

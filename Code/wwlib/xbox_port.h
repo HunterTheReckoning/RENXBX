@@ -90,6 +90,13 @@ typedef void *HKEY;
 #define getpid() ((int)GetCurrentThreadId())
 #endif
 
+/* Windows platform IDs (cpudetect.cpp compares against these; the Xbox matches none). */
+#ifndef VER_PLATFORM_WIN32s
+#define VER_PLATFORM_WIN32s        0
+#define VER_PLATFORM_WIN32_WINDOWS 1
+#define VER_PLATFORM_WIN32_NT      2
+#endif
+
 #ifndef strcmpi
 #define strcmpi _stricmp
 #endif
