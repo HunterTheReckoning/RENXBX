@@ -957,6 +957,9 @@ bool Device::Init_Hardware()
 		Trace("d3d: pb_init failed (%d)", status);
 		return false;
 	}
+	/* pb_init ends by showing its own (blank) front buffer, which would hide the text screen
+	** until our first Present; switch back so start-up messages stay visible. */
+	pb_show_debug_screen();
 	Trace("d3d: pb_init ok, back buffer %ux%u, pitch %u", (unsigned)pb_back_buffer_width(),
 	      (unsigned)pb_back_buffer_height(), (unsigned)pb_back_buffer_pitch());
 	/* The text screen stays visible until the first frame is presented (see Present), so
