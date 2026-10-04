@@ -62,10 +62,14 @@ void Free_GPU_Memory(void *memory)
 static XboxD3DStats Stats;   /* live objects; see xbox_d3d8_stats.h */
 static bool DiagnosticW1;    /* see XboxD3D_Set_Diagnostic_W1 */
 
+static const char *Notices[8];
+static int NoticeCount;
+
 void Log_Once(bool *done, const char *what)
 {
 	if (*done) return;
 	*done = true;
+	if (NoticeCount < 8) Notices[NoticeCount++] = what;
 	DbgPrint("XboxD3D: %s\n", what);
 	Trace("%s", what);
 }
@@ -1299,8 +1303,9 @@ enum {
 	CONST_FLAGS2 = 13,
 	CONST_LIGHT_DIR = 14,       /* c14-c17 */
 	CONST_LIGHT_DIFFUSE = 18,   /* c18-c21 */
-	CONST_LITERAL = 22,         /* "#const c[22] = 1 0" from the compiler */
-	CONST_COUNT = 23
+	CONST_TEXSEL = 22,          /* texture stage 0/1 coordinate set (D3DTSS_TEXCOORDINDEX) */
+	CONST_LITERAL = 23,         /* "#const c[23] = 1 0" from the compiler */
+	CONST_COUNT = 24
 };
 
 /* NV2A vertex attribute slots used by the program (texture coordinates land in 9 and 10). */
@@ -1468,9 +1473,9 @@ void Device::Apply_Textures()
 		p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0 + base, (1u << 30) | ((max_lod & 0xFFF) << 6));
 		p = pb_push1(p, NV097_SET_TEXTURE_FILTER + base,
 		             Filter_To_NV(st[D3DTSS_MINFILTER], st[D3DTSS_MAGFILTER], st[D3DTSS_MIPFILTER]));
-		if (st[D3DTSS_TEXCOORDINDEX] != (DWORD)s || st[D3DTSS_TEXTURETRANSFORMFLAGS] != D3DTTFF_DISABLE) {
+		if (st[D3DTSS_TEXTURETRANSFORMFLAGS] != D3DTTFF_DISABLE) {
 			static bool logged;
-			Log_Once(&logged, "texture: coordinate generation and texture matrices are not applied yet");
+			Log_Once(&logged, "texture: texture matrices (scrolling, animated textures) are not applied yet");
 		}
 	}
 	pb_end(p);
@@ -1553,6 +1558,20 @@ bool Device::Prepare_Draw(UINT base_vertex)
 		c[CONST_LIGHT_DIFFUSE + i][0] = Lights[i].Diffuse.r;
 		c[CONST_LIGHT_DIFFUSE + i][1] = Lights[i].Diffuse.g;
 		c[CONST_LIGHT_DIFFUSE + i][2] = Lights[i].Diffuse.b;
+	}
+	/* Which coordinate set each stage reads: Renegade's materials choose per stage (UV source). */
+	for (int s = 0; s < 2; s++) {
+		DWORD tci = StageStates[s][D3DTSS_TEXCOORDINDEX];
+		DWORD index = tci & 0xFFFF;
+		c[CONST_TEXSEL][s] = index == 1 ? 1.0f : 0.0f;
+		if (index > 1) {
+			static bool logged;
+			Log_Once(&logged, "texture: coordinate sets above 1 are not supported yet (read as set 0)");
+		}
+		if ((tci & 0xFFFF0000) != D3DTSS_TCI_PASSTHRU && Textures[s]) {
+			static bool logged;
+			Log_Once(&logged, "texture: generated coordinates (environment maps) are not supported yet");
+		}
 	}
 	c[CONST_LITERAL][0] = 1.0f;
 	c[CONST_LITERAL][1] = 0.0f;
@@ -1762,6 +1781,11 @@ HRESULT Direct3D::CreateDevice(UINT Adapter, D3DDEVTYPE, HWND, DWORD,
 void XboxD3D_Get_Stats(XboxD3DStats *out)
 {
 	if (out) *out = XboxD3D::Stats;
+}
+
+const char *XboxD3D_Get_Notice(int index)
+{
+	return (index >= 0 && index < XboxD3D::NoticeCount) ? XboxD3D::Notices[index] : NULL;
 }
 
 void XboxD3D_Set_Diagnostic_W1(bool on)

@@ -47,7 +47,9 @@ vOut main(
 	uniform float4   flags2,         /* x vertex has a diffuse color, y has a specular color,
 	                                    z diagnostic: output w = 1 (no perspective correction) */
 	uniform float4   light_dir[4],     /* xyz: direction the light travels */
-	uniform float4   light_diffuse[4]  /* rgb; zero for an unused light */
+	uniform float4   light_diffuse[4], /* rgb; zero for an unused light */
+	uniform float4   texsel            /* x, y: texture stage 0, 1 reads coordinate set 1 instead of 0
+	                                      (D3DTSS_TEXCOORDINDEX) */
 	)
 {
 	vOut R;
@@ -73,7 +75,7 @@ vOut main(
 	float4 lit_color = float4(saturate(lit), diffuse.a);
 	R.col0 = lerp(vdiff, lit_color, flags.x);
 	R.col1 = vspec;
-	R.tex0 = I.tex0;
-	R.tex1 = I.tex1;
+	R.tex0 = lerp(I.tex0, I.tex1, texsel.x);
+	R.tex1 = lerp(I.tex0, I.tex1, texsel.y);
 	return R;
 }

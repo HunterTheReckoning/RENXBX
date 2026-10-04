@@ -19,4 +19,8 @@ void XboxD3D_Get_Stats(XboxD3DStats *out);
 ** correction. Used to tell whether depth problems come from that correction. Off normally. */
 void XboxD3D_Set_Diagnostic_W1(bool on);
 
+/* Things the layer met but doesn't support yet (each reported once), in the order met; NULL
+** past the last. Test programs show these so a real model reveals what it still needs. */
+const char *XboxD3D_Get_Notice(int index);
+
 #endif
