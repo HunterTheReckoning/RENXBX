@@ -201,4 +201,10 @@ int   _snwprintf(wchar_t *buffer, size_t count, const wchar_t *format, ...);
 #endif
 
 #endif /* NXDK */
+
+/* Outside Xbox builds, start-up markers do nothing. */
+#ifndef PORT_TRACE
+#define PORT_TRACE(message)
+#endif
+
 #endif /* XBOX_PORT_H */

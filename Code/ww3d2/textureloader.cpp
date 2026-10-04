@@ -295,10 +295,14 @@ void TextureLoader::Init()
 {
 	WWASSERT(!_TextureLoadThread.Is_Running());
 
+	PORT_TRACE("ww3d: thumbnail manager init");
 	ThumbnailManagerClass::Init();
 
+	PORT_TRACE("ww3d: starting the texture loader thread");
 	_TextureLoadThread.Execute();
+	PORT_TRACE("ww3d: setting the loader thread's priority");
 	_TextureLoadThread.Set_Priority(-4);
+	PORT_TRACE("ww3d: texture loader started");
 }
 
 

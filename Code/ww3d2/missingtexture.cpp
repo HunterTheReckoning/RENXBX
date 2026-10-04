@@ -101,6 +101,7 @@ void MissingTexture::_Init()
 	}
 
 	DX8_ErrorCode(tex->UnlockRect(0));
+	PORT_TRACE("ww3d: missing texture: pattern written, building mipmaps");
 
 	for (unsigned i=1;i<tex->GetLevelCount();++i) {
 		IDirect3DSurface8 *src,*dst;

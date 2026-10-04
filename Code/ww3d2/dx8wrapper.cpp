@@ -345,16 +345,26 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits(void)
    /*
 	** Initalize any other subsystems inside of WW3D
 	*/
+	PORT_TRACE("ww3d: MissingTexture::_Init");
 	MissingTexture::_Init();
+	PORT_TRACE("ww3d: TextureClass::_Init_Filters");
 	TextureClass::_Init_Filters((TextureClass::TextureFilterMode)WW3D::Get_Texture_Filter());
+	PORT_TRACE("ww3d: TheDX8MeshRenderer.Init");
 	TheDX8MeshRenderer.Init();
+	PORT_TRACE("ww3d: BoxRenderObjClass::Init");
 	BoxRenderObjClass::Init();
+	PORT_TRACE("ww3d: VertexMaterialClass::Init");
 	VertexMaterialClass::Init();
+	PORT_TRACE("ww3d: PointGroupClass::_Init");
 	PointGroupClass::_Init(); // This needs the VertexMaterialClass to be initted
+	PORT_TRACE("ww3d: ShatterSystem::Init");
 	ShatterSystem::Init();
+	PORT_TRACE("ww3d: TextureLoader::Init");
 	TextureLoader::Init();
 
+	PORT_TRACE("ww3d: Set_Default_Global_Render_States");
 	Set_Default_Global_Render_States();
+	PORT_TRACE("ww3d: device set-up done");
 }
 
 inline DWORD F2DW(float f) { return *((unsigned*)&f); }

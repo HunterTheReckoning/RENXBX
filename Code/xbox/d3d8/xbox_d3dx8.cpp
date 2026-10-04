@@ -125,6 +125,11 @@ HRESULT D3DXLoadSurfaceFromSurface(IDirect3DSurface8 *pDestSurface, CONST PALETT
 		return D3DERR_NOTAVAILABLE;
 	}
 
+	static unsigned traced;
+	if (traced < 8) {
+		traced++;
+		Trace("d3dx: LoadSurfaceFromSurface %dx%d -> %dx%d", sw, sh, dw, dh);
+	}
 	D3DLOCKED_RECT src, dst;
 	if (FAILED(pSrcSurface->LockRect(&src, NULL, D3DLOCK_READONLY))) return D3DERR_INVALIDCALL;
 	if (FAILED(pDestSurface->LockRect(&dst, NULL, 0))) {
