@@ -252,6 +252,14 @@ RawFileClass::RawFileClass(char const * filename) :
 	Date(0),
 	Time(0)
 {
+#ifdef NXDK
+	// PORT: the initializer above stored the name as given; resolve it like Set_Name does.
+	if (filename && filename[0]) {
+		char resolved[_MAX_PATH];
+		Xbox_Resolve_Path(filename, resolved, sizeof(resolved));
+		Filename=resolved;
+	}
+#endif
 }
 
 /***********************************************************************************************
@@ -314,7 +322,20 @@ char const * RawFileClass::Set_Name(char const * filename)
 {
 	Bias(0);
 
+#ifdef NXDK
+	// PORT: resolve the name against the game's folder (D:\) as Windows resolves it against
+	// the current folder; nxdk's CreateFile would look for a relative name in the kernel's
+	// drive-letter directory and find nothing (or, for "..\name", hang).
+	if (filename && filename[0]) {
+		char resolved[_MAX_PATH];
+		Xbox_Resolve_Path(filename, resolved, sizeof(resolved));
+		Filename=resolved;
+	} else {
+		Filename=filename;
+	}
+#else
 	Filename=filename;
+#endif
 
 	/*
 	** If this is a UNIX build, fix the filename from the DOS-like name passed in

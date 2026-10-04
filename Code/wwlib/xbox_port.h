@@ -164,6 +164,13 @@ wchar_t *lstrcpynW(wchar_t *dst, const wchar_t *src, int max_count);
 ** (with terminator) if the buffer is too small. */
 DWORD GetCurrentDirectoryA(DWORD buffer_size, char *buffer);
 
+/* File names as Windows resolves them against the current folder, for the Xbox: nxdk's
+** CreateFile resolves names in the kernel's drive-letter directory (\??\), so a relative
+** name would find nothing. With D:\ as the current folder (as GetCurrentDirectory reports):
+** "X:\..." is unchanged; "\a", "a", ".\a" and "..\a" become "D:\a" (the game's folder is
+** the top of the disc, so there is no parent); '/' becomes '\'. */
+void Xbox_Resolve_Path(const char *name, char *out, size_t out_size);
+
 /* MSVC's _beginthread, built on nxdk's _beginthreadex. Returns the thread handle, or
 ** (uintptr_t)-1 on failure as MSVC does. Unlike MSVC, the handle is not closed when the
 ** thread exits (ThreadClass keeps using it); the engine creates only a few threads. */

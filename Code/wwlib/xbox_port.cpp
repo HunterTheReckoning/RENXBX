@@ -353,6 +353,27 @@ DWORD GetCurrentDirectoryA(DWORD buffer_size, char *buffer)
 	return sizeof(dir) - 1;
 }
 
+void Xbox_Resolve_Path(const char *name, char *out, size_t out_size)
+{
+	if (!out || out_size == 0) return;
+	if (!name) name = "";
+	const char *rest = name;
+	const char *prefix = "";
+	if (name[0] && name[1] == ':') {
+		prefix = "";                                  /* has a drive letter: keep as is */
+	} else {
+		for (;;) {                                    /* drop leading \, .\ and ..\ */
+			if (rest[0] == '\\' || rest[0] == '/') { rest += 1; continue; }
+			if (rest[0] == '.' && (rest[1] == '\\' || rest[1] == '/')) { rest += 2; continue; }
+			if (rest[0] == '.' && rest[1] == '.' && (rest[2] == '\\' || rest[2] == '/')) { rest += 3; continue; }
+			break;
+		}
+		prefix = "D:\\";
+	}
+	snprintf(out, out_size, "%s%s", prefix, rest);
+	for (char *p = out; *p; ++p) if (*p == '/') *p = '\\';
+}
+
 wchar_t *lstrcpynW(wchar_t *dst, const wchar_t *src, int max_count)
 {
 	if (max_count <= 0) return dst;
