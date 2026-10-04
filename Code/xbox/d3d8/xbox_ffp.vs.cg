@@ -1,0 +1,78 @@
+/*
+** xbox_ffp.vs.cg -- Direct3D 8's fixed-function vertex pipeline, as a vertex program for the
+** NV2A (the port's Direct3D layer, Xbox build only).
+**
+** Built with nxdk's Cg compiler (profile vp20) and vp20compiler; the generated microcode is
+** xbox_ffp_vs.inl, and the constant layout it reports is mirrored in xbox_d3d8_draw.cpp.
+** If this file changes, regenerate the .inl and check the layout there still matches.
+**
+** Lighting follows Direct3D 8's formula for directional lights, which is what Renegade sends:
+** DX8Wrapper::Set_Light_Environment passes up to four directional lights (diffuse only) and
+** folds all ambient light into D3DRS_AMBIENT, the light environment having already reduced
+** nearby point lights to directional ones per object.
+**   color = emissive + ambient_global * ambient + sum over lights of light.diffuse * diffuse * max(N.L, 0)
+**   alpha = diffuse alpha
+** where each of diffuse/ambient/emissive comes from the material or the vertex color
+** (D3DRS_*MATERIALSOURCE). Specular lighting is not used by Renegade's meshes.
+** vp20 has no branches, so every choice is a lerp controlled by a 0/1 flag.
+*/
+
+struct vIn {
+	float4 pos   : POSITION;    /* ATTR0 */
+	float4 norm  : NORMAL;      /* ATTR2 */
+	float4 diff  : COLOR0;      /* ATTR3 */
+	float4 spec  : COLOR1;      /* ATTR4 */
+	float4 tex0  : TEXCOORD0;
+	float4 tex1  : TEXCOORD1;
+};
+
+struct vOut {
+	float4 pos   : POSITION;
+	float4 col0  : COLOR0;
+	float4 col1  : COLOR1;
+	float4 tex0  : TEXCOORD0;
+	float4 tex1  : TEXCOORD1;
+};
+
+vOut main(
+	vIn I,
+	uniform float4x4 m_screen,       /* world * view * projection * viewport */
+	uniform float4x4 m_world,        /* lighting is done in world space, as lights are given */
+	uniform float4   mat_diffuse,
+	uniform float4   mat_ambient,
+	uniform float4   mat_emissive,
+	uniform float4   ambient_global, /* D3DRS_AMBIENT */
+	uniform float4   flags,          /* x lighting on, y diffuse from vertex, z ambient from vertex,
+	                                    w emissive from vertex */
+	uniform float4   flags2,         /* x vertex has a diffuse color, y has a specular color */
+	uniform float4   light_dir[4],     /* xyz: direction the light travels */
+	uniform float4   light_diffuse[4]  /* rgb; zero for an unused light */
+	)
+{
+	vOut R;
+
+	float4 p = mul(float4(I.pos.xyz, 1.0), m_screen);
+	R.pos = float4(p.xyz / p.w, p.w);
+
+	/* Vertex colors default to white when the vertex has none. */
+	float4 vdiff = lerp(float4(1, 1, 1, 1), I.diff, flags2.x);
+	float4 vspec = lerp(float4(0, 0, 0, 0), I.spec, flags2.y);
+
+	float4 diffuse  = lerp(mat_diffuse,  vdiff, flags.y);
+	float4 ambient  = lerp(mat_ambient,  vdiff, flags.z);
+	float4 emissive = lerp(mat_emissive, vdiff, flags.w);
+
+	float3 n = normalize(mul(float4(I.norm.xyz, 0.0), m_world).xyz);
+
+	float3 lit = emissive.rgb + ambient_global.rgb * ambient.rgb;
+	for (int i = 0; i < 4; i++) {
+		lit += light_diffuse[i].rgb * diffuse.rgb * max(dot(n, -light_dir[i].xyz), 0.0);
+	}
+
+	float4 lit_color = float4(saturate(lit), diffuse.a);
+	R.col0 = lerp(vdiff, lit_color, flags.x);
+	R.col1 = vspec;
+	R.tex0 = I.tex0;
+	R.tex1 = I.tex1;
+	return R;
+}

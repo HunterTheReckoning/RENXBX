@@ -14,9 +14,32 @@
 
 #include <hal/video.h>
 #include <pbkit/pbkit.h>
+
+/* pbkit defines _11 ... _44 as matrix index macros, which are also the member names of
+** Direct3D's D3DMATRIX. This layer doesn't use pbkit's macros, so remove them. */
+#undef _11
+#undef _12
+#undef _13
+#undef _14
+#undef _21
+#undef _22
+#undef _23
+#undef _24
+#undef _31
+#undef _32
+#undef _33
+#undef _34
+#undef _41
+#undef _42
+#undef _43
+#undef _44
+
+/* Places a value in a register field, as nxdk's samples do. */
+#define MASK(mask, val) (((val) << (__builtin_ffs(mask) - 1)) & (mask))
 #include <xboxkrnl/xboxkrnl.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #ifndef PORT_TRACE
 #define PORT_TRACE(message)
@@ -215,12 +238,14 @@ public:
 
 class IndexBuffer : public IDirect3DIndexBuffer8 {
 public:
+	/* Indices travel to the NV2A inside the command stream, so the CPU reads them on every
+	** draw: they live in ordinary cached memory (reading write-combined memory is very slow). */
 	IndexBuffer(Device *device, UINT length, DWORD usage, D3DFORMAT format, D3DPOOL pool)
 		: Owner(device), Length(length), Usage(usage), Format(format), Pool(pool), Priority(0), RefCount(1)
 	{
-		Memory = (BYTE *)Alloc_GPU_Memory(length);
+		Memory = (BYTE *)malloc(length ? length : 1);
 	}
-	~IndexBuffer() override { Free_GPU_Memory(Memory); }
+	~IndexBuffer() override { free(Memory); }
 	bool Valid() const { return Memory != NULL; }
 	XBOXD3D_REFCOUNT_METHODS
 
@@ -615,20 +640,9 @@ public:
 		if (pNumPasses) *pNumPasses = 1;
 		return D3D_OK;
 	}
-	HRESULT DrawPrimitive(D3DPRIMITIVETYPE, UINT, UINT) override
-	{
-		static bool logged;
-		Log_Once(&logged, "DrawPrimitive: drawing not implemented yet (step 2)");
-		Begin_Frame_If_Needed();
-		return D3D_OK;
-	}
-	HRESULT DrawIndexedPrimitive(D3DPRIMITIVETYPE, UINT, UINT, UINT, UINT) override
-	{
-		static bool logged;
-		Log_Once(&logged, "DrawIndexedPrimitive: drawing not implemented yet (step 2)");
-		Begin_Frame_If_Needed();
-		return D3D_OK;
-	}
+	HRESULT DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount) override;
+	HRESULT DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT minIndex, UINT NumVertices,
+	                             UINT startIndex, UINT primCount) override;
 	HRESULT SetVertexShader(DWORD Handle) override { VertexShader = Handle; return D3D_OK; }
 	HRESULT GetVertexShader(DWORD *pHandle) override
 	{
@@ -671,6 +685,8 @@ public:
 	}
 
 	void Begin_Frame_If_Needed();
+	void Init_Pipeline();
+	bool Prepare_Draw(UINT base_vertex);
 
 	Direct3D *D3D;
 	D3DPRESENT_PARAMETERS Params;
@@ -960,6 +976,7 @@ bool Device::Init_Hardware()
 	/* pb_init ends by showing its own (blank) front buffer, which would hide the text screen
 	** until our first Present; switch back so start-up messages stay visible. */
 	pb_show_debug_screen();
+	Init_Pipeline();
 	Trace("d3d: pb_init ok, back buffer %ux%u, pitch %u", (unsigned)pb_back_buffer_width(),
 	      (unsigned)pb_back_buffer_height(), (unsigned)pb_back_buffer_pitch());
 	/* The text screen stays visible until the first frame is presented (see Present), so
@@ -1183,6 +1200,340 @@ HRESULT Device::UpdateTexture(IDirect3DBaseTexture8 *pSourceTexture, IDirect3DBa
 		if (src->Levels[i].Size != dst->Levels[i].Size) return D3DERR_INVALIDCALL;
 		memcpy(dst->Levels[i].Bits, src->Levels[i].Bits, src->Levels[i].Size);
 	}
+	return D3D_OK;
+}
+
+/* --- Drawing (step 2) -------------------------------------------------------------------
+**
+** Vertices go through xbox_ffp.vs.cg, a vertex program reproducing Direct3D 8's fixed-function
+** transform and (directional) lighting. Pixels go through the NV2A's register combiners; for
+** now they output the lit vertex color (textures come in step 3). The program's constant
+** layout, as nxdk's Cg compiler reported it, is mirrored by the CONST_* values below.
+*/
+
+static const uint32_t FFP_PROGRAM[] = {
+#include "xbox_ffp_vs.inl"
+};
+
+enum {
+	CONST_BASE = 96,            /* program constant c[i] is uploaded at slot 96 + i */
+	CONST_M_SCREEN = 0,         /* c0-c3   world * view * projection * viewport */
+	CONST_M_WORLD = 4,          /* c4-c7 */
+	CONST_MAT_DIFFUSE = 8,
+	CONST_MAT_AMBIENT = 9,
+	CONST_MAT_EMISSIVE = 10,
+	CONST_AMBIENT_GLOBAL = 11,
+	CONST_FLAGS = 12,
+	CONST_FLAGS2 = 13,
+	CONST_LIGHT_DIR = 14,       /* c14-c17 */
+	CONST_LIGHT_DIFFUSE = 18,   /* c18-c21 */
+	CONST_LITERAL = 22,         /* "#const c[22] = 1 0" from the compiler */
+	CONST_COUNT = 23
+};
+
+/* NV2A vertex attribute slots used by the program (texture coordinates land in 9 and 10). */
+enum { ATTR_POSITION = 0, ATTR_NORMAL = 2, ATTR_DIFFUSE = 3, ATTR_SPECULAR = 4, ATTR_TEX0 = 9, ATTR_TEX1 = 10 };
+
+static inline DWORD Physical(const void *p) { return (DWORD)((uintptr_t)p & 0x03FFFFFF); }
+
+/* Row-vector product, as Direct3D: out = a * b. */
+static void Matrix_Multiply(D3DMATRIX &out, const D3DMATRIX &a, const D3DMATRIX &b)
+{
+	D3DMATRIX r;
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			r.m[i][j] = a.m[i][0] * b.m[0][j] + a.m[i][1] * b.m[1][j] + a.m[i][2] * b.m[2][j] + a.m[i][3] * b.m[3][j];
+		}
+	}
+	out = r;
+}
+
+static void Color_To_Floats(DWORD argb, float out[4])
+{
+	out[0] = ((argb >> 16) & 0xFF) / 255.0f;
+	out[1] = ((argb >> 8) & 0xFF) / 255.0f;
+	out[2] = (argb & 0xFF) / 255.0f;
+	out[3] = (argb >> 24) / 255.0f;
+}
+
+/* Direct3D's compare functions are in the same order as the GL values the NV2A takes. */
+static DWORD Compare_To_NV(DWORD d3dcmp)
+{
+	if (d3dcmp < D3DCMP_NEVER || d3dcmp > D3DCMP_ALWAYS) d3dcmp = D3DCMP_ALWAYS;
+	return 0x200 + (d3dcmp - D3DCMP_NEVER);
+}
+
+static DWORD Blend_To_NV(DWORD d3dblend)
+{
+	switch (d3dblend) {
+	case D3DBLEND_ZERO:         return 0x0000;
+	case D3DBLEND_ONE:          return 0x0001;
+	case D3DBLEND_SRCCOLOR:     return 0x0300;
+	case D3DBLEND_INVSRCCOLOR:  return 0x0301;
+	case D3DBLEND_SRCALPHA:     return 0x0302;
+	case D3DBLEND_INVSRCALPHA:  return 0x0303;
+	case D3DBLEND_DESTALPHA:    return 0x0304;
+	case D3DBLEND_INVDESTALPHA: return 0x0305;
+	case D3DBLEND_DESTCOLOR:    return 0x0306;
+	case D3DBLEND_INVDESTCOLOR: return 0x0307;
+	case D3DBLEND_SRCALPHASAT:  return 0x0308;
+	default:                    return 0x0001;
+	}
+}
+
+/* Loads the vertex program and sets up the pixel combiners: called once, after pb_init. */
+void Device::Init_Pipeline()
+{
+	uint32_t *p = pb_begin();
+	p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
+	p = pb_push1(p, NV097_SET_TRANSFORM_EXECUTION_MODE,
+	             MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_MODE, NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM) |
+	             MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE, NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV));
+	p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN, 0);
+	p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_LOAD, 0);
+	pb_end(p);
+	for (unsigned i = 0; i < sizeof(FFP_PROGRAM) / sizeof(FFP_PROGRAM[0]); i += 4) {
+		p = pb_begin();
+		pb_push(p++, NV097_SET_TRANSFORM_PROGRAM, 4);
+		memcpy(p, &FFP_PROGRAM[i], 4 * 4);
+		p += 4;
+		pb_end(p);
+	}
+
+	/* Pixels: stage 0 computes diffuse * 1 into spare0 (color and alpha); the final combiner
+	** outputs spare0. Register sources: 0 zero, 4 vertex diffuse, 0xC spare0. */
+	p = pb_begin();
+	p = pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM, 0);               /* no texture shader stages */
+	p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT, 0);
+	p = pb_push1(p, NV097_SET_COMBINER_COLOR_ICW, (4u << 24) | (1u << 21));          /* A=diffuse, B=1 */
+	p = pb_push1(p, NV097_SET_COMBINER_COLOR_OCW, 0xCu << 4);                         /* AB -> spare0 */
+	p = pb_push1(p, NV097_SET_COMBINER_ALPHA_ICW, (1u << 28) | (4u << 24) | (1u << 21)); /* A=diffuse.a, B=1 */
+	p = pb_push1(p, NV097_SET_COMBINER_ALPHA_OCW, 0xCu << 4);
+	p = pb_push1(p, NV097_SET_COMBINER_CONTROL, 1);                                   /* one stage */
+	p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0, 0xCu << 8);                  /* rgb = C = spare0 */
+	p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1, (1u << 12) | (0xCu << 8));   /* alpha = G = spare0.a */
+	for (int i = 0; i < 4; i++) {
+		p = pb_push1(p, NV20_TCL_PRIMITIVE_3D_TX_ENABLE(i), 0x0003ffc0);           /* textures off (step 3) */
+	}
+	pb_end(p);
+}
+
+/* Shader constants, render states and vertex arrays for the next draw. */
+bool Device::Prepare_Draw(UINT base_vertex)
+{
+	DWORD fvf = VertexShader;
+	VertexBuffer *vb = static_cast<VertexBuffer *>(Streams[0]);
+	if (!vb || fvf == 0 || fvf > 0xFFFF) return false;
+	if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZ) {
+		static bool logged;
+		Log_Once(&logged, "draw: only untransformed (XYZ) vertices are drawn so far");
+		return false;
+	}
+	UINT stride = StreamStrides[0] ? StreamStrides[0] : D3DXGetFVFVertexSize(fvf);
+
+	/* Constants */
+	float c[CONST_COUNT][4];
+	memset(c, 0, sizeof(c));
+	D3DMATRIX viewport;
+	memset(&viewport, 0, sizeof(viewport));
+	viewport._11 = Viewport.Width / 2.0f;
+	viewport._22 = Viewport.Height / -2.0f;
+	viewport._33 = (Viewport.MaxZ - Viewport.MinZ) * (float)0x00FFFFFF;   /* 24-bit depth buffer */
+	viewport._41 = Viewport.X + Viewport.Width / 2.0f;
+	viewport._42 = Viewport.Y + Viewport.Height / 2.0f;
+	viewport._43 = Viewport.MinZ * (float)0x00FFFFFF;
+	viewport._44 = 1.0f;
+	D3DMATRIX screen;
+	Matrix_Multiply(screen, Transforms[D3DTS_WORLD], Transforms[D3DTS_VIEW]);
+	Matrix_Multiply(screen, screen, Transforms[D3DTS_PROJECTION]);
+	Matrix_Multiply(screen, screen, viewport);
+	memcpy(c[CONST_M_SCREEN], &screen, sizeof(screen));
+	memcpy(c[CONST_M_WORLD], &Transforms[D3DTS_WORLD], sizeof(D3DMATRIX));
+	memcpy(c[CONST_MAT_DIFFUSE], &Material.Diffuse, 16);
+	memcpy(c[CONST_MAT_AMBIENT], &Material.Ambient, 16);
+	memcpy(c[CONST_MAT_EMISSIVE], &Material.Emissive, 16);
+	Color_To_Floats(RenderStates[D3DRS_AMBIENT], c[CONST_AMBIENT_GLOBAL]);
+	bool color_vertex = RenderStates[D3DRS_COLORVERTEX] != 0 && (fvf & D3DFVF_DIFFUSE);
+	c[CONST_FLAGS][0] = RenderStates[D3DRS_LIGHTING] ? 1.0f : 0.0f;
+	c[CONST_FLAGS][1] = (color_vertex && RenderStates[D3DRS_DIFFUSEMATERIALSOURCE] == D3DMCS_COLOR1) ? 1.0f : 0.0f;
+	c[CONST_FLAGS][2] = (color_vertex && RenderStates[D3DRS_AMBIENTMATERIALSOURCE] == D3DMCS_COLOR1) ? 1.0f : 0.0f;
+	c[CONST_FLAGS][3] = (color_vertex && RenderStates[D3DRS_EMISSIVEMATERIALSOURCE] == D3DMCS_COLOR1) ? 1.0f : 0.0f;
+	c[CONST_FLAGS2][0] = (fvf & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
+	c[CONST_FLAGS2][1] = (fvf & D3DFVF_SPECULAR) ? 1.0f : 0.0f;
+	for (int i = 0; i < 4; i++) {
+		if (!LightEnabled[i]) continue;
+		if (Lights[i].Type != D3DLIGHT_DIRECTIONAL) {
+			static bool logged;
+			Log_Once(&logged, "draw: point and spot lights are not used by Renegade's meshes; ignored");
+			continue;
+		}
+		c[CONST_LIGHT_DIR + i][0] = Lights[i].Direction.x;
+		c[CONST_LIGHT_DIR + i][1] = Lights[i].Direction.y;
+		c[CONST_LIGHT_DIR + i][2] = Lights[i].Direction.z;
+		c[CONST_LIGHT_DIFFUSE + i][0] = Lights[i].Diffuse.r;
+		c[CONST_LIGHT_DIFFUSE + i][1] = Lights[i].Diffuse.g;
+		c[CONST_LIGHT_DIFFUSE + i][2] = Lights[i].Diffuse.b;
+	}
+	c[CONST_LITERAL][0] = 1.0f;
+	c[CONST_LITERAL][1] = 0.0f;
+
+	uint32_t *p = pb_begin();
+	p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, CONST_BASE);
+	pb_end(p);
+	const float *cf = &c[0][0];
+	for (unsigned i = 0; i < CONST_COUNT * 4; i += 16) {
+		unsigned n = CONST_COUNT * 4 - i < 16 ? CONST_COUNT * 4 - i : 16;
+		p = pb_begin();
+		pb_push(p++, NV097_SET_TRANSFORM_CONSTANT, n);
+		memcpy(p, cf + i, n * 4);
+		p += n;
+		pb_end(p);
+	}
+
+	/* Render states (culling stays off until it can be checked visually) */
+	DWORD color_mask = RenderStates[D3DRS_COLORWRITEENABLE];
+	p = pb_begin();
+	p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, 0);
+	p = pb_push1(p, NV097_SET_DEPTH_TEST_ENABLE, RenderStates[D3DRS_ZENABLE] ? 1 : 0);
+	p = pb_push1(p, NV097_SET_DEPTH_FUNC, Compare_To_NV(RenderStates[D3DRS_ZFUNC]));
+	p = pb_push1(p, NV097_SET_DEPTH_MASK, RenderStates[D3DRS_ZWRITEENABLE] ? 1 : 0);
+	p = pb_push1(p, NV097_SET_ALPHA_TEST_ENABLE, RenderStates[D3DRS_ALPHATESTENABLE] ? 1 : 0);
+	p = pb_push1(p, NV097_SET_ALPHA_FUNC, Compare_To_NV(RenderStates[D3DRS_ALPHAFUNC]));
+	p = pb_push1(p, NV097_SET_ALPHA_REF, RenderStates[D3DRS_ALPHAREF] & 0xFF);
+	p = pb_push1(p, NV097_SET_BLEND_ENABLE, RenderStates[D3DRS_ALPHABLENDENABLE] ? 1 : 0);
+	p = pb_push1(p, NV097_SET_BLEND_FUNC_SFACTOR, Blend_To_NV(RenderStates[D3DRS_SRCBLEND]));
+	p = pb_push1(p, NV097_SET_BLEND_FUNC_DFACTOR, Blend_To_NV(RenderStates[D3DRS_DESTBLEND]));
+	p = pb_push1(p, NV097_SET_COLOR_MASK,
+	             ((color_mask & D3DCOLORWRITEENABLE_ALPHA) ? 0x01000000 : 0) |
+	             ((color_mask & D3DCOLORWRITEENABLE_RED) ? 0x00010000 : 0) |
+	             ((color_mask & D3DCOLORWRITEENABLE_GREEN) ? 0x00000100 : 0) |
+	             ((color_mask & D3DCOLORWRITEENABLE_BLUE) ? 0x00000001 : 0));
+	pb_end(p);
+
+	/* Vertex arrays, straight from the Direct3D vertex buffer (base vertex applied here) */
+	const BYTE *base = vb->Memory + base_vertex * stride;
+	UINT offset = 0;
+	p = pb_begin();
+	pb_push(p++, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
+	for (int i = 0; i < 16; i++) *(p++) = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F;   /* all off */
+	pb_end(p);
+	struct Attr { int slot; DWORD type; UINT size; UINT bytes; };
+	Attr attrs[8];
+	int count = 0;
+	attrs[count++] = { ATTR_POSITION, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 3, 12 };
+	if (fvf & D3DFVF_NORMAL)   attrs[count++] = { ATTR_NORMAL, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 3, 12 };
+	if (fvf & D3DFVF_PSIZE)    attrs[count++] = { -1, 0, 0, 4 };
+	if (fvf & D3DFVF_DIFFUSE)  attrs[count++] = { ATTR_DIFFUSE, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, 4, 4 };
+	if (fvf & D3DFVF_SPECULAR) attrs[count++] = { ATTR_SPECULAR, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, 4, 4 };
+	UINT tex_count = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+	for (UINT t = 0; t < tex_count; t++) {
+		static const UINT sizes[4] = { 2, 3, 4, 1 };   /* by D3DFVF_TEXTUREFORMAT value */
+		UINT size = sizes[(fvf >> (16 + t * 2)) & 3];
+		int slot = t == 0 ? ATTR_TEX0 : (t == 1 ? ATTR_TEX1 : -1);
+		attrs[count++] = { slot, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, size, size * 4 };
+	}
+	p = pb_begin();
+	for (int i = 0; i < count; i++) {
+		if (attrs[i].slot >= 0) {
+			p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + attrs[i].slot * 4,
+			             MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE, attrs[i].type) |
+			             MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE, attrs[i].size) |
+			             MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE, stride));
+			p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + attrs[i].slot * 4, Physical(base + offset));
+		}
+		offset += attrs[i].bytes;
+	}
+	pb_end(p);
+	return true;
+}
+
+static bool Primitive_To_NV(D3DPRIMITIVETYPE type, UINT prims, DWORD *op, UINT *vertices)
+{
+	switch (type) {
+	case D3DPT_POINTLIST:     *op = NV097_SET_BEGIN_END_OP_POINTS;         *vertices = prims;     return true;
+	case D3DPT_LINELIST:      *op = NV097_SET_BEGIN_END_OP_LINES;          *vertices = prims * 2; return true;
+	case D3DPT_LINESTRIP:     *op = NV097_SET_BEGIN_END_OP_LINE_STRIP;     *vertices = prims + 1; return true;
+	case D3DPT_TRIANGLELIST:  *op = NV097_SET_BEGIN_END_OP_TRIANGLES;      *vertices = prims * 3; return true;
+	case D3DPT_TRIANGLESTRIP: *op = NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP; *vertices = prims + 2; return true;
+	case D3DPT_TRIANGLEFAN:   *op = NV097_SET_BEGIN_END_OP_TRIANGLE_FAN;   *vertices = prims + 2; return true;
+	default: return false;
+	}
+}
+
+enum { MAX_PUSH_WORDS = 100 };   /* keep each command block small, as nxdk's samples do */
+
+HRESULT Device::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT, UINT, UINT startIndex, UINT primCount)
+{
+	Begin_Frame_If_Needed();
+	DWORD op;
+	UINT count;
+	IndexBuffer *ib = static_cast<IndexBuffer *>(Indices);
+	if (!ib || primCount == 0 || !Primitive_To_NV(PrimitiveType, primCount, &op, &count)) return D3DERR_INVALIDCALL;
+	if (!Prepare_Draw(BaseVertex)) return D3D_OK;
+	bool wide = ib->Format == D3DFMT_INDEX32;
+	if ((startIndex + count) * (wide ? 4u : 2u) > ib->Length) return D3DERR_INVALIDCALL;
+
+	uint32_t *p = pb_begin();
+	p = pb_push1(p, NV097_SET_BEGIN_END, op);
+	pb_end(p);
+	if (wide) {
+		const DWORD *idx = (const DWORD *)ib->Memory + startIndex;
+		for (UINT done = 0; done < count;) {
+			UINT n = count - done < MAX_PUSH_WORDS ? count - done : MAX_PUSH_WORDS;
+			p = pb_begin();
+			pb_push(p++, 0x40000000 | NV097_ARRAY_ELEMENT32, n);
+			memcpy(p, idx + done, n * 4);
+			p += n;
+			pb_end(p);
+			done += n;
+		}
+	} else {
+		/* 16-bit indices go two per word; an odd last one goes alone as a 32-bit element. */
+		const WORD *idx = (const WORD *)ib->Memory + startIndex;
+		UINT pairs = count / 2;
+		for (UINT done = 0; done < pairs;) {
+			UINT n = pairs - done < MAX_PUSH_WORDS ? pairs - done : MAX_PUSH_WORDS;
+			p = pb_begin();
+			pb_push(p++, 0x40000000 | NV097_ARRAY_ELEMENT16, n);
+			for (UINT i = 0; i < n; i++) {
+				*(p++) = (DWORD)idx[(done + i) * 2] | ((DWORD)idx[(done + i) * 2 + 1] << 16);
+			}
+			pb_end(p);
+			done += n;
+		}
+		if (count & 1) {
+			p = pb_begin();
+			p = pb_push1(p, NV097_ARRAY_ELEMENT32, idx[count - 1]);
+			pb_end(p);
+		}
+	}
+	p = pb_begin();
+	p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+	pb_end(p);
+	return D3D_OK;
+}
+
+HRESULT Device::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
+{
+	Begin_Frame_If_Needed();
+	DWORD op;
+	UINT count;
+	if (PrimitiveCount == 0 || !Primitive_To_NV(PrimitiveType, PrimitiveCount, &op, &count)) return D3DERR_INVALIDCALL;
+	if (!Prepare_Draw(0)) return D3D_OK;
+	uint32_t *p = pb_begin();
+	p = pb_push1(p, NV097_SET_BEGIN_END, op);
+	pb_end(p);
+	/* DRAW_ARRAYS takes runs of up to 256 vertices: (count - 1) << 24 | first. */
+	for (UINT done = 0; done < count;) {
+		UINT n = count - done < 256 ? count - done : 256;
+		p = pb_begin();
+		p = pb_push1(p, NV097_DRAW_ARRAYS, ((n - 1) << 24) | (StartVertex + done));
+		pb_end(p);
+		done += n;
+	}
+	p = pb_begin();
+	p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+	pb_end(p);
 	return D3D_OK;
 }
 
