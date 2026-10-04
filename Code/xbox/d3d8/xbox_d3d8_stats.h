@@ -15,4 +15,8 @@ struct XboxD3DStats {
 
 void XboxD3D_Get_Stats(XboxD3DStats *out);
 
+/* Diagnostic: when on, the vertex program outputs w = 1, so the GPU applies no perspective
+** correction. Used to tell whether depth problems come from that correction. Off normally. */
+void XboxD3D_Set_Diagnostic_W1(bool on);
+
 #endif

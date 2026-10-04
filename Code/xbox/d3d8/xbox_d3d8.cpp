@@ -60,6 +60,7 @@ void Free_GPU_Memory(void *memory)
 }
 
 static XboxD3DStats Stats;   /* live objects; see xbox_d3d8_stats.h */
+static bool DiagnosticW1;    /* see XboxD3D_Set_Diagnostic_W1 */
 
 void Log_Once(bool *done, const char *what)
 {
@@ -1388,6 +1389,7 @@ bool Device::Prepare_Draw(UINT base_vertex)
 	c[CONST_FLAGS][3] = (color_vertex && RenderStates[D3DRS_EMISSIVEMATERIALSOURCE] == D3DMCS_COLOR1) ? 1.0f : 0.0f;
 	c[CONST_FLAGS2][0] = (fvf & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
 	c[CONST_FLAGS2][1] = (fvf & D3DFVF_SPECULAR) ? 1.0f : 0.0f;
+	c[CONST_FLAGS2][2] = DiagnosticW1 ? 1.0f : 0.0f;
 	for (int i = 0; i < 4; i++) {
 		if (!LightEnabled[i]) continue;
 		if (Lights[i].Type != D3DLIGHT_DIRECTIONAL) {
@@ -1600,6 +1602,11 @@ HRESULT Direct3D::CreateDevice(UINT Adapter, D3DDEVTYPE, HWND, DWORD,
 void XboxD3D_Get_Stats(XboxD3DStats *out)
 {
 	if (out) *out = XboxD3D::Stats;
+}
+
+void XboxD3D_Set_Diagnostic_W1(bool on)
+{
+	XboxD3D::DiagnosticW1 = on;
 }
 
 IDirect3D8 *Direct3DCreate8(UINT SDKVersion)

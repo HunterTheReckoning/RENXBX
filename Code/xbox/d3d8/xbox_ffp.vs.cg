@@ -44,7 +44,8 @@ vOut main(
 	uniform float4   ambient_global, /* D3DRS_AMBIENT */
 	uniform float4   flags,          /* x lighting on, y diffuse from vertex, z ambient from vertex,
 	                                    w emissive from vertex */
-	uniform float4   flags2,         /* x vertex has a diffuse color, y has a specular color */
+	uniform float4   flags2,         /* x vertex has a diffuse color, y has a specular color,
+	                                    z diagnostic: output w = 1 (no perspective correction) */
 	uniform float4   light_dir[4],     /* xyz: direction the light travels */
 	uniform float4   light_diffuse[4]  /* rgb; zero for an unused light */
 	)
@@ -52,7 +53,7 @@ vOut main(
 	vOut R;
 
 	float4 p = mul(float4(I.pos.xyz, 1.0), m_screen);
-	R.pos = float4(p.xyz / p.w, p.w);
+	R.pos = float4(p.xyz / p.w, lerp(p.w, 1.0, flags2.z));
 
 	/* Vertex colors default to white when the vertex has none. */
 	float4 vdiff = lerp(float4(1, 1, 1, 1), I.diff, flags2.x);
