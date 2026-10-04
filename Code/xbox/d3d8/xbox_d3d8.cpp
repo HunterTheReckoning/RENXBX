@@ -1428,6 +1428,13 @@ bool Device::Prepare_Draw(UINT base_vertex)
 	DWORD color_mask = RenderStates[D3DRS_COLORWRITEENABLE];
 	DWORD cull = RenderStates[D3DRS_CULLMODE];
 	p = pb_begin();
+	/* Depth buffering: pbkit's pb_target_back_buffer (called every frame) turns on the NV2A's
+	** w-buffer (Z_PERSPECTIVE_ENABLE, "We use W"), which stores each pixel's w as depth and
+	** interpolates it linearly on screen, which is wrong per triangle. Direct3D's normal depth
+	** mode is a z-buffer; a w-buffer only with D3DZB_USEW. The other two bits are pbkit's. */
+	p = pb_push1(p, NV097_SET_CONTROL0,
+	             NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE | NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE |
+	             (RenderStates[D3DRS_ZENABLE] == D3DZB_USEW ? NV097_SET_CONTROL0_Z_PERSPECTIVE_ENABLE : 0));
 	p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, cull == D3DCULL_NONE ? 0 : 1);
 	if (cull != D3DCULL_NONE) {
 		p = pb_push1(p, NV097_SET_FRONT_FACE, cull == D3DCULL_CW ? NV097_SET_FRONT_FACE_V_CW : NV097_SET_FRONT_FACE_V_CCW);
