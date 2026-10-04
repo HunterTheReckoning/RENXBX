@@ -132,7 +132,7 @@ public:
 		return D3D_OK;
 	}
 	HRESULT LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags) override;
-	HRESULT UnlockRect(void) override { return D3D_OK; }
+	HRESULT UnlockRect(void) override;
 
 	Kind SurfaceKind;
 	D3DFORMAT Format;
@@ -158,10 +158,23 @@ public:
 	~Texture() override
 	{
 		Stats.textures--;
-		Stats.texture_bytes -= MemoryBytes;
+		Stats.texture_bytes -= MemoryBytes + LinearBytes;
 		Free_GPU_Memory(Memory);
+		free(Linear);
 	}
-	bool Valid() const { return Memory != NULL; }
+	bool Valid() const { return Memory != NULL && (!Swizzled || Linear != NULL); }
+
+	/* Before the GPU reads it: swizzle levels written through LockRect since last time. */
+	void Prepare_For_GPU()
+	{
+		if (!Swizzled || !Dirty) return;
+		UINT bpp = Format_Info(Format).bytes_per_pixel;
+		for (UINT i = 0; i < LevelCount; i++) {
+			Swizzle_Rect(Levels[i].Bits, Levels[i].Pitch, Memory + Levels[i].GpuOffset,
+			             Levels[i].Width, Levels[i].Height, bpp);
+		}
+		Dirty = false;
+	}
 	XBOXD3D_REFCOUNT_METHODS
 
 	HRESULT GetDevice(IDirect3DDevice8 **ppDevice) override;
@@ -188,10 +201,17 @@ public:
 	}
 	HRESULT GetSurfaceLevel(UINT Level, IDirect3DSurface8 **ppSurfaceLevel) override;
 	HRESULT LockRect(UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags) override;
-	HRESULT UnlockRect(UINT Level) override { return Level < LevelCount ? D3D_OK : D3DERR_INVALIDCALL; }
+	HRESULT UnlockRect(UINT Level) override
+	{
+		if (Level >= LevelCount) return D3DERR_INVALIDCALL;
+		Dirty = true;
+		return D3D_OK;
+	}
 	HRESULT AddDirtyRect(CONST RECT *) override { return D3D_OK; }
 
-	struct LevelInfo { UINT Width, Height, Pitch, Size; BYTE *Bits; };
+	/* Bits: where LockRect writes (the linear copy when swizzled, else the GPU copy).
+	** GpuOffset: where the GPU reads the level, levels packed back to back as the NV2A expects. */
+	struct LevelInfo { UINT Width, Height, Pitch, Size; BYTE *Bits; UINT GpuOffset; };
 
 	Device *Owner;
 	D3DFORMAT Format;
@@ -201,6 +221,11 @@ public:
 	LevelInfo Levels[MAX_LEVELS];
 	BYTE *Memory;        /* all levels, one contiguous GPU-visible block */
 	UINT MemoryBytes;
+	BYTE *Linear;        /* uncompressed power-of-two textures: the linear copy LockRect sees */
+	UINT LinearBytes;
+	bool Swizzled;       /* the GPU copy is swizzled (uncompressed, power-of-two sizes) */
+	bool Bindable;       /* the NV2A can sample it as it is stored */
+	bool Dirty;          /* the linear copy changed since the last swizzle */
 	DWORD Priority, LOD;
 	ULONG RefCount;
 };
@@ -710,6 +735,7 @@ public:
 
 	void Begin_Frame_If_Needed();
 	void Init_Pipeline();
+	void Apply_Textures();
 	bool Prepare_Draw(UINT base_vertex);
 
 	Direct3D *D3D;
@@ -766,6 +792,12 @@ HRESULT Surface::GetDevice(IDirect3DDevice8 **ppDevice)
 	return D3D_OK;
 }
 
+HRESULT Surface::UnlockRect(void)
+{
+	if (Container) Container->Dirty = true;   /* a texture level changed: re-swizzle before use */
+	return D3D_OK;
+}
+
 HRESULT Surface::LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD)
 {
 	if (!pLockedRect) return D3DERR_INVALIDCALL;
@@ -795,8 +827,9 @@ HRESULT Surface::LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD)
 /* --- Texture implementation --------------------------------------------------------------- */
 
 Texture::Texture(Device *device, UINT width, UINT height, UINT levels, DWORD usage, D3DFORMAT format, D3DPOOL pool)
-	: Owner(device), Format(format), Usage(usage), Pool(pool), LevelCount(0), Memory(NULL), Priority(0),
-	  LOD(0), RefCount(1)
+	: Owner(device), Format(format), Usage(usage), Pool(pool), LevelCount(0), Memory(NULL), MemoryBytes(0),
+	  Linear(NULL), LinearBytes(0), Swizzled(false), Bindable(false), Dirty(true), Priority(0), LOD(0),
+	  RefCount(1)
 {
 	/* Level count: 0 means the full chain down to 1 x 1, as in Direct3D. */
 	UINT full = 1;
@@ -806,6 +839,11 @@ Texture::Texture(Device *device, UINT width, UINT height, UINT levels, DWORD usa
 	}
 	LevelCount = (levels == 0 || levels > full) ? full : levels;
 
+	FormatInfo info = Format_Info(format);
+	bool pow2 = Is_Power_Of_Two(width) && Is_Power_Of_Two(height);
+	Swizzled = !info.compressed && pow2;
+	Bindable = pow2;              /* non-power-of-two would need the NV2A's linear (rect) formats */
+
 	UINT total = 0;
 	UINT w = width, h = height;
 	for (UINT i = 0; i < LevelCount; i++) {
@@ -813,18 +851,22 @@ Texture::Texture(Device *device, UINT width, UINT height, UINT levels, DWORD usa
 		Levels[i].Height = h;
 		Levels[i].Pitch = Row_Pitch(format, w);
 		Levels[i].Size = Level_Size(format, w, h);
-		total += (Levels[i].Size + 127) & ~127u;   /* keep every level 128-byte aligned for the GPU */
+		Levels[i].GpuOffset = total;
+		total += Levels[i].Size;
 		w = w > 1 ? w / 2 : 1;
 		h = h > 1 ? h / 2 : 1;
 	}
 	Memory = (BYTE *)Alloc_GPU_Memory(total);
 	MemoryBytes = Memory ? total : 0;
+	if (Swizzled) {
+		Linear = (BYTE *)malloc(total);
+		LinearBytes = Linear ? total : 0;
+	}
 	Stats.textures++;
-	Stats.texture_bytes += MemoryBytes;
-	UINT offset = 0;
+	Stats.texture_bytes += MemoryBytes + LinearBytes;
+	BYTE *lock_base = Swizzled ? Linear : Memory;
 	for (UINT i = 0; i < LevelCount; i++) {
-		Levels[i].Bits = Memory ? Memory + offset : NULL;
-		offset += (Levels[i].Size + 127) & ~127u;
+		Levels[i].Bits = lock_base ? lock_base + Levels[i].GpuOffset : NULL;
 	}
 }
 
@@ -1229,6 +1271,7 @@ HRESULT Device::UpdateTexture(IDirect3DBaseTexture8 *pSourceTexture, IDirect3DBa
 		if (src->Levels[i].Size != dst->Levels[i].Size) return D3DERR_INVALIDCALL;
 		memcpy(dst->Levels[i].Bits, src->Levels[i].Bits, src->Levels[i].Size);
 	}
+	dst->Dirty = true;
 	return D3D_OK;
 }
 
@@ -1347,6 +1390,113 @@ void Device::Init_Pipeline()
 	pb_end(p);
 }
 
+/* NV2A texture format code for a Direct3D format (swizzled uncompressed or DXT), 0xFF if none. */
+static DWORD Texture_Format_To_NV(D3DFORMAT format)
+{
+	switch (format) {
+	case D3DFMT_A8R8G8B8: return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8;
+	case D3DFMT_X8R8G8B8: return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8;
+	case D3DFMT_R5G6B5:   return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5;
+	case D3DFMT_A1R5G5B5: return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5;
+	case D3DFMT_X1R5G5B5: return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5;
+	case D3DFMT_A4R4G4B4: return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4;
+	case D3DFMT_L8:       return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8;
+	case D3DFMT_A8:       return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8;
+	case D3DFMT_A8L8:     return NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8Y8;
+	case D3DFMT_DXT1:     return NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5;
+	case D3DFMT_DXT2: case D3DFMT_DXT3: return NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT23_A8R8G8B8;
+	case D3DFMT_DXT4: case D3DFMT_DXT5: return NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8;
+	default:              return 0xFF;
+	}
+}
+
+static UINT Log2(UINT v) { UINT r = 0; while (v > 1) { v >>= 1; r++; } return r; }
+
+/* NV2A minification: 1 point, 2 linear (no mipmaps); 3/4 point/linear with the nearest mip
+** level; 5/6 point/linear blending two mip levels. Magnification: 1 point, 2 linear. */
+static DWORD Filter_To_NV(DWORD min, DWORD mag, DWORD mip)
+{
+	bool min_linear = min != D3DTEXF_POINT && min != D3DTEXF_NONE;
+	DWORD nv_min;
+	if (mip == D3DTEXF_NONE)       nv_min = min_linear ? 2 : 1;
+	else if (mip == D3DTEXF_POINT) nv_min = min_linear ? 4 : 3;
+	else                           nv_min = min_linear ? 6 : 5;
+	DWORD nv_mag = (mag == D3DTEXF_POINT || mag == D3DTEXF_NONE) ? 1 : 2;
+	return (nv_mag << 24) | (nv_min << 16) | 0x2000;   /* 0x2000: kernel as nxdk's samples use */
+}
+
+/* Texture stages and combiners for the next draw. */
+void Device::Apply_Textures()
+{
+	bool has_texture[4] = { false, false, false, false };
+	DWORD stage_program = 0;
+	uint32_t *p = pb_begin();
+	for (int s = 0; s < 4; s++) {
+		Texture *tex = NULL;
+		if (Textures[s] && Textures[s]->GetType() == D3DRTYPE_TEXTURE) {
+			tex = static_cast<Texture *>(static_cast<IDirect3DTexture8 *>(Textures[s]));
+		}
+		DWORD format = tex ? Texture_Format_To_NV(tex->Format) : 0xFF;
+		if (tex && (!tex->Bindable || format == 0xFF)) {
+			static bool logged;
+			Log_Once(&logged, "texture: a non-power-of-two or unsupported-format texture is not bound yet");
+			tex = NULL;
+		}
+		DWORD base = s * 0x40;   /* each stage's texture registers repeat every 0x40 bytes */
+		if (!tex) {
+			p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0 + base, 0x0003ffc0);    /* disabled */
+			continue;
+		}
+		tex->Prepare_For_GPU();
+		has_texture[s] = true;
+		stage_program |= NV097_SET_SHADER_STAGE_PROGRAM_STAGE0_2D_PROJECTIVE << (s * 5);
+		const DWORD *st = StageStates[s];
+		DWORD levels = tex->LevelCount;
+		if (st[D3DTSS_MIPFILTER] == D3DTEXF_NONE) levels = 1;
+		DWORD fmt = 2u                                  /* context DMA, as nxdk's samples use */
+		          | (1u << 3)                           /* border from the border color */
+		          | (2u << 4)                           /* two-dimensional */
+		          | (format << 8)
+		          | ((tex->LevelCount & 0xF) << 16)
+		          | (Log2(tex->Levels[0].Width) << 20)
+		          | (Log2(tex->Levels[0].Height) << 24);
+		p = pb_push2(p, NV097_SET_TEXTURE_OFFSET + base, Physical(tex->Memory), fmt);
+		p = pb_push1(p, NV097_SET_TEXTURE_ADDRESS + base,
+		             (st[D3DTSS_ADDRESSU] & 0xF) | ((st[D3DTSS_ADDRESSV] & 0xF) << 8) | (1u << 16));
+		/* enabled; max LOD clamp limited to the levels in use (fixed point, 8 fraction bits) */
+		DWORD max_lod = (levels - 1) << 8;
+		p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0 + base, (1u << 30) | ((max_lod & 0xFFF) << 6));
+		p = pb_push1(p, NV097_SET_TEXTURE_FILTER + base,
+		             Filter_To_NV(st[D3DTSS_MINFILTER], st[D3DTSS_MAGFILTER], st[D3DTSS_MIPFILTER]));
+		if (st[D3DTSS_TEXCOORDINDEX] != (DWORD)s || st[D3DTSS_TEXTURETRANSFORMFLAGS] != D3DTTFF_DISABLE) {
+			static bool logged;
+			Log_Once(&logged, "texture: coordinate generation and texture matrices are not applied yet");
+		}
+	}
+	pb_end(p);
+
+	CombinerSetup c;
+	if (!Build_Combiners(StageStates, MAX_STAGES, has_texture, RenderStates[D3DRS_TEXTUREFACTOR],
+	                     RenderStates[D3DRS_SPECULARENABLE] != 0, &c)) {
+		static bool logged;
+		Log_Once(&logged, "texture: some texture-stage operation is not translated yet (passes its first argument)");
+	}
+	p = pb_begin();
+	p = pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM, stage_program);
+	p = pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT, 0);
+	p = pb_push1(p, NV097_SET_COMBINER_FACTOR0, c.factor0);
+	for (UINT i = 0; i < c.stages; i++) {
+		p = pb_push1(p, NV097_SET_COMBINER_COLOR_ICW + i * 4, c.color_icw[i]);
+		p = pb_push1(p, NV097_SET_COMBINER_COLOR_OCW + i * 4, c.color_ocw[i]);
+		p = pb_push1(p, NV097_SET_COMBINER_ALPHA_ICW + i * 4, c.alpha_icw[i]);
+		p = pb_push1(p, NV097_SET_COMBINER_ALPHA_OCW + i * 4, c.alpha_ocw[i]);
+	}
+	p = pb_push1(p, NV097_SET_COMBINER_CONTROL, c.control);
+	p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0, c.final_cw0);
+	p = pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1, c.final_cw1);
+	pb_end(p);
+}
+
 /* Shader constants, render states and vertex arrays for the next draw. */
 bool Device::Prepare_Draw(UINT base_vertex)
 {
@@ -1455,6 +1605,8 @@ bool Device::Prepare_Draw(UINT base_vertex)
 	             ((color_mask & D3DCOLORWRITEENABLE_GREEN) ? 0x00000100 : 0) |
 	             ((color_mask & D3DCOLORWRITEENABLE_BLUE) ? 0x00000001 : 0));
 	pb_end(p);
+
+	Apply_Textures();
 
 	/* Vertex arrays, straight from the Direct3D vertex buffer (base vertex applied here) */
 	const BYTE *base = vb->Memory + base_vertex * stride;

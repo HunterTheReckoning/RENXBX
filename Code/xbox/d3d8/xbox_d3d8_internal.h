@@ -65,6 +65,21 @@ inline UINT Level_Size(D3DFORMAT format, UINT width, UINT height)
 	return Row_Pitch(format, width) * Row_Count(format, height);
 }
 
+/* Textures: the NV2A's swizzled layout (xbox_d3d8_combiners.cpp) */
+bool Is_Power_Of_Two(UINT v);
+UINT Swizzle_Offset(UINT x, UINT y, UINT width, UINT height);
+void Swizzle_Rect(const BYTE *src, UINT src_pitch, BYTE *dst, UINT width, UINT height, UINT bytes_per_pixel);
+
+/* Direct3D texture-stage states -> register combiner settings (xbox_d3d8_combiners.cpp).
+** Returns false if some operation wasn't translated (it then passes its first argument). */
+struct CombinerSetup {
+	UINT stages;
+	DWORD color_icw[4], color_ocw[4], alpha_icw[4], alpha_ocw[4];
+	DWORD control, factor0, final_cw0, final_cw1;
+};
+bool Build_Combiners(const DWORD (*stage_states)[32], int max_stages, const bool *has_texture,
+                     DWORD texture_factor, bool specular_enable, CombinerSetup *out);
+
 /* Memory the GPU can read: physically contiguous, write-combined (as nxdk's samples use).
 ** The GPU addresses physical memory, so textures and vertex data must be contiguous. */
 void *Alloc_GPU_Memory(UINT size);
