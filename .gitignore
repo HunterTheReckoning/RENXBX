@@ -53,3 +53,8 @@ GMax_Hybrid/
 wwconfig_ids.rpt
 wwconfig_ids.h
 IDL_*.loc
+*.iso
+*.mix
+*.dds
+*.w3d
+*.tga
