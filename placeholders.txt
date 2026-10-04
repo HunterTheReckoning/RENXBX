@@ -1,0 +1,10 @@
+75 placeholder functions in nxdk's C library; 2 are called somewhere in Renegade's code.
+
+=== Called by Renegade (these will halt the game if reached) ===
+  lrint            [lib/pdclib/platform/xbox/functions/math/lrint.c]
+      used in: WWMath/wwmath.h
+  lrintf           [lib/pdclib/platform/xbox/functions/math/lrint.c]
+      used in: WWMath/wwmath.h
+
+=== Not called by Renegade ===
+  acosh acoshf acoshl asinh asinhf asinhl atanh atanhf atanhl cbrt cbrtf cbrtl erf erfc erfcf erfcl erff erfl exp2 exp2f exp2l expm1 expm1f expm1l fdim fdimf fdiml fma fmaf fmal ilogb ilogbf ilogbl lgamma lgammaf lgammal llrint llrintf llrintl llround llroundf llroundl log1p log1pf log1pl log2 log2f log2l logb logbf logbl lrintl lround lroundf lroundl nan nanf nanl nextafter nextafterf nextafterl remquo remquof remquol scalbln scalblnf scalblnl scalbn scalbnf scalbnl tgamma tgammaf tgammal
