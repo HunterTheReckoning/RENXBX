@@ -804,6 +804,7 @@ void ShatterSystem::Init(void)
 	** Resize the Mesh Fragment pointer array to handle the maximum number
 	** of mesh fragments.
 	*/
+	PORT_TRACE("shatter: resizing the fragment array");
 	MeshFragments.Resize(MAX_MESH_FRAGMENTS);
 
 	/*
@@ -813,8 +814,15 @@ void ShatterSystem::Init(void)
 	StringClass htree_name;
 	htree_name.Format(SHATTER_PATTERN_FORMAT,0);
 
+	PORT_TRACEF(("shatter: looking up %s", (const char *)htree_name));
 	HTreeClass * htree = WW3DAssetManager::Get_Instance()->Get_HTree(htree_name);
+	PORT_TRACEF(("shatter: first lookup returned %s", htree ? "a tree" : "nothing"));
+	unsigned port_iterations = 0;
 	while (htree != NULL) {
+		port_iterations++;
+		if (port_iterations <= 3 || (port_iterations % 1000) == 0) {
+			PORT_TRACEF(("shatter: loop %u, %d pivots, %d patterns so far", port_iterations, htree->Num_Pivots(), ShatterPatterns.Count()));
+		}
 		if ((htree->Num_Pivots() > 1) && (htree->Num_Pivots() < MAX_MESH_FRAGMENTS)) {
 			int leaf_counter = 0;
 			htree->Base_Update(Matrix3D(1));
@@ -827,6 +835,7 @@ void ShatterSystem::Init(void)
 		htree_name.Format(SHATTER_PATTERN_FORMAT,ShatterPatterns.Count());
 		htree = WW3DAssetManager::Get_Instance()->Get_HTree(htree_name);
 	}
+	PORT_TRACE("shatter: done");
 }
 
 void ShatterSystem::Shutdown(void)

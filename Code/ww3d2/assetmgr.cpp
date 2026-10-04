@@ -507,11 +507,15 @@ bool WW3DAssetManager::Load_3D_Assets( const char * filename )
 {
 	bool result = false;
 
+	PORT_TRACE("assets: asking the file factory");
 	FileClass * file = _TheFileFactory->Get_File( filename );
+	PORT_TRACEF(("assets: file factory returned %s", file ? "a file" : "nothing"));
 	if ( file ) {
+		PORT_TRACEF(("assets: checking %s", file->File_Name()));
 		if ( file->Is_Available() ) {
 			result = WW3DAssetManager::Load_3D_Assets( *file );
 		}
+		PORT_TRACE("assets: returning the file");
 		_TheFileFactory->Return_File( file );
 	}
 
@@ -900,22 +904,27 @@ HTreeClass *	WW3DAssetManager::Get_HTree(const char * name)
 	WWPROFILE( "WW3DAssetManager::Get_HTree" );
 
 	// Try to find the htree
+	PORT_TRACEF(("assets: Get_HTree %s: checking loaded trees", name));
 	HTreeClass * htree = HTreeManager.Get_Tree(name);
 
 	if (WW3D_Load_On_Demand && htree == NULL) {	// If we didn't find it, try to load on demand
 		
+		PORT_TRACE("assets: not loaded; reporting load-on-demand");
 		AssetStatusClass::Peek_Instance()->Report_Load_On_Demand_HTree(name);
 
 		char filename[ MAX_PATH ];
 		sprintf( filename, "%s.w3d", name);
 
 		// If we can't find it, try the parent directory
+		PORT_TRACEF(("assets: loading %s", filename));
 		if ( Load_3D_Assets( filename ) == false ) {
 			StringClass	new_filename("..\\",true);
 			new_filename+=filename;
+			PORT_TRACEF(("assets: not found; trying %s", (const char *)new_filename));
 			Load_3D_Assets( new_filename );
 		}
 
+		PORT_TRACE("assets: checking loaded trees again");
 		htree = HTreeManager.Get_Tree(name);	// Try again
 
 		if (htree == NULL) {
@@ -924,6 +933,7 @@ HTreeClass *	WW3DAssetManager::Get_HTree(const char * name)
 	}
 
 	return htree;
+	PORT_TRACEF(("assets: Get_HTree done: %s", htree ? "found" : "missing"));
 }
 
 /***********************************************************************************************

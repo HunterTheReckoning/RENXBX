@@ -17,6 +17,17 @@ extern "C" {
 
 void (*XboxPort_Trace)(const char *message) = NULL;
 
+void Xbox_Trace_Format(const char *format, ...)
+{
+	if (!XboxPort_Trace) return;
+	char line[160];
+	va_list args;
+	va_start(args, format);
+	vsnprintf(line, sizeof(line), format, args);
+	va_end(args);
+	XboxPort_Trace(line);
+}
+
 void _splitpath(const char *path, char *drive, char *dir, char *fname, char *ext)
 {
 	if (drive) drive[0] = 0;
