@@ -1571,10 +1571,11 @@ bool Device::Prepare_Draw(UINT base_vertex)
 	}
 
 	/* Render states.
-	** Culling: our screen coordinates have y pointing down, so a triangle that looks clockwise
-	** on screen has a positive signed area in raw coordinates, which the NV2A (following
-	** OpenGL) calls counterclockwise. So Direct3D's "cull clockwise" is front face = CW with the
-	** back culled, and "cull counterclockwise" is front face = CCW. (Renegade culls CW.) */
+	** Culling: the NV2A judges a triangle's winding as it appears on screen, as Direct3D does,
+	** so Direct3D's "cull clockwise" is front face = CCW with the back culled, and "cull
+	** counterclockwise" is front face = CW. Renegade culls CW: its models' front faces are
+	** counterclockwise on screen. (Confirmed on xemu with Westwood's own Minigunner model; the
+	** opposite mapping showed models inside out.) */
 	DWORD color_mask = RenderStates[D3DRS_COLORWRITEENABLE];
 	DWORD cull = RenderStates[D3DRS_CULLMODE];
 	p = pb_begin();
@@ -1587,7 +1588,7 @@ bool Device::Prepare_Draw(UINT base_vertex)
 	             (RenderStates[D3DRS_ZENABLE] == D3DZB_USEW ? NV097_SET_CONTROL0_Z_PERSPECTIVE_ENABLE : 0));
 	p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, cull == D3DCULL_NONE ? 0 : 1);
 	if (cull != D3DCULL_NONE) {
-		p = pb_push1(p, NV097_SET_FRONT_FACE, cull == D3DCULL_CW ? NV097_SET_FRONT_FACE_V_CW : NV097_SET_FRONT_FACE_V_CCW);
+		p = pb_push1(p, NV097_SET_FRONT_FACE, cull == D3DCULL_CW ? NV097_SET_FRONT_FACE_V_CCW : NV097_SET_FRONT_FACE_V_CW);
 		p = pb_push1(p, NV097_SET_CULL_FACE, NV097_SET_CULL_FACE_V_BACK);
 	}
 	p = pb_push1(p, NV097_SET_DEPTH_TEST_ENABLE, RenderStates[D3DRS_ZENABLE] ? 1 : 0);
