@@ -152,7 +152,8 @@ RenegadeTerrainMaterialPassClass::Allocate (int vertex_count)
 	//
 	//	Initialize the arrays
 	//
-	for (int index = 0; index < vertex_count; index ++) {
+	int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
+	for (index = 0; index < vertex_count; index ++) {
 		VertexAlpha[index] = 1.0F;
 		GridUVs[index].Set (0.0F, 0.0F);
 	}

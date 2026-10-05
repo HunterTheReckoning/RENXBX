@@ -224,7 +224,8 @@ class BinaryHeapClass
 			// Decrement the number of elements in the tree.
 			Number_Of_Elements--;
 
-			for (unsigned int i = 1; (i * 2) <= Number_Of_Elements; i = child)
+			unsigned int i;	// PORT: used after the loop (MSVC6 leaked loop variables)
+			for (i = 1; (i * 2) <= Number_Of_Elements; i = child)
 			{
 				// Find a smaller child.
 				child = i * 2;

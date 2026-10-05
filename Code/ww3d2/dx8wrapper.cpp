@@ -2462,7 +2462,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 		}
 	}
 /*	else {
-		for (int l=0;l<4;++l) {
+		for (l=0;l<4;++l) {
 			Set_Light(l,NULL);
 		}
 	}

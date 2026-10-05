@@ -72,7 +72,9 @@ public:
 	void		Timestep(float dt);
 	void		Update_Camera(CameraClass & camera);
 
-protected:
+// PORT: public so the pool can be defined at file scope (DEFINE_AUTO_POOL in the .cpp);
+// old MSVC didn't check access there. Naming only: no change to layout or behaviour.
+public:
 
 	/**
 	** CameraShakerClass 
@@ -100,6 +102,8 @@ protected:
 		Vector3				Omega;
 		Vector3				Phi;
 	};
+
+protected:
 
 	MultiListClass<CameraShakerClass>	CameraShakerList;
 
