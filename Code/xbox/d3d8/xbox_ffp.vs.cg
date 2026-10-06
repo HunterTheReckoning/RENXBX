@@ -15,6 +15,15 @@
 ** where each of diffuse/ambient/emissive comes from the material or the vertex color
 ** (D3DRS_*MATERIALSOURCE). Specular lighting is not used by Renegade's meshes.
 ** vp20 has no branches, so every choice is a lerp controlled by a 0/1 flag.
+**
+** Texture coordinates follow Direct3D 8's fixed-function rules, as Renegade's texture mappers
+** (ww3d2/mapper.cpp) use them, for texture stages 0 and 1:
+**   source  D3DTSS_TEXCOORDINDEX: a stored coordinate set (0-3) taken as (u, v, 1, 0), or a
+**           generated one taken as (x, y, z, 1): the camera-space normal, position or
+**           reflection vector (environment and screen mappers)
+**   matrix  D3DTS_TEXTUREn when D3DTSS_TEXTURETRANSFORMFLAGS is COUNT2 (scrolling, scaling,
+**           rotation, grids...): u' = source . tm_u, v' = source . tm_v (the matrix's first two
+**           columns; identity columns when disabled)
 */
 
 struct vIn {
@@ -22,8 +31,10 @@ struct vIn {
 	float4 norm  : NORMAL;      /* ATTR2 */
 	float4 diff  : COLOR0;      /* ATTR3 */
 	float4 spec  : COLOR1;      /* ATTR4 */
-	float4 tex0  : TEXCOORD0;
-	float4 tex1  : TEXCOORD1;
+	float4 tex0  : TEXCOORD0;   /* ATTR9 */
+	float4 tex1  : TEXCOORD1;   /* ATTR10 */
+	float4 tex2  : TEXCOORD2;   /* ATTR11 */
+	float4 tex3  : TEXCOORD3;   /* ATTR12 */
 };
 
 struct vOut {
@@ -48,8 +59,11 @@ vOut main(
 	                                    z diagnostic: output w = 1 (no perspective correction) */
 	uniform float4   light_dir[4],     /* xyz: direction the light travels */
 	uniform float4   light_diffuse[4], /* rgb; zero for an unused light */
-	uniform float4   texsel            /* x, y: texture stage 0, 1 reads coordinate set 1 instead of 0
-	                                      (D3DTSS_TEXCOORDINDEX) */
+	uniform float4x4 m_view,           /* world to camera space, for generated coordinates */
+	uniform float4   tc_set[2],        /* per stage: weights of stored sets 0-3 (one is 1) */
+	uniform float4   tc_gen[2],        /* per stage: x stored, y normal, z position, w reflection */
+	uniform float4   tm_u[2],          /* per stage: texture matrix column 1 (u') */
+	uniform float4   tm_v[2]           /* per stage: texture matrix column 2 (v') */
 	)
 {
 	vOut R;
@@ -75,7 +89,24 @@ vOut main(
 	float4 lit_color = float4(saturate(lit), diffuse.a);
 	R.col0 = lerp(vdiff, lit_color, flags.x);
 	R.col1 = vspec;
-	R.tex0 = lerp(I.tex0, I.tex1, texsel.x);
-	R.tex1 = lerp(I.tex0, I.tex1, texsel.y);
+	/* Camera-space values for generated coordinates. */
+	float3 world_pos = mul(float4(I.pos.xyz, 1.0), m_world).xyz;
+	float3 cam_pos = mul(float4(world_pos, 1.0), m_view).xyz;
+	float3 cam_n = normalize(mul(float4(n, 0.0), m_view).xyz);
+	float3 eye_dir = normalize(cam_pos);
+	float3 cam_r = eye_dir - 2.0 * dot(cam_n, eye_dir) * cam_n;
+
+	float4 t[2];
+	for (int s = 0; s < 2; s++) {
+		float2 uv = I.tex0.xy * tc_set[s].x + I.tex1.xy * tc_set[s].y +
+		            I.tex2.xy * tc_set[s].z + I.tex3.xy * tc_set[s].w;
+		float4 src = float4(uv, 1.0, 0.0) * tc_gen[s].x +
+		             float4(cam_n, 1.0) * tc_gen[s].y +
+		             float4(cam_pos, 1.0) * tc_gen[s].z +
+		             float4(cam_r, 1.0) * tc_gen[s].w;
+		t[s] = float4(dot(src, tm_u[s]), dot(src, tm_v[s]), 0.0, 1.0);
+	}
+	R.tex0 = t[0];
+	R.tex1 = t[1];
 	return R;
 }

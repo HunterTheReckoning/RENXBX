@@ -1295,21 +1295,25 @@ enum {
 	CONST_BASE = 96,            /* program constant c[i] is uploaded at slot 96 + i */
 	CONST_M_SCREEN = 0,         /* c0-c3   world * view * projection * viewport */
 	CONST_M_WORLD = 4,          /* c4-c7 */
-	CONST_MAT_DIFFUSE = 8,
-	CONST_MAT_AMBIENT = 9,
-	CONST_MAT_EMISSIVE = 10,
-	CONST_AMBIENT_GLOBAL = 11,
-	CONST_FLAGS = 12,
-	CONST_FLAGS2 = 13,
-	CONST_LIGHT_DIR = 14,       /* c14-c17 */
-	CONST_LIGHT_DIFFUSE = 18,   /* c18-c21 */
-	CONST_TEXSEL = 22,          /* texture stage 0/1 coordinate set (D3DTSS_TEXCOORDINDEX) */
-	CONST_LITERAL = 23,         /* "#const c[23] = 1 0" from the compiler */
-	CONST_COUNT = 24
+	CONST_M_VIEW = 8,           /* c8-c11  world to camera space (generated texture coordinates) */
+	CONST_MAT_DIFFUSE = 12,
+	CONST_MAT_AMBIENT = 13,
+	CONST_MAT_EMISSIVE = 14,
+	CONST_AMBIENT_GLOBAL = 15,
+	CONST_FLAGS = 16,
+	CONST_FLAGS2 = 17,
+	CONST_LIGHT_DIR = 18,       /* c18-c21 */
+	CONST_LIGHT_DIFFUSE = 22,   /* c22-c25 */
+	CONST_TC_SET = 26,          /* c26-c27 per stage: weights of stored coordinate sets 0-3 */
+	CONST_TC_GEN = 28,          /* c28-c29 per stage: stored, normal, position, reflection */
+	CONST_TM_U = 30,            /* c30-c31 per stage: texture matrix column 1 */
+	CONST_TM_V = 32,            /* c32-c33 per stage: texture matrix column 2 */
+	CONST_LITERAL = 34,         /* "#const c[34] = 1 0 2" from the compiler */
+	CONST_COUNT = 35
 };
 
 /* NV2A vertex attribute slots used by the program (texture coordinates land in 9 and 10). */
-enum { ATTR_POSITION = 0, ATTR_NORMAL = 2, ATTR_DIFFUSE = 3, ATTR_SPECULAR = 4, ATTR_TEX0 = 9, ATTR_TEX1 = 10 };
+enum { ATTR_POSITION = 0, ATTR_NORMAL = 2, ATTR_DIFFUSE = 3, ATTR_SPECULAR = 4, ATTR_TEX0 = 9 };   /* sets 0-3: 9-12 */
 
 static inline DWORD Physical(const void *p) { return (DWORD)((uintptr_t)p & 0x03FFFFFF); }
 
@@ -1473,10 +1477,6 @@ void Device::Apply_Textures()
 		p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0 + base, (1u << 30) | ((max_lod & 0xFFF) << 6));
 		p = pb_push1(p, NV097_SET_TEXTURE_FILTER + base,
 		             Filter_To_NV(st[D3DTSS_MINFILTER], st[D3DTSS_MAGFILTER], st[D3DTSS_MIPFILTER]));
-		if (st[D3DTSS_TEXTURETRANSFORMFLAGS] != D3DTTFF_DISABLE) {
-			static bool logged;
-			Log_Once(&logged, "texture: texture matrices (scrolling, animated textures) are not applied yet");
-		}
 	}
 	pb_end(p);
 
@@ -1533,6 +1533,7 @@ bool Device::Prepare_Draw(UINT base_vertex)
 	Matrix_Multiply(screen, screen, viewport);
 	memcpy(c[CONST_M_SCREEN], &screen, sizeof(screen));
 	memcpy(c[CONST_M_WORLD], &Transforms[D3DTS_WORLD], sizeof(D3DMATRIX));
+	memcpy(c[CONST_M_VIEW], &Transforms[D3DTS_VIEW], sizeof(D3DMATRIX));
 	memcpy(c[CONST_MAT_DIFFUSE], &Material.Diffuse, 16);
 	memcpy(c[CONST_MAT_AMBIENT], &Material.Ambient, 16);
 	memcpy(c[CONST_MAT_EMISSIVE], &Material.Emissive, 16);
@@ -1559,22 +1560,44 @@ bool Device::Prepare_Draw(UINT base_vertex)
 		c[CONST_LIGHT_DIFFUSE + i][1] = Lights[i].Diffuse.g;
 		c[CONST_LIGHT_DIFFUSE + i][2] = Lights[i].Diffuse.b;
 	}
-	/* Which coordinate set each stage reads: Renegade's materials choose per stage (UV source). */
+	/* Texture coordinates for stages 0 and 1 (see xbox_ffp.vs.cg): the source chosen by
+	** D3DTSS_TEXCOORDINDEX, a stored set or a generated camera-space vector, then the stage's
+	** texture matrix (Direct3D row-vector convention: u' = src . column 1, v' = src . column 2). */
 	for (int s = 0; s < 2; s++) {
 		DWORD tci = StageStates[s][D3DTSS_TEXCOORDINDEX];
 		DWORD index = tci & 0xFFFF;
-		c[CONST_TEXSEL][s] = index == 1 ? 1.0f : 0.0f;
-		if (index > 1) {
+		for (int k = 0; k < 4; k++) c[CONST_TC_SET + s][k] = 0.0f;
+		c[CONST_TC_SET + s][index < 4 ? index : 0] = 1.0f;
+		if (index > 3) {
 			static bool logged;
-			Log_Once(&logged, "texture: coordinate sets above 1 are not supported yet (read as set 0)");
+			Log_Once(&logged, "texture: coordinate sets above 3 (read as set 0)");
 		}
-		if ((tci & 0xFFFF0000) != D3DTSS_TCI_PASSTHRU && Textures[s]) {
-			static bool logged;
-			Log_Once(&logged, "texture: generated coordinates (environment maps) are not supported yet");
+		for (int k = 0; k < 4; k++) c[CONST_TC_GEN + s][k] = 0.0f;
+		switch (tci & 0xFFFF0000) {
+		case D3DTSS_TCI_CAMERASPACENORMAL:           c[CONST_TC_GEN + s][1] = 1.0f; break;
+		case D3DTSS_TCI_CAMERASPACEPOSITION:         c[CONST_TC_GEN + s][2] = 1.0f; break;
+		case D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR: c[CONST_TC_GEN + s][3] = 1.0f; break;
+		default:                                     c[CONST_TC_GEN + s][0] = 1.0f; break;
+		}
+		DWORD ttf = StageStates[s][D3DTSS_TEXTURETRANSFORMFLAGS];
+		const D3DMATRIX &tm = Transforms[D3DTS_TEXTURE0 + s];
+		if (ttf == D3DTTFF_DISABLE) {
+			const float u[4] = { 1, 0, 0, 0 }, v[4] = { 0, 1, 0, 0 };
+			memcpy(c[CONST_TM_U + s], u, 16);
+			memcpy(c[CONST_TM_V + s], v, 16);
+		} else {
+			c[CONST_TM_U + s][0] = tm._11; c[CONST_TM_U + s][1] = tm._21; c[CONST_TM_U + s][2] = tm._31; c[CONST_TM_U + s][3] = tm._41;
+			c[CONST_TM_V + s][0] = tm._12; c[CONST_TM_V + s][1] = tm._22; c[CONST_TM_V + s][2] = tm._32; c[CONST_TM_V + s][3] = tm._42;
+			if ((ttf & ~D3DTTFF_PROJECTED) != D3DTTFF_COUNT2 || (ttf & D3DTTFF_PROJECTED)) {
+				static bool logged;
+				Log_Once(&logged, "texture: only 2D texture matrices are applied (3D/projected read as 2D)");
+			}
 		}
 	}
 	c[CONST_LITERAL][0] = 1.0f;
 	c[CONST_LITERAL][1] = 0.0f;
+	c[CONST_LITERAL][2] = 2.0f;
+	c[CONST_LITERAL][3] = 0.0f;
 
 	uint32_t *p = pb_begin();
 	p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, CONST_BASE);
@@ -1647,7 +1670,7 @@ bool Device::Prepare_Draw(UINT base_vertex)
 	for (UINT t = 0; t < tex_count; t++) {
 		static const UINT sizes[4] = { 2, 3, 4, 1 };   /* by D3DFVF_TEXTUREFORMAT value */
 		UINT size = sizes[(fvf >> (16 + t * 2)) & 3];
-		int slot = t == 0 ? ATTR_TEX0 : (t == 1 ? ATTR_TEX1 : -1);
+		int slot = t < 4 ? ATTR_TEX0 + (int)t : -1;
 		attrs[count++] = { slot, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, size, size * 4 };
 	}
 	p = pb_begin();
