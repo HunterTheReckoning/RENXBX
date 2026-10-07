@@ -1,0 +1,125 @@
+From 43a50a0019579f3b824b223b21f42bbf7fa05deb Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sun, 4 Oct 2026 20:56:49 +0000
+Subject: [PATCH 26/32] Direct3D layer: diagnostic switch for w = 1 (no
+ perspective correction)
+
+XboxD3D_Set_Diagnostic_W1 makes the vertex program output w = 1, to tell whether the depth
+errors seen with crossing planes come from the GPU's perspective correction of a depth value the
+program has already divided by w. Off normally; same constant layout, now 51 instructions.
+---
+ xbox/d3d8/xbox_d3d8.cpp     |  7 +++++++
+ xbox/d3d8/xbox_d3d8_stats.h |  4 ++++
+ xbox/d3d8/xbox_ffp.vs.cg    |  5 +++--
+ xbox/d3d8/xbox_ffp_vs.inl   | 15 ++++++++-------
+ 4 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/Code/xbox/d3d8/xbox_d3d8.cpp b/Code/xbox/d3d8/xbox_d3d8.cpp
+index 5a88bb7..aa248e0 100644
+--- a/Code/xbox/d3d8/xbox_d3d8.cpp
++++ b/Code/xbox/d3d8/xbox_d3d8.cpp
+@@ -60,6 +60,7 @@ void Free_GPU_Memory(void *memory)
+ }
+ 
+ static XboxD3DStats Stats;   /* live objects; see xbox_d3d8_stats.h */
++static bool DiagnosticW1;    /* see XboxD3D_Set_Diagnostic_W1 */
+ 
+ void Log_Once(bool *done, const char *what)
+ {
+@@ -1388,6 +1389,7 @@ bool Device::Prepare_Draw(UINT base_vertex)
+ 	c[CONST_FLAGS][3] = (color_vertex && RenderStates[D3DRS_EMISSIVEMATERIALSOURCE] == D3DMCS_COLOR1) ? 1.0f : 0.0f;
+ 	c[CONST_FLAGS2][0] = (fvf & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
+ 	c[CONST_FLAGS2][1] = (fvf & D3DFVF_SPECULAR) ? 1.0f : 0.0f;
++	c[CONST_FLAGS2][2] = DiagnosticW1 ? 1.0f : 0.0f;
+ 	for (int i = 0; i < 4; i++) {
+ 		if (!LightEnabled[i]) continue;
+ 		if (Lights[i].Type != D3DLIGHT_DIRECTIONAL) {
+@@ -1602,6 +1604,11 @@ void XboxD3D_Get_Stats(XboxD3DStats *out)
+ 	if (out) *out = XboxD3D::Stats;
+ }
+ 
++void XboxD3D_Set_Diagnostic_W1(bool on)
++{
++	XboxD3D::DiagnosticW1 = on;
++}
++
+ IDirect3D8 *Direct3DCreate8(UINT SDKVersion)
+ {
+ 	if (SDKVersion != D3D_SDK_VERSION) return NULL;
+diff --git a/Code/xbox/d3d8/xbox_d3d8_stats.h b/Code/xbox/d3d8/xbox_d3d8_stats.h
+index efd3e0a..31c393e 100644
+--- a/Code/xbox/d3d8/xbox_d3d8_stats.h
++++ b/Code/xbox/d3d8/xbox_d3d8_stats.h
+@@ -15,4 +15,8 @@ struct XboxD3DStats {
+ 
+ void XboxD3D_Get_Stats(XboxD3DStats *out);
+ 
++/* Diagnostic: when on, the vertex program outputs w = 1, so the GPU applies no perspective
++** correction. Used to tell whether depth problems come from that correction. Off normally. */
++void XboxD3D_Set_Diagnostic_W1(bool on);
++
+ #endif
+diff --git a/Code/xbox/d3d8/xbox_ffp.vs.cg b/Code/xbox/d3d8/xbox_ffp.vs.cg
+index 8352df0..949e458 100644
+--- a/Code/xbox/d3d8/xbox_ffp.vs.cg
++++ b/Code/xbox/d3d8/xbox_ffp.vs.cg
+@@ -44,7 +44,8 @@ vOut main(
+ 	uniform float4   ambient_global, /* D3DRS_AMBIENT */
+ 	uniform float4   flags,          /* x lighting on, y diffuse from vertex, z ambient from vertex,
+ 	                                    w emissive from vertex */
+-	uniform float4   flags2,         /* x vertex has a diffuse color, y has a specular color */
++	uniform float4   flags2,         /* x vertex has a diffuse color, y has a specular color,
++	                                    z diagnostic: output w = 1 (no perspective correction) */
+ 	uniform float4   light_dir[4],     /* xyz: direction the light travels */
+ 	uniform float4   light_diffuse[4]  /* rgb; zero for an unused light */
+ 	)
+@@ -52,7 +53,7 @@ vOut main(
+ 	vOut R;
+ 
+ 	float4 p = mul(float4(I.pos.xyz, 1.0), m_screen);
+-	R.pos = float4(p.xyz / p.w, p.w);
++	R.pos = float4(p.xyz / p.w, lerp(p.w, 1.0, flags2.z));
+ 
+ 	/* Vertex colors default to white when the vertex has none. */
+ 	float4 vdiff = lerp(float4(1, 1, 1, 1), I.diff, flags2.x);
+diff --git a/Code/xbox/d3d8/xbox_ffp_vs.inl b/Code/xbox/d3d8/xbox_ffp_vs.inl
+index 07d6595..cdd6b03 100644
+--- a/Code/xbox/d3d8/xbox_ffp_vs.inl
++++ b/Code/xbox/d3d8/xbox_ffp_vs.inl
+@@ -43,7 +43,7 @@
+ //var float4 main.tex0 : $vout.TEXCOORD0 : TEX0 : -1 : 1
+ //var float4 main.tex1 : $vout.TEXCOORD1 : TEX1 : -1 : 1
+ //const c[22] = 1 0
+-// 50 instructions, 0 R-regs
++// 51 instructions, 0 R-regs
+ 0x00000000, 0x006ec61b, 0x08361400, 0x3f0007f8,
+ 0x00000000, 0x004da01b, 0x0400186c, 0x2f0007f8,
+ 0x00000000, 0x006ec01b, 0x04361000, 0x3f1007f8,
+@@ -80,17 +80,18 @@
+ 0x00000000, 0x014ec01b, 0x24aa186c, 0x282007f8,
+ 0x00000000, 0x004ea01b, 0x0436186c, 0x2e0007f8,
+ 0x00000000, 0x0080001b, 0x0400486c, 0xde0007f8,
+-0x00000000, 0x004c2055, 0x0836186c, 0x2f2007f8,
+ 0x00000000, 0x012ec01b, 0x0400186c, 0x2e0007f8,
+-0x00000000, 0x008c0000, 0x0836186c, 0x9f2007f8,
++0x00000000, 0x004c2055, 0x0836186c, 0x2f2007f8,
+ 0x00000000, 0x014ec01b, 0x04aa186c, 0x2e0007f8,
++0x00000000, 0x0060001b, 0x0436146c, 0x5f0007f8,
++0x00000000, 0x008c0000, 0x0836186c, 0x9f2007f8,
+ 0x00000000, 0x008c40aa, 0x0836186c, 0x9f2007f8,
+ 0x00000000, 0x006c601b, 0x2436106c, 0x3f2007f8,
+-0x00000000, 0x0060001b, 0x0436146c, 0x5f0007f8,
+-0x00000000, 0x0400001b, 0x08361300, 0x903807f8,
+ 0x00000000, 0x008d801b, 0x0400186c, 0x5070f818,
+-0x00000000, 0x0040001b, 0x2400686c, 0x2070e800,
+-0x00000000, 0x0020001b, 0x2436106c, 0x20701800,
++0x00000000, 0x0400001b, 0x08361300, 0x900807f8,
++0x00000000, 0x006ec1ff, 0x24361000, 0x340007f8,
++0x00000000, 0x0040001b, 0x2400086c, 0x2070e800,
++0x00000000, 0x008da055, 0x0554186c, 0x90701800,
+ 0x00000000, 0x004da81b, 0x08aa186c, 0x2070f820,
+ 0x00000000, 0x0020121b, 0x0836106c, 0x2070f848,
+ 0x00000000, 0x0020141b, 0x0836106c, 0x2070f851,
+-- 
+2.43.0
+

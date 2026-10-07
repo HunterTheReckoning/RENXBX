@@ -1,0 +1,137 @@
+From 3eaa8996151886bc688e7598104fee08b95e1978 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 04:25:32 +0000
+Subject: [PATCH 09/32] Pass string text (not StringClass objects) through
+ printf-style calls; Xbox memory/OS info in cpudetect
+
+- ffactory, mixfile, wwprofile: (const char *) casts. Passing the object only worked by
+  accident under MSVC (StringClass is a single pointer); Clang rejects it as a runtime abort.
+- cpudetect: memory from MmQueryStatistics, OS version from XboxKrnlVersion
+---
+ wwdebug/wwprofile.cpp | 10 +++++-----
+ wwlib/cpudetect.cpp   | 23 +++++++++++++++++++++++
+ wwlib/ffactory.cpp    |  2 +-
+ wwlib/mixfile.cpp     |  2 +-
+ 4 files changed, 30 insertions(+), 7 deletions(-)
+
+diff --git a/Code/wwdebug/wwprofile.cpp b/Code/wwdebug/wwprofile.cpp
+index a07030f..ed1cacd 100644
+--- a/Code/wwdebug/wwprofile.cpp
++++ b/Code/wwdebug/wwprofile.cpp
+@@ -758,7 +758,7 @@ WWMemoryAndTimeLog::WWMemoryAndTimeLog(const char* name)
+ 	IntermediateAllocSizeStart=AllocSizeStart;
+ 	StringClass tmp(0,true);
+ 	for (unsigned i=0;i<TabCount;++i) tmp+="\t";
+-	WWRELEASE_SAY(("%s%s {\n",tmp,name));
++	WWRELEASE_SAY(("%s%s {\n",(const char *)tmp,(const char *)name));	// PORT: text, not objects, through ...
+ 	TabCount++;
+ }
+ 
+@@ -767,13 +767,13 @@ WWMemoryAndTimeLog::~WWMemoryAndTimeLog()
+ 	if (TabCount>0) TabCount--;
+ 	StringClass tmp(0,true);
+ 	for (unsigned i=0;i<TabCount;++i) tmp+="\t";
+-	WWRELEASE_SAY(("%s} ",tmp));
++	WWRELEASE_SAY(("%s} ",(const char *)tmp));	// PORT
+ 
+ 	unsigned current_time=WWProfile_Get_System_Time();
+ 	int current_alloc_count=FastAllocatorGeneral::Get_Allocator()->Get_Total_Allocation_Count();
+ 	int current_alloc_size=FastAllocatorGeneral::Get_Allocator()->Get_Total_Allocated_Size();
+ 	WWRELEASE_SAY(("IN TOTAL %s took %d.%3.3d s, did %d memory allocations of %d bytes\n",
+-		Name,
++		(const char *)Name,	// PORT
+ 		(current_time - TimeStart)/1000, (current_time - TimeStart)%1000,
+ 		current_alloc_count - AllocCountStart,
+ 		current_alloc_size - AllocSizeStart));
+@@ -790,8 +790,8 @@ void WWMemoryAndTimeLog::Log_Intermediate(const char* text)
+ 	StringClass tmp(0,true);
+ 	for (unsigned i=0;i<TabCount;++i) tmp+="\t";
+ 	WWRELEASE_SAY(("%s%s took %d.%3.3d s, did %d memory allocations of %d bytes\n",
+-		tmp,
+-		text,
++		(const char *)tmp,	// PORT
++		(const char *)text,
+ 		(current_time - IntermediateTimeStart)/1000, (current_time - IntermediateTimeStart)%1000,
+ 		current_alloc_count - IntermediateAllocCountStart,
+ 		current_alloc_size - IntermediateAllocSizeStart));
+diff --git a/Code/wwlib/cpudetect.cpp b/Code/wwlib/cpudetect.cpp
+index ff40008..d046c50 100644
+--- a/Code/wwlib/cpudetect.cpp
++++ b/Code/wwlib/cpudetect.cpp
+@@ -885,6 +885,19 @@ void CPUDetectClass::Init_Processor_Features()
+ 
+ void CPUDetectClass::Init_Memory()
+ {
++#ifdef NXDK
++	// PORT: ask the Xbox kernel. The Xbox has no page file (reported as 0) and no virtual
++	// memory beyond RAM ("virtual" reports the physical figures).
++	MM_STATISTICS stats;
++	memset(&stats, 0, sizeof(stats));
++	stats.Length = sizeof(stats);
++	MmQueryStatistics(&stats);
++	TotalPhysicalMemory = stats.TotalPhysicalPages * 4096;
++	AvailablePhysicalMemory = stats.AvailablePages * 4096;
++	TotalPageMemory = AvailablePageMemory = 0;
++	TotalVirtualMemory = TotalPhysicalMemory;
++	AvailableVirtualMemory = AvailablePhysicalMemory;
++#else
+ 	MEMORYSTATUS mem;
+ 	GlobalMemoryStatus(&mem);
+ 	TotalPhysicalMemory=mem.dwTotalPhys;
+@@ -893,10 +906,19 @@ void CPUDetectClass::Init_Memory()
+ 	AvailablePageMemory=mem.dwAvailPageFile;
+ 	TotalVirtualMemory=mem.dwTotalVirtual;
+ 	AvailableVirtualMemory=mem.dwAvailVirtual;
++#endif
+ }
+ 
+ void CPUDetectClass::Init_OS()
+ {
++#ifdef NXDK
++	// PORT: report the Xbox kernel's version (e.g. 1.0.5838) instead of a Windows version.
++	OSVersionNumberMajor = XboxKrnlVersion.Major;
++	OSVersionNumberMinor = XboxKrnlVersion.Minor;
++	OSVersionBuildNumber = XboxKrnlVersion.Build;
++	OSVersionPlatformId = 0;
++	OSVersionExtraInfo = "Xbox";
++#else
+ 	OSVERSIONINFO os;
+ 	os.dwOSVersionInfoSize=sizeof(os);
+ 	GetVersionEx(&os);
+@@ -906,6 +928,7 @@ void CPUDetectClass::Init_OS()
+ 	OSVersionBuildNumber=os.dwBuildNumber;
+ 	OSVersionPlatformId=os.dwPlatformId;
+ 	OSVersionExtraInfo=os.szCSDVersion;
++#endif
+ }
+ 
+ bool CPUDetectClass::CPUID(
+diff --git a/Code/wwlib/ffactory.cpp b/Code/wwlib/ffactory.cpp
+index ae0587d..b4b5811 100644
+--- a/Code/wwlib/ffactory.cpp
++++ b/Code/wwlib/ffactory.cpp
+@@ -291,7 +291,7 @@ FileClass * SimpleFileFactoryClass::Get_File( char const *filename )
+ 					}
+ 				}
+ 			} else {
+-				new_name.Format("%s%s",SubDirectory,stripped_name);
++				new_name.Format("%s%s",(const char *)SubDirectory,(const char *)stripped_name);	// PORT: pass text, not objects, through ...
+ 			}
+ 		}
+ 
+diff --git a/Code/wwlib/mixfile.cpp b/Code/wwlib/mixfile.cpp
+index 64f2bb9..e473e06 100644
+--- a/Code/wwlib/mixfile.cpp
++++ b/Code/wwlib/mixfile.cpp
+@@ -614,7 +614,7 @@ void	Add_Files( const char * dir, MixFileCreator & mix )
+ 			StringClass name;
+ 			name.Format( "%s%s", dir, find_info.cFileName );
+ 			StringClass	source;
+-			source.Format( "makemix\\%s", name );
++			source.Format( "makemix\\%s", (const char *)name );	// PORT: pass text, not objects, through ...
+ 			mix.Add_File( source, name );
+ //			WWDEBUG_SAY(( "Adding file from %s %s\n", source, name ));
+ 		}
+-- 
+2.43.0
+

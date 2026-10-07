@@ -1,0 +1,230 @@
+From cf6666c27f68c00cafbb68bc7a58a4c99b5b03a6 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sun, 4 Oct 2026 23:39:19 +0000
+Subject: [PATCH 30/32] Direct3D layer: texture coordinate sets per stage;
+ on-screen notices
+
+- D3DTSS_TEXCOORDINDEX: stages 0 and 1 each read coordinate set 0 or 1, as Renegade's materials
+  choose (UV source per stage). The layer assumed stage n read set n, so materials with crossed
+  sets (base texture and lightmap) sampled each texture with the other's coordinates. Vertex
+  program: new selector at c22, literal moved to c23, 53 instructions.
+- XboxD3D_Get_Notice: the features the layer met but doesn't support yet (each reported once),
+  for test programs to show. Generated coordinates (environment maps) and texture matrices are
+  reported separately.
+---
+ xbox/d3d8/xbox_d3d8.cpp     | 32 +++++++++++++++++++++++----
+ xbox/d3d8/xbox_d3d8_stats.h |  4 ++++
+ xbox/d3d8/xbox_ffp.vs.cg    |  8 ++++---
+ xbox/d3d8/xbox_ffp_vs.inl   | 44 ++++++++++++++++++++-----------------
+ 4 files changed, 61 insertions(+), 27 deletions(-)
+
+diff --git a/Code/xbox/d3d8/xbox_d3d8.cpp b/Code/xbox/d3d8/xbox_d3d8.cpp
+index 231c093..2d477c6 100644
+--- a/Code/xbox/d3d8/xbox_d3d8.cpp
++++ b/Code/xbox/d3d8/xbox_d3d8.cpp
+@@ -62,10 +62,14 @@ void Free_GPU_Memory(void *memory)
+ static XboxD3DStats Stats;   /* live objects; see xbox_d3d8_stats.h */
+ static bool DiagnosticW1;    /* see XboxD3D_Set_Diagnostic_W1 */
+ 
++static const char *Notices[8];
++static int NoticeCount;
++
+ void Log_Once(bool *done, const char *what)
+ {
+ 	if (*done) return;
+ 	*done = true;
++	if (NoticeCount < 8) Notices[NoticeCount++] = what;
+ 	DbgPrint("XboxD3D: %s\n", what);
+ 	Trace("%s", what);
+ }
+@@ -1299,8 +1303,9 @@ enum {
+ 	CONST_FLAGS2 = 13,
+ 	CONST_LIGHT_DIR = 14,       /* c14-c17 */
+ 	CONST_LIGHT_DIFFUSE = 18,   /* c18-c21 */
+-	CONST_LITERAL = 22,         /* "#const c[22] = 1 0" from the compiler */
+-	CONST_COUNT = 23
++	CONST_TEXSEL = 22,          /* texture stage 0/1 coordinate set (D3DTSS_TEXCOORDINDEX) */
++	CONST_LITERAL = 23,         /* "#const c[23] = 1 0" from the compiler */
++	CONST_COUNT = 24
+ };
+ 
+ /* NV2A vertex attribute slots used by the program (texture coordinates land in 9 and 10). */
+@@ -1468,9 +1473,9 @@ void Device::Apply_Textures()
+ 		p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0 + base, (1u << 30) | ((max_lod & 0xFFF) << 6));
+ 		p = pb_push1(p, NV097_SET_TEXTURE_FILTER + base,
+ 		             Filter_To_NV(st[D3DTSS_MINFILTER], st[D3DTSS_MAGFILTER], st[D3DTSS_MIPFILTER]));
+-		if (st[D3DTSS_TEXCOORDINDEX] != (DWORD)s || st[D3DTSS_TEXTURETRANSFORMFLAGS] != D3DTTFF_DISABLE) {
++		if (st[D3DTSS_TEXTURETRANSFORMFLAGS] != D3DTTFF_DISABLE) {
+ 			static bool logged;
+-			Log_Once(&logged, "texture: coordinate generation and texture matrices are not applied yet");
++			Log_Once(&logged, "texture: texture matrices (scrolling, animated textures) are not applied yet");
+ 		}
+ 	}
+ 	pb_end(p);
+@@ -1554,6 +1559,20 @@ bool Device::Prepare_Draw(UINT base_vertex)
+ 		c[CONST_LIGHT_DIFFUSE + i][1] = Lights[i].Diffuse.g;
+ 		c[CONST_LIGHT_DIFFUSE + i][2] = Lights[i].Diffuse.b;
+ 	}
++	/* Which coordinate set each stage reads: Renegade's materials choose per stage (UV source). */
++	for (int s = 0; s < 2; s++) {
++		DWORD tci = StageStates[s][D3DTSS_TEXCOORDINDEX];
++		DWORD index = tci & 0xFFFF;
++		c[CONST_TEXSEL][s] = index == 1 ? 1.0f : 0.0f;
++		if (index > 1) {
++			static bool logged;
++			Log_Once(&logged, "texture: coordinate sets above 1 are not supported yet (read as set 0)");
++		}
++		if ((tci & 0xFFFF0000) != D3DTSS_TCI_PASSTHRU && Textures[s]) {
++			static bool logged;
++			Log_Once(&logged, "texture: generated coordinates (environment maps) are not supported yet");
++		}
++	}
+ 	c[CONST_LITERAL][0] = 1.0f;
+ 	c[CONST_LITERAL][1] = 0.0f;
+ 
+@@ -1764,6 +1783,11 @@ void XboxD3D_Get_Stats(XboxD3DStats *out)
+ 	if (out) *out = XboxD3D::Stats;
+ }
+ 
++const char *XboxD3D_Get_Notice(int index)
++{
++	return (index >= 0 && index < XboxD3D::NoticeCount) ? XboxD3D::Notices[index] : NULL;
++}
++
+ void XboxD3D_Set_Diagnostic_W1(bool on)
+ {
+ 	XboxD3D::DiagnosticW1 = on;
+diff --git a/Code/xbox/d3d8/xbox_d3d8_stats.h b/Code/xbox/d3d8/xbox_d3d8_stats.h
+index 31c393e..469199e 100644
+--- a/Code/xbox/d3d8/xbox_d3d8_stats.h
++++ b/Code/xbox/d3d8/xbox_d3d8_stats.h
+@@ -19,4 +19,8 @@ void XboxD3D_Get_Stats(XboxD3DStats *out);
+ ** correction. Used to tell whether depth problems come from that correction. Off normally. */
+ void XboxD3D_Set_Diagnostic_W1(bool on);
+ 
++/* Things the layer met but doesn't support yet (each reported once), in the order met; NULL
++** past the last. Test programs show these so a real model reveals what it still needs. */
++const char *XboxD3D_Get_Notice(int index);
++
+ #endif
+diff --git a/Code/xbox/d3d8/xbox_ffp.vs.cg b/Code/xbox/d3d8/xbox_ffp.vs.cg
+index 949e458..20410b3 100644
+--- a/Code/xbox/d3d8/xbox_ffp.vs.cg
++++ b/Code/xbox/d3d8/xbox_ffp.vs.cg
+@@ -47,7 +47,9 @@ vOut main(
+ 	uniform float4   flags2,         /* x vertex has a diffuse color, y has a specular color,
+ 	                                    z diagnostic: output w = 1 (no perspective correction) */
+ 	uniform float4   light_dir[4],     /* xyz: direction the light travels */
+-	uniform float4   light_diffuse[4]  /* rgb; zero for an unused light */
++	uniform float4   light_diffuse[4], /* rgb; zero for an unused light */
++	uniform float4   texsel            /* x, y: texture stage 0, 1 reads coordinate set 1 instead of 0
++	                                      (D3DTSS_TEXCOORDINDEX) */
+ 	)
+ {
+ 	vOut R;
+@@ -73,7 +75,7 @@ vOut main(
+ 	float4 lit_color = float4(saturate(lit), diffuse.a);
+ 	R.col0 = lerp(vdiff, lit_color, flags.x);
+ 	R.col1 = vspec;
+-	R.tex0 = I.tex0;
+-	R.tex1 = I.tex1;
++	R.tex0 = lerp(I.tex0, I.tex1, texsel.x);
++	R.tex1 = lerp(I.tex0, I.tex1, texsel.y);
+ 	return R;
+ }
+diff --git a/Code/xbox/d3d8/xbox_ffp_vs.inl b/Code/xbox/d3d8/xbox_ffp_vs.inl
+index cdd6b03..da607bb 100644
+--- a/Code/xbox/d3d8/xbox_ffp_vs.inl
++++ b/Code/xbox/d3d8/xbox_ffp_vs.inl
+@@ -15,6 +15,7 @@
+ //semantic main.flags2
+ //semantic main.light_dir
+ //semantic main.light_diffuse
++//semantic main.texsel
+ //var float4 I.pos : $vin.POSITION : ATTR0 : 0 : 1
+ //var float4 I.norm : $vin.NORMAL : ATTR2 : 0 : 1
+ //var float4 I.diff : $vin.COLOR0 : ATTR3 : 0 : 1
+@@ -37,24 +38,25 @@
+ //var float4 light_diffuse[1] :  : c[19] : 10 : 1
+ //var float4 light_diffuse[2] :  : c[20] : 10 : 1
+ //var float4 light_diffuse[3] :  : c[21] : 10 : 1
++//var float4 texsel :  : c[22] : 11 : 1
+ //var float4 main.pos : $vout.POSITION : HPOS : -1 : 1
+ //var float4 main.col0 : $vout.COLOR0 : COL0 : -1 : 1
+ //var float4 main.col1 : $vout.COLOR1 : COL1 : -1 : 1
+ //var float4 main.tex0 : $vout.TEXCOORD0 : TEX0 : -1 : 1
+ //var float4 main.tex1 : $vout.TEXCOORD1 : TEX1 : -1 : 1
+-//const c[22] = 1 0
+-// 51 instructions, 0 R-regs
+-0x00000000, 0x006ec61b, 0x08361400, 0x3f0007f8,
++//const c[23] = 1 0
++// 53 instructions, 0 R-regs
++0x00000000, 0x006ee61b, 0x08361400, 0x3f0007f8,
+ 0x00000000, 0x004da01b, 0x0400186c, 0x2f0007f8,
+-0x00000000, 0x006ec01b, 0x04361000, 0x3f1007f8,
++0x00000000, 0x006ee01b, 0x04361000, 0x3f1007f8,
+ 0x00000000, 0x006d201b, 0x1436146c, 0x3e0007f8,
++0x00000000, 0x006d401b, 0x1436146c, 0x3e3007f8,
+ 0x00000000, 0x004d801b, 0x0554186c, 0x2e0007f8,
+ 0x00000000, 0x004ca455, 0x0836186c, 0x2e2007f8,
+-0x00000000, 0x006d401b, 0x1436146c, 0x3e3007f8,
+ 0x00000000, 0x008c8400, 0x0836186c, 0x9e2007f8,
+ 0x00000000, 0x004d801b, 0x35fe186c, 0x2e3007f8,
+ 0x00000000, 0x008cc4aa, 0x0836186c, 0x9e2007f8,
+-0x00000000, 0x006ec01b, 0x24361154, 0x3e2007f8,
++0x00000000, 0x006ee01b, 0x24361154, 0x3e2007f8,
+ 0x00000000, 0x00a0001b, 0x2436486c, 0x212007f8,
+ 0x00000000, 0x0800001b, 0x08361300, 0x902107f8,
+ 0x00000000, 0x004000ff, 0x2436486c, 0x2e2007f8,
+@@ -66,32 +68,34 @@
+ 0x00000000, 0x004d801b, 0x04aa186c, 0x2f0007f8,
+ 0x00000000, 0x006d001b, 0x0436106c, 0x3f0007f8,
+ 0x00000000, 0x004e401b, 0x0436186c, 0x2e3007f8,
+-0x00000000, 0x014ec01b, 0x24aa186c, 0x212007f8,
++0x00000000, 0x014ee01b, 0x24aa186c, 0x212007f8,
+ 0x00000000, 0x0080001b, 0x35fe486d, 0x1e4007f8,
+ 0x00000000, 0x00ade01b, 0x2636186c, 0x212007f8,
+ 0x00000000, 0x004e601b, 0x0436186c, 0x2e3007f8,
+-0x00000000, 0x014ec01b, 0x24aa186c, 0x212007f8,
++0x00000000, 0x014ee01b, 0x24aa186c, 0x212007f8,
+ 0x00000000, 0x0080001b, 0x35fe486d, 0x1e4007f8,
+ 0x00000000, 0x00ae001b, 0x2636186c, 0x212007f8,
+ 0x00000000, 0x00ae201b, 0x2636186c, 0x282007f8,
+ 0x00000000, 0x004e801b, 0x0436186c, 0x2e3007f8,
+-0x00000000, 0x014ec01b, 0x24aa186c, 0x212007f8,
++0x00000000, 0x014ee01b, 0x24aa186c, 0x212007f8,
+ 0x00000000, 0x0080001b, 0x35fe486d, 0x1e3007f8,
+-0x00000000, 0x014ec01b, 0x24aa186c, 0x282007f8,
++0x00000000, 0x014ee01b, 0x24aa186c, 0x282007f8,
+ 0x00000000, 0x004ea01b, 0x0436186c, 0x2e0007f8,
+ 0x00000000, 0x0080001b, 0x0400486c, 0xde0007f8,
+-0x00000000, 0x012ec01b, 0x0400186c, 0x2e0007f8,
+ 0x00000000, 0x004c2055, 0x0836186c, 0x2f2007f8,
+-0x00000000, 0x014ec01b, 0x04aa186c, 0x2e0007f8,
+-0x00000000, 0x0060001b, 0x0436146c, 0x5f0007f8,
++0x00000000, 0x012ee01b, 0x0400186c, 0x2e0007f8,
+ 0x00000000, 0x008c0000, 0x0836186c, 0x9f2007f8,
++0x00000000, 0x014ee01b, 0x04aa186c, 0x2e0007f8,
++0x00000000, 0x0060001b, 0x0436146c, 0x5f0007f8,
++0x00000000, 0x008d801b, 0x0400186c, 0x5070f818,
+ 0x00000000, 0x008c40aa, 0x0836186c, 0x9f2007f8,
+ 0x00000000, 0x006c601b, 0x2436106c, 0x3f2007f8,
+-0x00000000, 0x008d801b, 0x0400186c, 0x5070f818,
+-0x00000000, 0x0400001b, 0x08361300, 0x900807f8,
+-0x00000000, 0x006ec1ff, 0x24361000, 0x340007f8,
+-0x00000000, 0x0040001b, 0x2400086c, 0x2070e800,
+-0x00000000, 0x008da055, 0x0554186c, 0x90701800,
++0x00000000, 0x006ee1ff, 0x2436106c, 0x380007f8,
++0x00000000, 0x0400001b, 0x08361300, 0x903807f8,
++0x00000000, 0x0020121b, 0x0836106c, 0x2f1007f8,
++0x00000000, 0x008da000, 0x0554186c, 0x90701800,
++0x00000000, 0x0060141b, 0x0836146c, 0x5f0007f8,
++0x00000000, 0x0040001b, 0x2400686c, 0x2070e800,
+ 0x00000000, 0x004da81b, 0x08aa186c, 0x2070f820,
+-0x00000000, 0x0020121b, 0x0836106c, 0x2070f848,
+-0x00000000, 0x0020141b, 0x0836106c, 0x2070f851,
++0x00000000, 0x008ed21b, 0x0400186c, 0x2070f848,
++0x00000000, 0x008ed21b, 0x04aa186c, 0x2070f851,
+-- 
+2.43.0
+

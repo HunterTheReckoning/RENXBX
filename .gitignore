@@ -58,3 +58,17 @@ IDL_*.loc
 *.dds
 *.w3d
 *.tga
+renegade-xbox-port/**/data/*
+!renegade-xbox-port/**/data/README.txt
+*.obj
+*.lib
+*.xbe
+*.exe
+*.iso
+renegade-xbox-port/**/bin/
+renegade-xbox-port/**/*.dat
+renegade-xbox-port/**/*.DAT
+renegade-xbox-port/**/*.dbs
+renegade-xbox-port/**/*.DBS
+renegade-xbox-port/**/*.mix
+renegade-xbox-port/**/*.MIX

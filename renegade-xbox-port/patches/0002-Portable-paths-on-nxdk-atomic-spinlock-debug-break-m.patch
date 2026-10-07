@@ -1,0 +1,149 @@
+From 182f07ba077ff3ff6b0b85f12de11c21bcbea915 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 00:12:26 +0000
+Subject: [PATCH 02/32] Portable paths on nxdk: atomic spinlock, debug break,
+ math helpers (keep fistp rounding via lrint; avoid below-ESP scratch in
+ Inv_Sqrt)
+
+---
+ WWMath/wwmath.h   | 20 +++++++++++---------
+ wwdebug/wwdebug.h |  4 +++-
+ wwlib/mutex.h     | 17 +++++++++++++++++
+ 3 files changed, 31 insertions(+), 10 deletions(-)
+
+diff --git a/Code/WWMath/wwmath.h b/Code/WWMath/wwmath.h
+index d10101f..539e794 100644
+--- a/Code/WWMath/wwmath.h
++++ b/Code/WWMath/wwmath.h
+@@ -120,7 +120,7 @@ static WWINLINE float Fabs(float val)
+ static WWINLINE int Float_To_Int_Chop(const float& f);
+ static WWINLINE int Float_To_Int_Floor(const float& f);
+ 
+-#if defined(_MSC_VER) && defined(_M_IX86)
++#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
+ static WWINLINE float Cos(float val);
+ static WWINLINE float Sin(float val);
+ static WWINLINE float Sqrt(float val);
+@@ -298,7 +298,7 @@ WWINLINE bool WWMath::Is_Valid_Double(double x)
+ // Float to long
+ // ----------------------------------------------------------------------------
+ 
+-#if defined(_MSC_VER) && defined(_M_IX86)
++#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
+ WWINLINE long WWMath::Float_To_Long(float f)
+ {
+ 	long i;
+@@ -313,19 +313,21 @@ WWINLINE long WWMath::Float_To_Long(float f)
+ #else 
+ WWINLINE long WWMath::Float_To_Long(float f)
+ {
+-	return (long) f;
++	// PORT: fistp rounds to nearest (default FPU mode); a cast would truncate.
++	return lrintf(f);
+ }
+ #endif
+ 
+ WWINLINE long WWMath::Float_To_Long(double f)	
+ {
+-#if defined(_MSC_VER) && defined(_M_IX86)
++#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
+ 	long retval;
+ 	__asm fld	qword ptr [f]
+ 	__asm fistp dword ptr [retval]
+ 	return retval;
+ #else 
+-	return (long) f;
++	// PORT: fistp rounds to nearest (default FPU mode); a cast would truncate.
++	return lrint(f);
+ #endif
+ }
+ 
+@@ -333,7 +335,7 @@ WWINLINE long WWMath::Float_To_Long(double f)
+ // Cos
+ // ----------------------------------------------------------------------------
+ 
+-#if defined(_MSC_VER) && defined(_M_IX86)
++#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
+ WWINLINE float WWMath::Cos(float val)
+ {
+ 	float retval;
+@@ -355,7 +357,7 @@ WWINLINE float WWMath::Cos(float val)
+ // Sin
+ // ----------------------------------------------------------------------------
+ 
+-#if defined(_MSC_VER) && defined(_M_IX86)
++#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
+ WWINLINE float WWMath::Sin(float val)
+ {
+ 	float retval;
+@@ -545,7 +547,7 @@ WWINLINE float WWMath::Asin(float val)
+ // Sqrt
+ // ----------------------------------------------------------------------------
+ 
+-#if defined(_MSC_VER) && defined(_M_IX86)
++#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
+ WWINLINE float WWMath::Sqrt(float val)
+ {
+ 	float retval;
+@@ -593,7 +595,7 @@ WWINLINE int WWMath::Float_To_Int_Floor (const float& f)
+ // Inverse square root
+ // ----------------------------------------------------------------------------
+ 
+-#if defined(_MSC_VER) && defined(_M_IX86)
++#if defined(_MSC_VER) && defined(_M_IX86) && !defined(NXDK)  // PORT: asm only for real MSVC
+ WWINLINE __declspec(naked) float __fastcall WWMath::Inv_Sqrt(float a)
+ {
+ 	__asm {
+diff --git a/Code/wwdebug/wwdebug.h b/Code/wwdebug/wwdebug.h
+index eed093e..94c319e 100644
+--- a/Code/wwdebug/wwdebug.h
++++ b/Code/wwdebug/wwdebug.h
+@@ -138,7 +138,9 @@ void					WWDebug_DBWin32_Message_Handler( const char * message);
+ ** The WWDEBUG_BREAK macro will cause the application to break into
+ ** the debugger...
+ */
+-#ifdef WWDEBUG
++#if defined(NXDK) || defined(__GNUC__)
++#define WWDEBUG_BREAK							__asm__ volatile("int3")	// PORT
++#elif defined(WWDEBUG)
+ #define WWDEBUG_BREAK							_asm int 0x03
+ #else
+ #define WWDEBUG_BREAK							_asm int 0x03
+diff --git a/Code/wwlib/mutex.h b/Code/wwlib/mutex.h
+index c7c4d1b..1ef3456 100644
+--- a/Code/wwlib/mutex.h
++++ b/Code/wwlib/mutex.h
+@@ -119,6 +119,22 @@ class FastCriticalSectionClass
+ {
+ 	volatile unsigned Flag;
+ 
++#if defined(NXDK) || defined(__GNUC__)
++	// PORT: atomic test-and-set builtin instead of inline asm. The original
++	// asm clobbered ebx without telling the compiler, which modern optimizers
++	// do not tolerate.
++	void Thread_Safe_Set_Flag()
++	{
++		while (__sync_lock_test_and_set(&Flag, 1u)) {
++			ThreadClass::Switch_Thread();
++		}
++	}
++
++	WWINLINE void Thread_Safe_Clear_Flag()
++	{
++		__sync_lock_release(&Flag);
++	}
++#else
+ 	void Thread_Safe_Set_Flag()
+ 	{
+ 		volatile unsigned& nFlag=Flag;
+@@ -144,6 +160,7 @@ class FastCriticalSectionClass
+ 	{
+ 		Flag = 0;
+ 	}
++#endif
+ 
+ public:
+ 	// Name can (and usually should) be NULL. Use name only if you wish to create a globally unique mutex
+-- 
+2.43.0
+

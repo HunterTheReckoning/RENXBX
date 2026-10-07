@@ -1,0 +1,82 @@
+From 2da5fe0883a8178ce9c96a6271658f15b57b0bb5 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 04:28:49 +0000
+Subject: [PATCH 10/32] cpudetect: Windows platform IDs, log 'Xbox' (not
+ 'Windows 3.1'), pass string text through SYSLOG, drop extra qualification
+
+---
+ wwlib/cpudetect.cpp | 11 +++++++----
+ wwlib/xbox_port.h   |  7 +++++++
+ 2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/Code/wwlib/cpudetect.cpp b/Code/wwlib/cpudetect.cpp
+index d046c50..82002ba 100644
+--- a/Code/wwlib/cpudetect.cpp
++++ b/Code/wwlib/cpudetect.cpp
+@@ -916,7 +916,7 @@ void CPUDetectClass::Init_OS()
+ 	OSVersionNumberMajor = XboxKrnlVersion.Major;
+ 	OSVersionNumberMinor = XboxKrnlVersion.Minor;
+ 	OSVersionBuildNumber = XboxKrnlVersion.Build;
+-	OSVersionPlatformId = 0;
++	OSVersionPlatformId = 0xFFFFFFFF;   // not a Windows platform (0 would mean "Windows 3.1")
+ 	OSVersionExtraInfo = "Xbox";
+ #else
+ 	OSVERSIONINFO os;
+@@ -979,6 +979,9 @@ void CPUDetectClass::Init_Processor_Log()
+ 	case VER_PLATFORM_WIN32s: SYSLOG(("Windows 3.1")); break;
+ 	case VER_PLATFORM_WIN32_WINDOWS: SYSLOG(("Windows 9x")); break;
+ 	case VER_PLATFORM_WIN32_NT: SYSLOG(("Windows NT")); break;
++#ifdef NXDK
++	default: SYSLOG(("Xbox")); break;	// PORT
++#endif
+ 	}
+ 	SYSLOG(("\r\n"));
+ 
+@@ -987,7 +990,7 @@ void CPUDetectClass::Init_Processor_Log()
+ 		(OSVersionBuildNumber&0xff000000)>>24,
+ 		(OSVersionBuildNumber&0xff0000)>>16,
+ 		(OSVersionBuildNumber&0xffff)));
+-	SYSLOG(("OS-Info: %s\r\n",OSVersionExtraInfo));
++	SYSLOG(("OS-Info: %s\r\n",(const char *)OSVersionExtraInfo));	// PORT: text, not the object
+ 
+ 	SYSLOG(("Processor: %s\r\n",CPUDetectClass::Get_Processor_String()));
+ 	SYSLOG(("Clock speed: ~%dMHz\r\n",CPUDetectClass::Get_Processor_Speed()));
+@@ -998,7 +1001,7 @@ void CPUDetectClass::Init_Processor_Log()
+ 	case 2: cpu_type="Dual"; break;
+ 	case 3: cpu_type="*Intel Reserved*"; break;
+ 	}
+-	SYSLOG(("Processor type: %s\r\n",cpu_type));
++	SYSLOG(("Processor type: %s\r\n",(const char *)cpu_type));	// PORT: text, not the object
+ 
+ 	SYSLOG(("\r\n"));
+ 
+@@ -1098,7 +1101,7 @@ void CPUDetectClass::Init_Compact_Log()
+ static class CPUDetectInitClass
+ {
+ public:
+-	CPUDetectInitClass::CPUDetectInitClass()
++	CPUDetectInitClass()
+ 	{
+ 		CPUDetectClass::Init_CPUID_Instruction();
+ 		// We pretty much need CPUID, but let's not crash if it doesn't exist.
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index c4aa6e2..62f44ca 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -90,6 +90,13 @@ typedef void *HKEY;
+ #define getpid() ((int)GetCurrentThreadId())
+ #endif
+ 
++/* Windows platform IDs (cpudetect.cpp compares against these; the Xbox matches none). */
++#ifndef VER_PLATFORM_WIN32s
++#define VER_PLATFORM_WIN32s        0
++#define VER_PLATFORM_WIN32_WINDOWS 1
++#define VER_PLATFORM_WIN32_NT      2
++#endif
++
+ #ifndef strcmpi
+ #define strcmpi _stricmp
+ #endif
+-- 
+2.43.0
+

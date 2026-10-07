@@ -1,0 +1,1717 @@
+From 05672c8cabaabd1f984f618721723e6a1527533b Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 23:08:22 +0000
+Subject: [PATCH 18/32] Direct3D layer on pbkit, step 1 (device bring-up);
+ engine start-up without DLLs; fonts compile
+
+- xbox/d3d8: Direct3DCreate8, device creation on pbkit (640x480, 32-bit color, D24S8),
+  Clear as the NV2A's clear command, Present, frames that begin at Clear or BeginScene,
+  viewport and stored render state, textures/surfaces/vertex and index buffers in GPU-visible
+  memory, D3DX texture helpers (conversion and box-filtered mipmaps). Drawing is step 2.
+- reported vendor is 'unidentified': the engine's NVIDIA workaround would disable DXT1
+- DX8Wrapper: Direct3DCreate8 called directly (no D3D8.DLL), via a WINAPI wrapper
+- animatedsoundmgr_xbox.cpp: placeholder until audio, same behaviour as with no sounds
+- render2dsentence.cpp compiles: its three GDI functions have placeholders (empty glyphs at
+  realistic sizes) until the SDL_ttf font replacement
+---
+ ww3d2/animatedsoundmgr_xbox.cpp |   37 +
+ ww3d2/dx8wrapper.cpp            |   11 +
+ ww3d2/render2dsentence.cpp      |   33 +-
+ xbox/d3d8/xbox_d3d8.cpp         | 1152 +++++++++++++++++++++++++++++++
+ xbox/d3d8/xbox_d3d8_internal.h  |   78 +++
+ xbox/d3d8/xbox_d3dx8.cpp        |  244 +++++++
+ xbox/include/xbox_win32_types.h |    5 +
+ 7 files changed, 1558 insertions(+), 2 deletions(-)
+ create mode 100644 ww3d2/animatedsoundmgr_xbox.cpp
+ create mode 100644 xbox/d3d8/xbox_d3d8.cpp
+ create mode 100644 xbox/d3d8/xbox_d3d8_internal.h
+ create mode 100644 xbox/d3d8/xbox_d3dx8.cpp
+
+diff --git a/Code/ww3d2/animatedsoundmgr_xbox.cpp b/Code/ww3d2/animatedsoundmgr_xbox.cpp
+new file mode 100644
+index 0000000..ef53eba
+--- /dev/null
++++ b/Code/ww3d2/animatedsoundmgr_xbox.cpp
+@@ -0,0 +1,37 @@
++/*
++** animatedsoundmgr_xbox.cpp -- placeholder for AnimatedSoundMgrClass on the Xbox (nxdk only).
++**
++** The real animatedsoundmgr.cpp plays sounds embedded in animations (footsteps and the
++** like) through WWAudio, which needs the Miles sound library that EA's source release
++** leaves out. Until the port has its own audio system, this provides the same interface and
++** behaves exactly like the original with no sounds loaded: no animation has embedded sounds,
++** and Trigger_Sound returns old_frame unchanged, as the original does when nothing plays.
++**
++** Remove this file from the Xbox build when animatedsoundmgr.cpp is ported.
++*/
++#include "animatedsoundmgr.h"
++
++#ifdef NXDK
++
++#include "wwdebug.h"
++
++void AnimatedSoundMgrClass::Initialize(const char *)
++{
++	WWDEBUG_SAY(("AnimatedSoundMgrClass: animation sounds are not available yet (audio not ported)\n"));
++}
++
++void AnimatedSoundMgrClass::Shutdown(void)
++{
++}
++
++bool AnimatedSoundMgrClass::Does_Animation_Have_Embedded_Sounds(HAnimClass *)
++{
++	return false;
++}
++
++float AnimatedSoundMgrClass::Trigger_Sound(HAnimClass *, float old_frame, float, const Matrix3D &)
++{
++	return old_frame;
++}
++
++#endif /* NXDK */
+diff --git a/Code/ww3d2/dx8wrapper.cpp b/Code/ww3d2/dx8wrapper.cpp
+index 6e77885..874474b 100644
+--- a/Code/ww3d2/dx8wrapper.cpp
++++ b/Code/ww3d2/dx8wrapper.cpp
+@@ -164,6 +164,11 @@ static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
+ 
+ typedef IDirect3D8* (WINAPI *Direct3DCreate8Type) (UINT SDKVersion);
+ Direct3DCreate8Type	Direct3DCreate8Ptr = NULL;
++#ifdef NXDK
++// PORT: on the Xbox the Direct3D layer is linked into the program (no DLLs). This WINAPI
++// wrapper keeps the engine's function-pointer type, whose calling convention differs.
++static IDirect3D8* WINAPI Xbox_Direct3DCreate8(UINT SDKVersion) { return Direct3DCreate8(SDKVersion); }
++#endif
+ HINSTANCE D3D8Lib = NULL;
+ 
+ 
+@@ -245,11 +250,15 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
+ 	Invalidate_Cached_Render_States();
+ 
+ 	if (!lite) {
++#ifdef NXDK
++		Direct3DCreate8Ptr = Xbox_Direct3DCreate8;
++#else
+ 		D3D8Lib = LoadLibrary("D3D8.DLL");
+ 
+ 		if (D3D8Lib == NULL) return false;
+ 
+ 		Direct3DCreate8Ptr = (Direct3DCreate8Type) GetProcAddress(D3D8Lib, "Direct3DCreate8");
++#endif
+ 		if (Direct3DCreate8Ptr) {
+ 
+ 			/*
+@@ -316,10 +325,12 @@ void DX8Wrapper::Shutdown(void)
+ 	_RenderDeviceShortNameTable.Delete_All();
+ 	_RenderDeviceDescriptionTable.Delete_All();
+ 
++#ifndef NXDK
+ 	if (D3D8Lib) {
+ 		FreeLibrary(D3D8Lib);
+ 		D3D8Lib = NULL;
+ 	}
++#endif
+ 
+ 	IsInitted = false;
+ }
+diff --git a/Code/ww3d2/render2dsentence.cpp b/Code/ww3d2/render2dsentence.cpp
+index 77ba412..2e303e1 100644
+--- a/Code/ww3d2/render2dsentence.cpp
++++ b/Code/ww3d2/render2dsentence.cpp
+@@ -1178,7 +1178,13 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
+ 	//	Get the size of the character we just drew
+ 	//
+ 	SIZE char_size = { 0 };
++#ifdef NXDK
++	// PORT (placeholder until the SDL_ttf font replacement): half an em wide, full height.
++	char_size.cx = (CharHeight + 1) / 2;
++	char_size.cy = CharHeight;
++#else
+ 	::GetTextExtentPoint32W( MemDC, &ch, 1, &char_size );
++#endif
+ 	int x_pos = 0;
+ 
+ 	//
+@@ -1193,8 +1199,10 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
+ 	//
+ 	//	Draw the character into the memory DC
+ 	//
++#ifndef NXDK  // PORT: the glyph bitmap stays empty until the SDL_ttf font replacement draws into it
+ 	RECT rect = { 0, 0, width, height };
+ 	::ExtTextOutW( MemDC, x_pos, 0, ETO_OPAQUE, &rect, &ch, 1, NULL);
++#endif
+ 
+ 	//
+ 	//	Get a pointer to the surface that this character should use
+@@ -1311,6 +1319,19 @@ FontCharsClass::Update_Current_Buffer (int char_width)
+ void
+ FontCharsClass::Create_GDI_Font (const char *font_name)
+ {
++#ifdef NXDK
++	// PORT (placeholder until the SDL_ttf font replacement): no GDI on the Xbox. Provide the
++	// same 24-bit glyph bitmap GDI would (PointSize * 2 square, rows padded to 4 bytes), left
++	// empty, and a typical line height (about 1.15 em at 96 DPI) so text layout gets real sizes.
++	(void)font_name;
++	int size = PointSize * 2;
++	int stride = (((size * 3) + 3) & ~3);
++	GDIBitmapBits = new uint8[stride * size];
++	memset(GDIBitmapBits, 0, stride * size);
++	int em = (PointSize * 96 + 36) / 72;
++	CharHeight = em + (em + 3) / 6;
++	return;
++#else
+ 	HDC screen_dc = ::GetDC (NULL);
+ 
+ 	//
+@@ -1407,6 +1428,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
+ 	//
+ 	::ReleaseDC (NULL, screen_dc);
+ 	return ;
++#endif
+ }
+ 
+ 
+@@ -1418,6 +1440,12 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
+ void
+ FontCharsClass::Free_GDI_Font (void)
+ {
++#ifdef NXDK
++	// PORT (placeholder until the SDL_ttf font replacement): free the glyph bitmap.
++	delete [] GDIBitmapBits;
++	GDIBitmapBits = NULL;
++	return;
++#else
+ 	//
+ 	//	Select the old font back into the DC and delete
+ 	// our font object
+@@ -1447,6 +1475,7 @@ FontCharsClass::Free_GDI_Font (void)
+ 	}
+ 
+ 	return ;
++#endif
+ }
+ 
+ 
+@@ -1524,8 +1553,8 @@ FontCharsClass::Grow_Unicode_Array (WCHAR ch)
+ 		return ;
+ 	}
+ 
+-	uint16 first_index	= min( FirstUnicodeChar, ch );
+-	uint16 last_index		= max( LastUnicodeChar, ch );
++	uint16 first_index	= min( FirstUnicodeChar, (uint16)ch );	// PORT: WCHAR is wchar_t now; same 16-bit value
++	uint16 last_index		= max( LastUnicodeChar, (uint16)ch );
+ 	uint16 count			= (last_index - first_index) + 1;
+ 
+ 	//
+diff --git a/Code/xbox/d3d8/xbox_d3d8.cpp b/Code/xbox/d3d8/xbox_d3d8.cpp
+new file mode 100644
+index 0000000..9ae248a
+--- /dev/null
++++ b/Code/xbox/d3d8/xbox_d3d8.cpp
+@@ -0,0 +1,1152 @@
++/*
++** xbox_d3d8.cpp -- the port's Direct3D 8 layer on nxdk's pbkit (Xbox build only).
++**
++** Step 1 (device bring-up): the Direct3D object, device creation on pbkit, Clear, Present,
++** viewports and stored render state, plus textures, surfaces and vertex/index buffers in
++** GPU-visible memory. Drawing (step 2) and binding textures to the GPU (step 3) come next:
++** until then draw calls are accepted and logged once.
++**
++** The NV2A is reported as an unidentified vendor on purpose: the engine's vendor workarounds
++** target 2002 PC drivers (for NVIDIA they would switch off DXT1, which the NV2A decodes
++** natively and which most of Renegade's textures use).
++*/
++#include "xbox_d3d8_internal.h"
++
++#include <hal/video.h>
++#include <pbkit/pbkit.h>
++#include <xboxkrnl/xboxkrnl.h>
++#include <stdio.h>
++
++namespace XboxD3D {
++
++void *Alloc_GPU_Memory(UINT size)
++{
++	if (size == 0) size = 1;
++	return MmAllocateContiguousMemoryEx(size, 0, 0x03FFAFFF, 0x1000, PAGE_READWRITE | PAGE_WRITECOMBINE);
++}
++
++void Free_GPU_Memory(void *memory)
++{
++	if (memory) MmFreeContiguousMemory(memory);
++}
++
++void Log_Once(bool *done, const char *what)
++{
++	if (*done) return;
++	*done = true;
++	DbgPrint("XboxD3D: %s\n", what);
++}
++
++/* --- Reference counting shared by all objects ------------------------------------------ */
++
++#define XBOXD3D_REFCOUNT_METHODS                                                        \
++	HRESULT QueryInterface(REFIID, void **object) override                              \
++	{                                                                                   \
++		if (object) *object = NULL;                                                     \
++		return E_NOINTERFACE;                                                           \
++	}                                                                                   \
++	ULONG AddRef(void) override { return ++RefCount; }                                  \
++	ULONG Release(void) override                                                        \
++	{                                                                                   \
++		ULONG count = --RefCount;                                                       \
++		if (count == 0) delete this;                                                    \
++		return count;                                                                   \
++	}
++
++class Device;
++class Texture;
++
++/* --- Surfaces ------------------------------------------------------------------------- */
++
++/* A 2D image: a texture level, a stand-alone image surface, or the screen's back/depth buffer. */
++class Surface : public IDirect3DSurface8 {
++public:
++	enum Kind { TEXTURE_LEVEL, IMAGE, BACK_BUFFER, DEPTH_BUFFER };
++
++	Surface(Device *device, Kind kind, D3DFORMAT format, UINT width, UINT height, D3DPOOL pool,
++	        DWORD usage, BYTE *bits, UINT pitch, Texture *container);
++	~Surface() override;
++	XBOXD3D_REFCOUNT_METHODS
++
++	HRESULT GetDevice(IDirect3DDevice8 **ppDevice) override;
++	HRESULT GetContainer(REFIID, void **ppContainer) override
++	{
++		if (ppContainer) *ppContainer = NULL;
++		return E_NOINTERFACE;
++	}
++	HRESULT GetDesc(D3DSURFACE_DESC *pDesc) override
++	{
++		if (!pDesc) return D3DERR_INVALIDCALL;
++		pDesc->Format = Format;
++		pDesc->Type = D3DRTYPE_SURFACE;
++		pDesc->Usage = Usage;
++		pDesc->Pool = Pool;
++		pDesc->Size = Level_Size(Format, Width, Height);
++		pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
++		pDesc->Width = Width;
++		pDesc->Height = Height;
++		return D3D_OK;
++	}
++	HRESULT LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags) override;
++	HRESULT UnlockRect(void) override { return D3D_OK; }
++
++	Kind SurfaceKind;
++	D3DFORMAT Format;
++	UINT Width, Height;
++	D3DPOOL Pool;
++	DWORD Usage;
++	BYTE *Bits;          /* NULL for the back buffer: it rotates, so it is looked up at lock time */
++	UINT Pitch;
++	bool OwnsBits;
++	Texture *Container;  /* holds a reference while this surface exists */
++	Device *Owner;
++	ULONG RefCount;
++};
++
++/* --- Textures ------------------------------------------------------------------------- */
++
++class Texture : public IDirect3DTexture8 {
++public:
++	enum { MAX_LEVELS = 13 };   /* 4096 x 4096 down to 1 x 1 */
++
++	Texture(Device *device, UINT width, UINT height, UINT levels, DWORD usage, D3DFORMAT format,
++	        D3DPOOL pool);
++	~Texture() override { Free_GPU_Memory(Memory); }
++	bool Valid() const { return Memory != NULL; }
++	XBOXD3D_REFCOUNT_METHODS
++
++	HRESULT GetDevice(IDirect3DDevice8 **ppDevice) override;
++	DWORD SetPriority(DWORD PriorityNew) override { DWORD old = Priority; Priority = PriorityNew; return old; }
++	DWORD GetPriority(void) override { return Priority; }
++	void PreLoad(void) override {}
++	D3DRESOURCETYPE GetType(void) override { return D3DRTYPE_TEXTURE; }
++	DWORD SetLOD(DWORD LODNew) override { DWORD old = LOD; LOD = LODNew; return old; }
++	DWORD GetLOD(void) override { return LOD; }
++	DWORD GetLevelCount(void) override { return LevelCount; }
++
++	HRESULT GetLevelDesc(UINT Level, D3DSURFACE_DESC *pDesc) override
++	{
++		if (Level >= LevelCount || !pDesc) return D3DERR_INVALIDCALL;
++		pDesc->Format = Format;
++		pDesc->Type = D3DRTYPE_SURFACE;
++		pDesc->Usage = Usage;
++		pDesc->Pool = Pool;
++		pDesc->Size = Levels[Level].Size;
++		pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
++		pDesc->Width = Levels[Level].Width;
++		pDesc->Height = Levels[Level].Height;
++		return D3D_OK;
++	}
++	HRESULT GetSurfaceLevel(UINT Level, IDirect3DSurface8 **ppSurfaceLevel) override;
++	HRESULT LockRect(UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags) override;
++	HRESULT UnlockRect(UINT Level) override { return Level < LevelCount ? D3D_OK : D3DERR_INVALIDCALL; }
++	HRESULT AddDirtyRect(CONST RECT *) override { return D3D_OK; }
++
++	struct LevelInfo { UINT Width, Height, Pitch, Size; BYTE *Bits; };
++
++	Device *Owner;
++	D3DFORMAT Format;
++	DWORD Usage;
++	D3DPOOL Pool;
++	UINT LevelCount;
++	LevelInfo Levels[MAX_LEVELS];
++	BYTE *Memory;        /* all levels, one contiguous GPU-visible block */
++	DWORD Priority, LOD;
++	ULONG RefCount;
++};
++
++/* --- Vertex and index buffers ----------------------------------------------------------- */
++
++class VertexBuffer : public IDirect3DVertexBuffer8 {
++public:
++	VertexBuffer(Device *device, UINT length, DWORD usage, DWORD fvf, D3DPOOL pool)
++		: Owner(device), Length(length), Usage(usage), FVF(fvf), Pool(pool), Priority(0), RefCount(1)
++	{
++		Memory = (BYTE *)Alloc_GPU_Memory(length);
++	}
++	~VertexBuffer() override { Free_GPU_Memory(Memory); }
++	bool Valid() const { return Memory != NULL; }
++	XBOXD3D_REFCOUNT_METHODS
++
++	HRESULT GetDevice(IDirect3DDevice8 **ppDevice) override;
++	DWORD SetPriority(DWORD PriorityNew) override { DWORD old = Priority; Priority = PriorityNew; return old; }
++	DWORD GetPriority(void) override { return Priority; }
++	void PreLoad(void) override {}
++	D3DRESOURCETYPE GetType(void) override { return D3DRTYPE_VERTEXBUFFER; }
++	HRESULT Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DWORD Flags) override;
++	HRESULT Unlock(void) override { return D3D_OK; }
++	HRESULT GetDesc(D3DVERTEXBUFFER_DESC *pDesc) override
++	{
++		if (!pDesc) return D3DERR_INVALIDCALL;
++		pDesc->Format = D3DFMT_VERTEXDATA;
++		pDesc->Type = D3DRTYPE_VERTEXBUFFER;
++		pDesc->Usage = Usage;
++		pDesc->Pool = Pool;
++		pDesc->Size = Length;
++		pDesc->FVF = FVF;
++		return D3D_OK;
++	}
++
++	Device *Owner;
++	UINT Length;
++	DWORD Usage, FVF;
++	D3DPOOL Pool;
++	DWORD Priority;
++	BYTE *Memory;
++	ULONG RefCount;
++};
++
++class IndexBuffer : public IDirect3DIndexBuffer8 {
++public:
++	IndexBuffer(Device *device, UINT length, DWORD usage, D3DFORMAT format, D3DPOOL pool)
++		: Owner(device), Length(length), Usage(usage), Format(format), Pool(pool), Priority(0), RefCount(1)
++	{
++		Memory = (BYTE *)Alloc_GPU_Memory(length);
++	}
++	~IndexBuffer() override { Free_GPU_Memory(Memory); }
++	bool Valid() const { return Memory != NULL; }
++	XBOXD3D_REFCOUNT_METHODS
++
++	HRESULT GetDevice(IDirect3DDevice8 **ppDevice) override;
++	DWORD SetPriority(DWORD PriorityNew) override { DWORD old = Priority; Priority = PriorityNew; return old; }
++	DWORD GetPriority(void) override { return Priority; }
++	void PreLoad(void) override {}
++	D3DRESOURCETYPE GetType(void) override { return D3DRTYPE_INDEXBUFFER; }
++	HRESULT Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DWORD Flags) override;
++	HRESULT Unlock(void) override { return D3D_OK; }
++	HRESULT GetDesc(D3DINDEXBUFFER_DESC *pDesc) override
++	{
++		if (!pDesc) return D3DERR_INVALIDCALL;
++		pDesc->Format = Format;
++		pDesc->Type = D3DRTYPE_INDEXBUFFER;
++		pDesc->Usage = Usage;
++		pDesc->Pool = Pool;
++		pDesc->Size = Length;
++		return D3D_OK;
++	}
++
++	Device *Owner;
++	UINT Length;
++	DWORD Usage;
++	D3DFORMAT Format;
++	D3DPOOL Pool;
++	DWORD Priority;
++	BYTE *Memory;
++	ULONG RefCount;
++};
++
++/* --- The Direct3D object ---------------------------------------------------------------- */
++
++/* The one display mode offered for now: 640x480, 32-bit, as nxdk's samples use. */
++static const UINT MODE_WIDTH = 640;
++static const UINT MODE_HEIGHT = 480;
++static const UINT MODE_REFRESH = 60;
++static const D3DFORMAT MODE_FORMAT = D3DFMT_X8R8G8B8;
++
++static bool Is_Texture_Format_Supported(D3DFORMAT format)
++{
++	switch (format) {
++	case D3DFMT_A8R8G8B8: case D3DFMT_X8R8G8B8: case D3DFMT_R5G6B5: case D3DFMT_X1R5G5B5:
++	case D3DFMT_A1R5G5B5: case D3DFMT_A4R4G4B4: case D3DFMT_A8: case D3DFMT_L8: case D3DFMT_A8L8:
++	case D3DFMT_DXT1: case D3DFMT_DXT2: case D3DFMT_DXT3: case D3DFMT_DXT4: case D3DFMT_DXT5:
++		return true;
++	default:
++		return false;
++	}
++}
++
++static void Fill_Caps(D3DCAPS8 *caps)
++{
++	memset(caps, 0, sizeof(*caps));
++	caps->DeviceType = D3DDEVTYPE_HAL;
++	caps->AdapterOrdinal = 0;
++	caps->Caps2 = D3DCAPS2_FULLSCREENGAMMA;
++	caps->PresentationIntervals = D3DPRESENT_INTERVAL_ONE | D3DPRESENT_INTERVAL_IMMEDIATE;
++	caps->DevCaps = D3DDEVCAPS_HWTRANSFORMANDLIGHT | D3DDEVCAPS_HWRASTERIZATION |
++	                D3DDEVCAPS_TEXTUREVIDEOMEMORY | D3DDEVCAPS_DRAWPRIMITIVES2EX;
++	caps->RasterCaps = D3DPRASTERCAPS_ZTEST | D3DPRASTERCAPS_FOGVERTEX | D3DPRASTERCAPS_FOGTABLE |
++	                   D3DPRASTERCAPS_MIPMAPLODBIAS | D3DPRASTERCAPS_ZBIAS | D3DPRASTERCAPS_ANISOTROPY;
++	caps->TextureFilterCaps = D3DPTFILTERCAPS_MINFPOINT | D3DPTFILTERCAPS_MINFLINEAR |
++	                          D3DPTFILTERCAPS_MINFANISOTROPIC | D3DPTFILTERCAPS_MIPFPOINT |
++	                          D3DPTFILTERCAPS_MIPFLINEAR | D3DPTFILTERCAPS_MAGFPOINT |
++	                          D3DPTFILTERCAPS_MAGFLINEAR | D3DPTFILTERCAPS_MAGFANISOTROPIC;
++	caps->TextureOpCaps = D3DTEXOPCAPS_DISABLE | D3DTEXOPCAPS_SELECTARG1 | D3DTEXOPCAPS_SELECTARG2 |
++	                      D3DTEXOPCAPS_MODULATE | D3DTEXOPCAPS_MODULATE2X | D3DTEXOPCAPS_MODULATE4X |
++	                      D3DTEXOPCAPS_ADD | D3DTEXOPCAPS_ADDSIGNED | D3DTEXOPCAPS_SUBTRACT |
++	                      D3DTEXOPCAPS_ADDSMOOTH | D3DTEXOPCAPS_BLENDDIFFUSEALPHA |
++	                      D3DTEXOPCAPS_BLENDTEXTUREALPHA | D3DTEXOPCAPS_BLENDFACTORALPHA |
++	                      D3DTEXOPCAPS_BLENDCURRENTALPHA | D3DTEXOPCAPS_DOTPRODUCT3;
++	caps->MaxTextureWidth = 4096;
++	caps->MaxTextureHeight = 4096;
++	caps->MaxTextureRepeat = 8192;
++	caps->MaxTextureAspectRatio = 4096;
++	caps->MaxAnisotropy = 4;
++	caps->MaxVertexW = 1.0e10f;
++	caps->GuardBandLeft = -32768.0f;
++	caps->GuardBandTop = -32768.0f;
++	caps->GuardBandRight = 32767.0f;
++	caps->GuardBandBottom = 32767.0f;
++	caps->MaxTextureBlendStages = 4;
++	caps->MaxSimultaneousTextures = 4;
++	caps->MaxActiveLights = 8;
++	caps->MaxUserClipPlanes = 0;
++	caps->MaxVertexBlendMatrices = 4;
++	caps->MaxPointSize = 64.0f;
++	caps->MaxPrimitiveCount = 0xFFFFF;
++	caps->MaxVertexIndex = 0xFFFF;          /* the engine uses 16-bit indices */
++	caps->MaxStreams = 16;
++	caps->MaxStreamStride = 255;
++	caps->VertexShaderVersion = 0;          /* Renegade uses the fixed-function pipeline only */
++	caps->PixelShaderVersion = 0;
++}
++
++class Direct3D : public IDirect3D8 {
++public:
++	Direct3D() : RefCount(1) {}
++	XBOXD3D_REFCOUNT_METHODS
++
++	UINT GetAdapterCount(void) override { return 1; }
++	HRESULT GetAdapterIdentifier(UINT Adapter, DWORD, D3DADAPTER_IDENTIFIER8 *pIdentifier) override
++	{
++		if (Adapter != 0 || !pIdentifier) return D3DERR_INVALIDCALL;
++		memset(pIdentifier, 0, sizeof(*pIdentifier));
++		strcpy(pIdentifier->Driver, "nxdk pbkit");
++		strcpy(pIdentifier->Description, "Xbox NV2A (Renegade port Direct3D layer)");
++		pIdentifier->DriverVersion.QuadPart = 0;
++		pIdentifier->VendorId = 0;        /* unidentified on purpose: see the note at the top */
++		pIdentifier->DeviceId = 0;
++		return D3D_OK;
++	}
++	UINT GetAdapterModeCount(UINT Adapter) override { return Adapter == 0 ? 1 : 0; }
++	HRESULT EnumAdapterModes(UINT Adapter, UINT Mode, D3DDISPLAYMODE *pMode) override
++	{
++		if (Adapter != 0 || Mode != 0 || !pMode) return D3DERR_INVALIDCALL;
++		return GetAdapterDisplayMode(Adapter, pMode);
++	}
++	HRESULT GetAdapterDisplayMode(UINT Adapter, D3DDISPLAYMODE *pMode) override
++	{
++		if (Adapter != 0 || !pMode) return D3DERR_INVALIDCALL;
++		pMode->Width = MODE_WIDTH;
++		pMode->Height = MODE_HEIGHT;
++		pMode->RefreshRate = MODE_REFRESH;
++		pMode->Format = MODE_FORMAT;
++		return D3D_OK;
++	}
++	HRESULT CheckDeviceType(UINT Adapter, D3DDEVTYPE, D3DFORMAT DisplayFormat, D3DFORMAT BackBufferFormat,
++	                        BOOL Windowed) override
++	{
++		if (Adapter != 0 || Windowed) return D3DERR_NOTAVAILABLE;
++		bool ok = DisplayFormat == MODE_FORMAT &&
++		          (BackBufferFormat == D3DFMT_X8R8G8B8 || BackBufferFormat == D3DFMT_A8R8G8B8);
++		return ok ? D3D_OK : D3DERR_NOTAVAILABLE;
++	}
++	HRESULT CheckDeviceFormat(UINT Adapter, D3DDEVTYPE, D3DFORMAT, DWORD Usage, D3DRESOURCETYPE RType,
++	                          D3DFORMAT CheckFormat) override
++	{
++		if (Adapter != 0) return D3DERR_INVALIDCALL;
++		if (Usage & D3DUSAGE_DEPTHSTENCIL) {
++			return CheckFormat == D3DFMT_D24S8 ? D3D_OK : D3DERR_NOTAVAILABLE;   /* pbkit's depth buffer */
++		}
++		if (Usage & D3DUSAGE_RENDERTARGET) {
++			/* The back buffer only, until render-to-texture is implemented. */
++			bool ok = RType == D3DRTYPE_SURFACE &&
++			          (CheckFormat == D3DFMT_X8R8G8B8 || CheckFormat == D3DFMT_A8R8G8B8);
++			return ok ? D3D_OK : D3DERR_NOTAVAILABLE;
++		}
++		return Is_Texture_Format_Supported(CheckFormat) ? D3D_OK : D3DERR_NOTAVAILABLE;
++	}
++	HRESULT CheckDepthStencilMatch(UINT Adapter, D3DDEVTYPE, D3DFORMAT, D3DFORMAT RenderTargetFormat,
++	                               D3DFORMAT DepthStencilFormat) override
++	{
++		if (Adapter != 0) return D3DERR_INVALIDCALL;
++		bool ok = DepthStencilFormat == D3DFMT_D24S8 &&
++		          (RenderTargetFormat == D3DFMT_X8R8G8B8 || RenderTargetFormat == D3DFMT_A8R8G8B8);
++		return ok ? D3D_OK : D3DERR_NOTAVAILABLE;
++	}
++	HRESULT GetDeviceCaps(UINT Adapter, D3DDEVTYPE, D3DCAPS8 *pCaps) override
++	{
++		if (Adapter != 0 || !pCaps) return D3DERR_INVALIDCALL;
++		Fill_Caps(pCaps);
++		return D3D_OK;
++	}
++	HMONITOR GetAdapterMonitor(UINT) override { return NULL; }
++	HRESULT CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
++	                     D3DPRESENT_PARAMETERS *pPresentationParameters,
++	                     IDirect3DDevice8 **ppReturnedDeviceInterface) override;
++
++	ULONG RefCount;
++};
++
++/* --- The device ------------------------------------------------------------------------- */
++
++class Device : public IDirect3DDevice8 {
++public:
++	enum { MAX_STAGES = 4, MAX_LIGHTS = 8, MAX_STREAMS = 16, RENDER_STATE_COUNT = 256, TSS_COUNT = 32,
++	       TRANSFORM_COUNT = 512 };
++
++	Device(Direct3D *d3d, const D3DPRESENT_PARAMETERS &params);
++	~Device() override;
++	bool Init_Hardware();
++	XBOXD3D_REFCOUNT_METHODS
++
++	HRESULT TestCooperativeLevel(void) override { return D3D_OK; }       /* never lost on Xbox */
++	UINT GetAvailableTextureMem(void) override
++	{
++		MM_STATISTICS stats;
++		memset(&stats, 0, sizeof(stats));
++		stats.Length = sizeof(stats);
++		MmQueryStatistics(&stats);
++		return stats.AvailablePages * 4096;
++	}
++	HRESULT ResourceManagerDiscardBytes(DWORD) override { return D3D_OK; }
++	HRESULT GetDirect3D(IDirect3D8 **ppD3D8) override
++	{
++		if (!ppD3D8) return D3DERR_INVALIDCALL;
++		D3D->AddRef();
++		*ppD3D8 = D3D;
++		return D3D_OK;
++	}
++	HRESULT GetDeviceCaps(D3DCAPS8 *pCaps) override { return D3D->GetDeviceCaps(0, D3DDEVTYPE_HAL, pCaps); }
++	HRESULT GetDisplayMode(D3DDISPLAYMODE *pMode) override { return D3D->GetAdapterDisplayMode(0, pMode); }
++	HRESULT CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS *, IDirect3DSwapChain8 **pSwapChain) override
++	{
++		if (pSwapChain) *pSwapChain = NULL;
++		return D3DERR_NOTAVAILABLE;
++	}
++	HRESULT Reset(D3DPRESENT_PARAMETERS *pPresentationParameters) override
++	{
++		/* Only the one mode exists, so a reset to it is a no-op. */
++		if (!pPresentationParameters) return D3DERR_INVALIDCALL;
++		bool same = (pPresentationParameters->BackBufferWidth == 0 ||
++		             pPresentationParameters->BackBufferWidth == Width) &&
++		            (pPresentationParameters->BackBufferHeight == 0 ||
++		             pPresentationParameters->BackBufferHeight == Height);
++		return same ? D3D_OK : D3DERR_NOTAVAILABLE;
++	}
++	HRESULT Present(CONST RECT *, CONST RECT *, HWND, CONST RGNDATA *) override;
++	HRESULT GetBackBuffer(UINT BackBuffer, D3DBACKBUFFER_TYPE, IDirect3DSurface8 **ppBackBuffer) override
++	{
++		if (BackBuffer != 0 || !ppBackBuffer) return D3DERR_INVALIDCALL;
++		BackBufferSurface->AddRef();
++		*ppBackBuffer = BackBufferSurface;
++		return D3D_OK;
++	}
++	void SetGammaRamp(DWORD, CONST D3DGAMMARAMP *pRamp) override
++	{
++		if (!pRamp) return;
++		Gamma = *pRamp;
++		PB_GAMMA_RAMP ramp;
++		for (int i = 0; i < 256; i++) {
++			ramp.red[i] = (uint8_t)(pRamp->red[i] >> 8);
++			ramp.green[i] = (uint8_t)(pRamp->green[i] >> 8);
++			ramp.blue[i] = (uint8_t)(pRamp->blue[i] >> 8);
++		}
++		pb_set_gamma_ramp(&ramp);
++	}
++	void GetGammaRamp(D3DGAMMARAMP *pRamp) override { if (pRamp) *pRamp = Gamma; }
++
++	HRESULT CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool,
++	                      IDirect3DTexture8 **ppTexture) override;
++	HRESULT CreateVertexBuffer(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool,
++	                           IDirect3DVertexBuffer8 **ppVertexBuffer) override;
++	HRESULT CreateIndexBuffer(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool,
++	                          IDirect3DIndexBuffer8 **ppIndexBuffer) override;
++	HRESULT CreateRenderTarget(UINT, UINT, D3DFORMAT, D3DMULTISAMPLE_TYPE, BOOL, IDirect3DSurface8 **ppSurface) override
++	{
++		static bool logged;
++		Log_Once(&logged, "CreateRenderTarget: render-to-texture not implemented yet");
++		if (ppSurface) *ppSurface = NULL;
++		return D3DERR_NOTAVAILABLE;
++	}
++	HRESULT CreateDepthStencilSurface(UINT, UINT, D3DFORMAT, D3DMULTISAMPLE_TYPE, IDirect3DSurface8 **ppSurface) override
++	{
++		if (ppSurface) *ppSurface = NULL;
++		return D3DERR_NOTAVAILABLE;
++	}
++	HRESULT CreateImageSurface(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface8 **ppSurface) override;
++	HRESULT CopyRects(IDirect3DSurface8 *pSourceSurface, CONST RECT *pSourceRectsArray, UINT cRects,
++	                  IDirect3DSurface8 *pDestinationSurface, CONST POINT *pDestPointsArray) override;
++	HRESULT UpdateTexture(IDirect3DBaseTexture8 *pSourceTexture, IDirect3DBaseTexture8 *pDestinationTexture) override;
++	HRESULT GetFrontBuffer(IDirect3DSurface8 *) override
++	{
++		static bool logged;
++		Log_Once(&logged, "GetFrontBuffer: not implemented yet");
++		return D3DERR_NOTAVAILABLE;
++	}
++	HRESULT SetRenderTarget(IDirect3DSurface8 *pRenderTarget, IDirect3DSurface8 *pNewZStencil) override
++	{
++		bool back = (pRenderTarget == NULL || pRenderTarget == BackBufferSurface) &&
++		            (pNewZStencil == NULL || pNewZStencil == DepthSurface);
++		if (back) return D3D_OK;
++		static bool logged;
++		Log_Once(&logged, "SetRenderTarget: render-to-texture not implemented yet");
++		return D3DERR_NOTAVAILABLE;
++	}
++	HRESULT GetRenderTarget(IDirect3DSurface8 **ppRenderTarget) override { return GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, ppRenderTarget); }
++	HRESULT GetDepthStencilSurface(IDirect3DSurface8 **ppZStencilSurface) override
++	{
++		if (!ppZStencilSurface) return D3DERR_INVALIDCALL;
++		DepthSurface->AddRef();
++		*ppZStencilSurface = DepthSurface;
++		return D3D_OK;
++	}
++	HRESULT BeginScene(void) override { Begin_Frame_If_Needed(); InScene = true; return D3D_OK; }
++	HRESULT EndScene(void) override { InScene = false; return D3D_OK; }
++	HRESULT Clear(DWORD Count, CONST D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil) override;
++
++	HRESULT SetTransform(D3DTRANSFORMSTATETYPE State, CONST D3DMATRIX *pMatrix) override
++	{
++		if ((UINT)State >= TRANSFORM_COUNT || !pMatrix) return D3DERR_INVALIDCALL;
++		Transforms[State] = *pMatrix;
++		return D3D_OK;
++	}
++	HRESULT GetTransform(D3DTRANSFORMSTATETYPE State, D3DMATRIX *pMatrix) override
++	{
++		if ((UINT)State >= TRANSFORM_COUNT || !pMatrix) return D3DERR_INVALIDCALL;
++		*pMatrix = Transforms[State];
++		return D3D_OK;
++	}
++	HRESULT SetViewport(CONST D3DVIEWPORT8 *pViewport) override
++	{
++		if (!pViewport) return D3DERR_INVALIDCALL;
++		Viewport = *pViewport;
++		return D3D_OK;
++	}
++	HRESULT GetViewport(D3DVIEWPORT8 *pViewport) override
++	{
++		if (!pViewport) return D3DERR_INVALIDCALL;
++		*pViewport = Viewport;
++		return D3D_OK;
++	}
++	HRESULT SetMaterial(CONST D3DMATERIAL8 *pMaterial) override
++	{
++		if (!pMaterial) return D3DERR_INVALIDCALL;
++		Material = *pMaterial;
++		return D3D_OK;
++	}
++	HRESULT GetMaterial(D3DMATERIAL8 *pMaterial) override
++	{
++		if (!pMaterial) return D3DERR_INVALIDCALL;
++		*pMaterial = Material;
++		return D3D_OK;
++	}
++	HRESULT SetLight(DWORD Index, CONST D3DLIGHT8 *pLight) override
++	{
++		if (Index >= MAX_LIGHTS || !pLight) return D3DERR_INVALIDCALL;
++		Lights[Index] = *pLight;
++		return D3D_OK;
++	}
++	HRESULT GetLight(DWORD Index, D3DLIGHT8 *pLight) override
++	{
++		if (Index >= MAX_LIGHTS || !pLight) return D3DERR_INVALIDCALL;
++		*pLight = Lights[Index];
++		return D3D_OK;
++	}
++	HRESULT LightEnable(DWORD Index, BOOL Enable) override
++	{
++		if (Index >= MAX_LIGHTS) return D3DERR_INVALIDCALL;
++		LightEnabled[Index] = Enable ? TRUE : FALSE;
++		return D3D_OK;
++	}
++	HRESULT GetLightEnable(DWORD Index, BOOL *pEnable) override
++	{
++		if (Index >= MAX_LIGHTS || !pEnable) return D3DERR_INVALIDCALL;
++		*pEnable = LightEnabled[Index];
++		return D3D_OK;
++	}
++	HRESULT SetRenderState(D3DRENDERSTATETYPE State, DWORD Value) override
++	{
++		if ((UINT)State >= RENDER_STATE_COUNT) return D3DERR_INVALIDCALL;
++		RenderStates[State] = Value;
++		return D3D_OK;
++	}
++	HRESULT GetRenderState(D3DRENDERSTATETYPE State, DWORD *pValue) override
++	{
++		if ((UINT)State >= RENDER_STATE_COUNT || !pValue) return D3DERR_INVALIDCALL;
++		*pValue = RenderStates[State];
++		return D3D_OK;
++	}
++	HRESULT GetTexture(DWORD Stage, IDirect3DBaseTexture8 **ppTexture) override
++	{
++		if (Stage >= MAX_STAGES || !ppTexture) return D3DERR_INVALIDCALL;
++		*ppTexture = Textures[Stage];
++		if (*ppTexture) (*ppTexture)->AddRef();
++		return D3D_OK;
++	}
++	HRESULT SetTexture(DWORD Stage, IDirect3DBaseTexture8 *pTexture) override
++	{
++		if (Stage >= MAX_STAGES) return D3DERR_INVALIDCALL;
++		if (pTexture) pTexture->AddRef();
++		if (Textures[Stage]) Textures[Stage]->Release();
++		Textures[Stage] = pTexture;
++		return D3D_OK;
++	}
++	HRESULT GetTextureStageState(DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD *pValue) override
++	{
++		if (Stage >= MAX_STAGES || (UINT)Type >= TSS_COUNT || !pValue) return D3DERR_INVALIDCALL;
++		*pValue = StageStates[Stage][Type];
++		return D3D_OK;
++	}
++	HRESULT SetTextureStageState(DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value) override
++	{
++		if (Stage >= MAX_STAGES || (UINT)Type >= TSS_COUNT) return D3DERR_INVALIDCALL;
++		StageStates[Stage][Type] = Value;
++		return D3D_OK;
++	}
++	HRESULT ValidateDevice(DWORD *pNumPasses) override
++	{
++		if (pNumPasses) *pNumPasses = 1;
++		return D3D_OK;
++	}
++	HRESULT DrawPrimitive(D3DPRIMITIVETYPE, UINT, UINT) override
++	{
++		static bool logged;
++		Log_Once(&logged, "DrawPrimitive: drawing not implemented yet (step 2)");
++		Begin_Frame_If_Needed();
++		return D3D_OK;
++	}
++	HRESULT DrawIndexedPrimitive(D3DPRIMITIVETYPE, UINT, UINT, UINT, UINT) override
++	{
++		static bool logged;
++		Log_Once(&logged, "DrawIndexedPrimitive: drawing not implemented yet (step 2)");
++		Begin_Frame_If_Needed();
++		return D3D_OK;
++	}
++	HRESULT SetVertexShader(DWORD Handle) override { VertexShader = Handle; return D3D_OK; }
++	HRESULT GetVertexShader(DWORD *pHandle) override
++	{
++		if (!pHandle) return D3DERR_INVALIDCALL;
++		*pHandle = VertexShader;
++		return D3D_OK;
++	}
++	HRESULT SetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer8 *pStreamData, UINT Stride) override
++	{
++		if (StreamNumber >= MAX_STREAMS) return D3DERR_INVALIDCALL;
++		if (pStreamData) pStreamData->AddRef();
++		if (Streams[StreamNumber]) Streams[StreamNumber]->Release();
++		Streams[StreamNumber] = pStreamData;
++		StreamStrides[StreamNumber] = Stride;
++		return D3D_OK;
++	}
++	HRESULT GetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer8 **ppStreamData, UINT *pStride) override
++	{
++		if (StreamNumber >= MAX_STREAMS || !ppStreamData || !pStride) return D3DERR_INVALIDCALL;
++		*ppStreamData = Streams[StreamNumber];
++		if (*ppStreamData) (*ppStreamData)->AddRef();
++		*pStride = StreamStrides[StreamNumber];
++		return D3D_OK;
++	}
++	HRESULT SetIndices(IDirect3DIndexBuffer8 *pIndexData, UINT BaseVertexIndex) override
++	{
++		if (pIndexData) pIndexData->AddRef();
++		if (Indices) Indices->Release();
++		Indices = pIndexData;
++		BaseVertex = BaseVertexIndex;
++		return D3D_OK;
++	}
++	HRESULT GetIndices(IDirect3DIndexBuffer8 **ppIndexData, UINT *pBaseVertexIndex) override
++	{
++		if (!ppIndexData || !pBaseVertexIndex) return D3DERR_INVALIDCALL;
++		*ppIndexData = Indices;
++		if (Indices) Indices->AddRef();
++		*pBaseVertexIndex = BaseVertex;
++		return D3D_OK;
++	}
++
++	void Begin_Frame_If_Needed();
++
++	Direct3D *D3D;
++	D3DPRESENT_PARAMETERS Params;
++	UINT Width, Height;
++	bool HardwareReady;
++	bool FrameOpen;
++	bool InScene;
++	Surface *BackBufferSurface;
++	Surface *DepthSurface;
++	D3DVIEWPORT8 Viewport;
++	D3DMATERIAL8 Material;
++	D3DLIGHT8 Lights[MAX_LIGHTS];
++	BOOL LightEnabled[MAX_LIGHTS];
++	DWORD RenderStates[RENDER_STATE_COUNT];
++	DWORD StageStates[MAX_STAGES][TSS_COUNT];
++	D3DMATRIX Transforms[TRANSFORM_COUNT];
++	IDirect3DBaseTexture8 *Textures[MAX_STAGES];
++	IDirect3DVertexBuffer8 *Streams[MAX_STREAMS];
++	UINT StreamStrides[MAX_STREAMS];
++	IDirect3DIndexBuffer8 *Indices;
++	UINT BaseVertex;
++	DWORD VertexShader;
++	D3DGAMMARAMP Gamma;
++	ULONG RefCount;
++};
++
++/* --- Surface implementation --------------------------------------------------------------- */
++
++Surface::Surface(Device *device, Kind kind, D3DFORMAT format, UINT width, UINT height, D3DPOOL pool,
++                 DWORD usage, BYTE *bits, UINT pitch, Texture *container)
++	: SurfaceKind(kind), Format(format), Width(width), Height(height), Pool(pool), Usage(usage),
++	  Bits(bits), Pitch(pitch), OwnsBits(false), Container(container), Owner(device), RefCount(1)
++{
++	if (Container) Container->AddRef();
++}
++
++Surface::~Surface()
++{
++	if (OwnsBits) Free_GPU_Memory(Bits);
++	if (Container) Container->Release();
++}
++
++HRESULT Surface::GetDevice(IDirect3DDevice8 **ppDevice)
++{
++	if (!ppDevice) return D3DERR_INVALIDCALL;
++	Owner->AddRef();
++	*ppDevice = Owner;
++	return D3D_OK;
++}
++
++HRESULT Surface::LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD)
++{
++	if (!pLockedRect) return D3DERR_INVALIDCALL;
++	BYTE *bits = Bits;
++	UINT pitch = Pitch;
++	if (SurfaceKind == BACK_BUFFER) {
++		/* The back buffer rotates each frame, so find the current one, after the GPU is done. */
++		while (pb_busy()) {
++		}
++		bits = (BYTE *)pb_back_buffer();
++		pitch = pb_back_buffer_pitch();
++	}
++	if (!bits) return D3DERR_NOTAVAILABLE;          /* the depth buffer is not readable yet */
++	if (pRect) {
++		FormatInfo info = Format_Info(Format);
++		if (info.compressed) {
++			bits += (pRect->top / 4) * pitch + (pRect->left / 4) * info.block_bytes;
++		} else {
++			bits += pRect->top * pitch + pRect->left * info.bytes_per_pixel;
++		}
++	}
++	pLockedRect->pBits = bits;
++	pLockedRect->Pitch = (INT)pitch;
++	return D3D_OK;
++}
++
++/* --- Texture implementation --------------------------------------------------------------- */
++
++Texture::Texture(Device *device, UINT width, UINT height, UINT levels, DWORD usage, D3DFORMAT format, D3DPOOL pool)
++	: Owner(device), Format(format), Usage(usage), Pool(pool), LevelCount(0), Memory(NULL), Priority(0),
++	  LOD(0), RefCount(1)
++{
++	/* Level count: 0 means the full chain down to 1 x 1, as in Direct3D. */
++	UINT full = 1;
++	for (UINT w = width, h = height; (w > 1 || h > 1) && full < MAX_LEVELS; full++) {
++		w = w > 1 ? w / 2 : 1;
++		h = h > 1 ? h / 2 : 1;
++	}
++	LevelCount = (levels == 0 || levels > full) ? full : levels;
++
++	UINT total = 0;
++	UINT w = width, h = height;
++	for (UINT i = 0; i < LevelCount; i++) {
++		Levels[i].Width = w;
++		Levels[i].Height = h;
++		Levels[i].Pitch = Row_Pitch(format, w);
++		Levels[i].Size = Level_Size(format, w, h);
++		total += (Levels[i].Size + 127) & ~127u;   /* keep every level 128-byte aligned for the GPU */
++		w = w > 1 ? w / 2 : 1;
++		h = h > 1 ? h / 2 : 1;
++	}
++	Memory = (BYTE *)Alloc_GPU_Memory(total);
++	UINT offset = 0;
++	for (UINT i = 0; i < LevelCount; i++) {
++		Levels[i].Bits = Memory ? Memory + offset : NULL;
++		offset += (Levels[i].Size + 127) & ~127u;
++	}
++}
++
++HRESULT Texture::GetDevice(IDirect3DDevice8 **ppDevice)
++{
++	if (!ppDevice) return D3DERR_INVALIDCALL;
++	Owner->AddRef();
++	*ppDevice = Owner;
++	return D3D_OK;
++}
++
++HRESULT Texture::GetSurfaceLevel(UINT Level, IDirect3DSurface8 **ppSurfaceLevel)
++{
++	if (Level >= LevelCount || !ppSurfaceLevel) return D3DERR_INVALIDCALL;
++	*ppSurfaceLevel = new Surface(Owner, Surface::TEXTURE_LEVEL, Format, Levels[Level].Width,
++	                              Levels[Level].Height, Pool, Usage, Levels[Level].Bits,
++	                              Levels[Level].Pitch, this);
++	return D3D_OK;
++}
++
++HRESULT Texture::LockRect(UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD)
++{
++	if (Level >= LevelCount || !pLockedRect) return D3DERR_INVALIDCALL;
++	BYTE *bits = Levels[Level].Bits;
++	UINT pitch = Levels[Level].Pitch;
++	if (pRect) {
++		FormatInfo info = Format_Info(Format);
++		if (info.compressed) {
++			bits += (pRect->top / 4) * pitch + (pRect->left / 4) * info.block_bytes;
++		} else {
++			bits += pRect->top * pitch + pRect->left * info.bytes_per_pixel;
++		}
++	}
++	pLockedRect->pBits = bits;
++	pLockedRect->Pitch = (INT)pitch;
++	return D3D_OK;
++}
++
++/* --- Buffer implementation ----------------------------------------------------------------- */
++
++HRESULT VertexBuffer::GetDevice(IDirect3DDevice8 **ppDevice)
++{
++	if (!ppDevice) return D3DERR_INVALIDCALL;
++	Owner->AddRef();
++	*ppDevice = Owner;
++	return D3D_OK;
++}
++
++HRESULT VertexBuffer::Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DWORD)
++{
++	if (!ppbData || OffsetToLock > Length || SizeToLock > Length - OffsetToLock) return D3DERR_INVALIDCALL;
++	*ppbData = Memory + OffsetToLock;
++	return D3D_OK;
++}
++
++HRESULT IndexBuffer::GetDevice(IDirect3DDevice8 **ppDevice)
++{
++	if (!ppDevice) return D3DERR_INVALIDCALL;
++	Owner->AddRef();
++	*ppDevice = Owner;
++	return D3D_OK;
++}
++
++HRESULT IndexBuffer::Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DWORD)
++{
++	if (!ppbData || OffsetToLock > Length || SizeToLock > Length - OffsetToLock) return D3DERR_INVALIDCALL;
++	*ppbData = Memory + OffsetToLock;
++	return D3D_OK;
++}
++
++/* --- Device implementation ----------------------------------------------------------------- */
++
++Device::Device(Direct3D *d3d, const D3DPRESENT_PARAMETERS &params)
++	: D3D(d3d), Params(params), HardwareReady(false), FrameOpen(false), InScene(false),
++	  BackBufferSurface(NULL), DepthSurface(NULL), Indices(NULL), BaseVertex(0), VertexShader(0), RefCount(1)
++{
++	D3D->AddRef();
++	Width = params.BackBufferWidth ? params.BackBufferWidth : MODE_WIDTH;
++	Height = params.BackBufferHeight ? params.BackBufferHeight : MODE_HEIGHT;
++
++	memset(&Material, 0, sizeof(Material));
++	memset(Lights, 0, sizeof(Lights));
++	memset(LightEnabled, 0, sizeof(LightEnabled));
++	memset(RenderStates, 0, sizeof(RenderStates));
++	memset(StageStates, 0, sizeof(StageStates));
++	memset(Textures, 0, sizeof(Textures));
++	memset(Streams, 0, sizeof(Streams));
++	memset(StreamStrides, 0, sizeof(StreamStrides));
++	for (int i = 0; i < 256; i++) {
++		Gamma.red[i] = Gamma.green[i] = Gamma.blue[i] = (WORD)(i * 257);
++	}
++
++	/* Direct3D's documented defaults for the states the engine relies on. */
++	static const D3DMATRIX identity = { { { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 } } };
++	for (int i = 0; i < TRANSFORM_COUNT; i++) Transforms[i] = identity;
++	RenderStates[D3DRS_ZENABLE] = D3DZB_TRUE;
++	RenderStates[D3DRS_FILLMODE] = D3DFILL_SOLID;
++	RenderStates[D3DRS_SHADEMODE] = D3DSHADE_GOURAUD;
++	RenderStates[D3DRS_ZWRITEENABLE] = TRUE;
++	RenderStates[D3DRS_LASTPIXEL] = TRUE;
++	RenderStates[D3DRS_SRCBLEND] = D3DBLEND_ONE;
++	RenderStates[D3DRS_DESTBLEND] = D3DBLEND_ZERO;
++	RenderStates[D3DRS_CULLMODE] = D3DCULL_CCW;
++	RenderStates[D3DRS_ZFUNC] = D3DCMP_LESSEQUAL;
++	RenderStates[D3DRS_ALPHAFUNC] = D3DCMP_ALWAYS;
++	RenderStates[D3DRS_LIGHTING] = TRUE;
++	RenderStates[D3DRS_CLIPPING] = TRUE;
++	RenderStates[D3DRS_COLORVERTEX] = TRUE;
++	RenderStates[D3DRS_DIFFUSEMATERIALSOURCE] = D3DMCS_COLOR1;
++	RenderStates[D3DRS_SPECULARMATERIALSOURCE] = D3DMCS_COLOR2;
++	RenderStates[D3DRS_STENCILFUNC] = D3DCMP_ALWAYS;
++	RenderStates[D3DRS_STENCILFAIL] = D3DSTENCILOP_KEEP;
++	RenderStates[D3DRS_STENCILZFAIL] = D3DSTENCILOP_KEEP;
++	RenderStates[D3DRS_STENCILPASS] = D3DSTENCILOP_KEEP;
++	RenderStates[D3DRS_STENCILMASK] = 0xFFFFFFFF;
++	RenderStates[D3DRS_STENCILWRITEMASK] = 0xFFFFFFFF;
++	RenderStates[D3DRS_TEXTUREFACTOR] = 0xFFFFFFFF;
++	RenderStates[D3DRS_COLORWRITEENABLE] = 0x0000000F;
++	RenderStates[D3DRS_BLENDOP] = D3DBLENDOP_ADD;
++	RenderStates[D3DRS_MULTISAMPLEMASK] = 0xFFFFFFFF;
++	for (int s = 0; s < MAX_STAGES; s++) {
++		StageStates[s][D3DTSS_COLOROP] = s == 0 ? D3DTOP_MODULATE : D3DTOP_DISABLE;
++		StageStates[s][D3DTSS_COLORARG1] = D3DTA_TEXTURE;
++		StageStates[s][D3DTSS_COLORARG2] = D3DTA_CURRENT;
++		StageStates[s][D3DTSS_ALPHAOP] = s == 0 ? D3DTOP_SELECTARG1 : D3DTOP_DISABLE;
++		StageStates[s][D3DTSS_ALPHAARG1] = D3DTA_TEXTURE;
++		StageStates[s][D3DTSS_ALPHAARG2] = D3DTA_CURRENT;
++		StageStates[s][D3DTSS_TEXCOORDINDEX] = s;
++		StageStates[s][D3DTSS_ADDRESSU] = D3DTADDRESS_WRAP;
++		StageStates[s][D3DTSS_ADDRESSV] = D3DTADDRESS_WRAP;
++		StageStates[s][D3DTSS_ADDRESSW] = D3DTADDRESS_WRAP;
++		StageStates[s][D3DTSS_MAGFILTER] = D3DTEXF_POINT;
++		StageStates[s][D3DTSS_MINFILTER] = D3DTEXF_POINT;
++		StageStates[s][D3DTSS_MIPFILTER] = D3DTEXF_NONE;
++		StageStates[s][D3DTSS_MAXANISOTROPY] = 1;
++		StageStates[s][D3DTSS_COLORARG0] = D3DTA_CURRENT;
++		StageStates[s][D3DTSS_ALPHAARG0] = D3DTA_CURRENT;
++		StageStates[s][D3DTSS_RESULTARG] = D3DTA_CURRENT;
++	}
++	Viewport.X = 0;
++	Viewport.Y = 0;
++	Viewport.Width = Width;
++	Viewport.Height = Height;
++	Viewport.MinZ = 0.0f;
++	Viewport.MaxZ = 1.0f;
++}
++
++Device::~Device()
++{
++	for (int s = 0; s < MAX_STAGES; s++) if (Textures[s]) Textures[s]->Release();
++	for (int s = 0; s < MAX_STREAMS; s++) if (Streams[s]) Streams[s]->Release();
++	if (Indices) Indices->Release();
++	if (BackBufferSurface) BackBufferSurface->Release();
++	if (DepthSurface) DepthSurface->Release();
++	if (HardwareReady) pb_kill();
++	D3D->Release();
++}
++
++bool Device::Init_Hardware()
++{
++	if (Width != MODE_WIDTH || Height != MODE_HEIGHT) return false;
++	if (!XVideoSetMode((int)Width, (int)Height, 32, REFRESH_DEFAULT)) return false;
++	int status = pb_init();
++	if (status != 0) {
++		DbgPrint("XboxD3D: pb_init failed (%d)\n", status);
++		return false;
++	}
++	pb_show_front_screen();
++	HardwareReady = true;
++	BackBufferSurface = new Surface(this, Surface::BACK_BUFFER, D3DFMT_X8R8G8B8, Width, Height,
++	                                D3DPOOL_DEFAULT, D3DUSAGE_RENDERTARGET, NULL, 0, NULL);
++	DepthSurface = new Surface(this, Surface::DEPTH_BUFFER, D3DFMT_D24S8, Width, Height,
++	                           D3DPOOL_DEFAULT, D3DUSAGE_DEPTHSTENCIL, NULL, 0, NULL);
++	return true;
++}
++
++/* A frame starts with whichever comes first: Clear (the engine clears before BeginScene) or
++** BeginScene. It ends at Present. */
++void Device::Begin_Frame_If_Needed()
++{
++	if (FrameOpen) return;
++	pb_wait_for_vbl();
++	pb_reset();
++	pb_target_back_buffer();
++	FrameOpen = true;
++}
++
++HRESULT Device::Clear(DWORD Count, CONST D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
++{
++	Begin_Frame_If_Needed();
++
++	DWORD clear = 0;
++	if (Flags & D3DCLEAR_TARGET) clear |= NV097_CLEAR_SURFACE_COLOR;
++	if (Flags & D3DCLEAR_ZBUFFER) clear |= NV097_CLEAR_SURFACE_Z;
++	if (Flags & D3DCLEAR_STENCIL) clear |= NV097_CLEAR_SURFACE_STENCIL;
++	if (!clear) return D3D_OK;
++
++	if (Z < 0.0f) Z = 0.0f;
++	if (Z > 1.0f) Z = 1.0f;
++	DWORD depth = (DWORD)(Z * (float)0x00FFFFFF);   /* 24-bit depth */
++	DWORD zstencil = (depth << 8) | (Stencil & 0xFF);
++
++	/* With no rectangles, Direct3D clears the current viewport. */
++	D3DRECT whole;
++	if (Count == 0 || !pRects) {
++		whole.x1 = (LONG)Viewport.X;
++		whole.y1 = (LONG)Viewport.Y;
++		whole.x2 = (LONG)(Viewport.X + Viewport.Width);
++		whole.y2 = (LONG)(Viewport.Y + Viewport.Height);
++		pRects = &whole;
++		Count = 1;
++	}
++	for (DWORD i = 0; i < Count; i++) {
++		LONG x1 = pRects[i].x1 < 0 ? 0 : pRects[i].x1;
++		LONG y1 = pRects[i].y1 < 0 ? 0 : pRects[i].y1;
++		LONG x2 = pRects[i].x2 > (LONG)Width ? (LONG)Width : pRects[i].x2;
++		LONG y2 = pRects[i].y2 > (LONG)Height ? (LONG)Height : pRects[i].y2;
++		if (x2 <= x1 || y2 <= y1) continue;
++		uint32_t *p = pb_begin();
++		p = pb_push1(p, NV097_SET_CLEAR_RECT_HORIZONTAL, ((DWORD)(x2 - 1) << 16) | (DWORD)x1);
++		p = pb_push1(p, NV097_SET_CLEAR_RECT_VERTICAL, ((DWORD)(y2 - 1) << 16) | (DWORD)y1);
++		p = pb_push1(p, NV097_SET_ZSTENCIL_CLEAR_VALUE, zstencil);
++		p = pb_push1(p, NV097_SET_COLOR_CLEAR_VALUE, Color);
++		p = pb_push1(p, NV097_CLEAR_SURFACE, clear);
++		pb_end(p);
++	}
++	return D3D_OK;
++}
++
++HRESULT Device::Present(CONST RECT *, CONST RECT *, HWND, CONST RGNDATA *)
++{
++	if (!FrameOpen) return D3D_OK;
++	while (pb_busy()) {
++	}
++	while (pb_finished()) {
++		/* the previous frame's swap hasn't happened yet */
++	}
++	FrameOpen = false;
++	return D3D_OK;
++}
++
++HRESULT Device::CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool,
++                              IDirect3DTexture8 **ppTexture)
++{
++	if (!ppTexture) return D3DERR_INVALIDCALL;
++	*ppTexture = NULL;
++	if (Width == 0 || Height == 0 || !Is_Texture_Format_Supported(Format)) return D3DERR_INVALIDCALL;
++	if (Usage & D3DUSAGE_RENDERTARGET) {
++		static bool logged;
++		Log_Once(&logged, "CreateTexture: render-target textures not implemented yet");
++		return D3DERR_NOTAVAILABLE;
++	}
++	Texture *texture = new Texture(this, Width, Height, Levels, Usage, Format, Pool);
++	if (!texture->Valid()) {
++		texture->Release();
++		return D3DERR_OUTOFVIDEOMEMORY;
++	}
++	*ppTexture = texture;
++	return D3D_OK;
++}
++
++HRESULT Device::CreateVertexBuffer(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool,
++                                   IDirect3DVertexBuffer8 **ppVertexBuffer)
++{
++	if (!ppVertexBuffer) return D3DERR_INVALIDCALL;
++	*ppVertexBuffer = NULL;
++	if (Length == 0) return D3DERR_INVALIDCALL;
++	VertexBuffer *buffer = new VertexBuffer(this, Length, Usage, FVF, Pool);
++	if (!buffer->Valid()) {
++		buffer->Release();
++		return D3DERR_OUTOFVIDEOMEMORY;
++	}
++	*ppVertexBuffer = buffer;
++	return D3D_OK;
++}
++
++HRESULT Device::CreateIndexBuffer(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool,
++                                  IDirect3DIndexBuffer8 **ppIndexBuffer)
++{
++	if (!ppIndexBuffer) return D3DERR_INVALIDCALL;
++	*ppIndexBuffer = NULL;
++	if (Length == 0 || (Format != D3DFMT_INDEX16 && Format != D3DFMT_INDEX32)) return D3DERR_INVALIDCALL;
++	IndexBuffer *buffer = new IndexBuffer(this, Length, Usage, Format, Pool);
++	if (!buffer->Valid()) {
++		buffer->Release();
++		return D3DERR_OUTOFVIDEOMEMORY;
++	}
++	*ppIndexBuffer = buffer;
++	return D3D_OK;
++}
++
++HRESULT Device::CreateImageSurface(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface8 **ppSurface)
++{
++	if (!ppSurface) return D3DERR_INVALIDCALL;
++	*ppSurface = NULL;
++	if (Width == 0 || Height == 0 || !Format_Info(Format).known) return D3DERR_INVALIDCALL;
++	UINT pitch = Row_Pitch(Format, Width);
++	BYTE *bits = (BYTE *)Alloc_GPU_Memory(Level_Size(Format, Width, Height));
++	if (!bits) return D3DERR_OUTOFVIDEOMEMORY;
++	Surface *surface = new Surface(this, Surface::IMAGE, Format, Width, Height, D3DPOOL_SYSTEMMEM, 0,
++	                               bits, pitch, NULL);
++	surface->OwnsBits = true;
++	*ppSurface = surface;
++	return D3D_OK;
++}
++
++/* Copies rectangles between surfaces of the same format, without conversion or scaling. */
++HRESULT Device::CopyRects(IDirect3DSurface8 *pSourceSurface, CONST RECT *pSourceRectsArray, UINT cRects,
++                          IDirect3DSurface8 *pDestinationSurface, CONST POINT *pDestPointsArray)
++{
++	if (!pSourceSurface || !pDestinationSurface) return D3DERR_INVALIDCALL;
++	D3DSURFACE_DESC sd, dd;
++	pSourceSurface->GetDesc(&sd);
++	pDestinationSurface->GetDesc(&dd);
++	if (sd.Format != dd.Format) return D3DERR_INVALIDCALL;
++	FormatInfo info = Format_Info(sd.Format);
++	UINT unit = info.compressed ? 4 : 1;                          /* DXT copies whole blocks */
++	UINT unit_bytes = info.compressed ? info.block_bytes : info.bytes_per_pixel;
++
++	RECT whole = { 0, 0, (LONG)sd.Width, (LONG)sd.Height };
++	if (cRects == 0 || !pSourceRectsArray) {
++		pSourceRectsArray = &whole;
++		cRects = 1;
++	}
++	D3DLOCKED_RECT src, dst;
++	if (FAILED(pSourceSurface->LockRect(&src, NULL, D3DLOCK_READONLY))) return D3DERR_INVALIDCALL;
++	if (FAILED(pDestinationSurface->LockRect(&dst, NULL, 0))) {
++		pSourceSurface->UnlockRect();
++		return D3DERR_INVALIDCALL;
++	}
++	for (UINT r = 0; r < cRects; r++) {
++		const RECT &sr = pSourceRectsArray[r];
++		LONG dx = pDestPointsArray ? pDestPointsArray[r].x : sr.left;
++		LONG dy = pDestPointsArray ? pDestPointsArray[r].y : sr.top;
++		UINT w = (UINT)(sr.right - sr.left), h = (UINT)(sr.bottom - sr.top);
++		if ((UINT)dx + w > dd.Width || (UINT)dy + h > dd.Height) continue;
++		UINT row_bytes = ((w + unit - 1) / unit) * unit_bytes;
++		UINT rows = (h + unit - 1) / unit;
++		for (UINT y = 0; y < rows; y++) {
++			const BYTE *s = (const BYTE *)src.pBits + (sr.top / unit + y) * src.Pitch + (sr.left / unit) * unit_bytes;
++			BYTE *d = (BYTE *)dst.pBits + (dy / unit + y) * dst.Pitch + (dx / unit) * unit_bytes;
++			memcpy(d, s, row_bytes);
++		}
++	}
++	pDestinationSurface->UnlockRect();
++	pSourceSurface->UnlockRect();
++	return D3D_OK;
++}
++
++/* Copies every level of one texture into another of the same format and size. */
++HRESULT Device::UpdateTexture(IDirect3DBaseTexture8 *pSourceTexture, IDirect3DBaseTexture8 *pDestinationTexture)
++{
++	if (!pSourceTexture || !pDestinationTexture) return D3DERR_INVALIDCALL;
++	if (pSourceTexture->GetType() != D3DRTYPE_TEXTURE || pDestinationTexture->GetType() != D3DRTYPE_TEXTURE) {
++		return D3DERR_INVALIDCALL;
++	}
++	Texture *src = static_cast<Texture *>(static_cast<IDirect3DTexture8 *>(pSourceTexture));
++	Texture *dst = static_cast<Texture *>(static_cast<IDirect3DTexture8 *>(pDestinationTexture));
++	if (src->Format != dst->Format) return D3DERR_INVALIDCALL;
++	UINT count = src->LevelCount < dst->LevelCount ? src->LevelCount : dst->LevelCount;
++	for (UINT i = 0; i < count; i++) {
++		if (src->Levels[i].Size != dst->Levels[i].Size) return D3DERR_INVALIDCALL;
++		memcpy(dst->Levels[i].Bits, src->Levels[i].Bits, src->Levels[i].Size);
++	}
++	return D3D_OK;
++}
++
++HRESULT Direct3D::CreateDevice(UINT Adapter, D3DDEVTYPE, HWND, DWORD,
++                               D3DPRESENT_PARAMETERS *pPresentationParameters,
++                               IDirect3DDevice8 **ppReturnedDeviceInterface)
++{
++	if (Adapter != 0 || !pPresentationParameters || !ppReturnedDeviceInterface) return D3DERR_INVALIDCALL;
++	*ppReturnedDeviceInterface = NULL;
++	if (pPresentationParameters->Windowed) return D3DERR_NOTAVAILABLE;
++	Device *device = new Device(this, *pPresentationParameters);
++	if (!device->Init_Hardware()) {
++		device->Release();
++		return D3DERR_NOTAVAILABLE;
++	}
++	*ppReturnedDeviceInterface = device;
++	return D3D_OK;
++}
++
++} /* namespace XboxD3D */
++
++IDirect3D8 *Direct3DCreate8(UINT SDKVersion)
++{
++	if (SDKVersion != D3D_SDK_VERSION) return NULL;
++	return new XboxD3D::Direct3D();
++}
+diff --git a/Code/xbox/d3d8/xbox_d3d8_internal.h b/Code/xbox/d3d8/xbox_d3d8_internal.h
+new file mode 100644
+index 0000000..2159d30
+--- /dev/null
++++ b/Code/xbox/d3d8/xbox_d3d8_internal.h
+@@ -0,0 +1,78 @@
++/*
++** xbox_d3d8_internal.h -- shared helpers for the port's Direct3D 8 layer (Xbox build only).
++**
++** Format rules (bytes per pixel, DXT block sizes, row pitch) and GPU-visible memory.
++*/
++#ifndef XBOX_D3D8_INTERNAL_H
++#define XBOX_D3D8_INTERNAL_H
++
++#include <d3d8.h>
++#include <d3dx8.h>
++#include <string.h>
++
++namespace XboxD3D {
++
++struct FormatInfo {
++	bool known;            /* a format this layer can store */
++	bool compressed;       /* DXT: stored in 4x4 blocks */
++	UINT bytes_per_pixel;  /* uncompressed formats */
++	UINT block_bytes;      /* compressed formats: bytes per 4x4 block */
++};
++
++inline FormatInfo Format_Info(D3DFORMAT format)
++{
++	FormatInfo i = { true, false, 0, 0 };
++	switch (format) {
++	case D3DFMT_A8R8G8B8: case D3DFMT_X8R8G8B8: case D3DFMT_D24S8: case D3DFMT_D24X8:
++	case D3DFMT_D32: case D3DFMT_X8L8V8U8: case D3DFMT_Q8W8V8U8: case D3DFMT_V16U16:
++	case D3DFMT_W11V11U10:
++		i.bytes_per_pixel = 4; break;
++	case D3DFMT_R8G8B8:
++		i.bytes_per_pixel = 3; break;
++	case D3DFMT_R5G6B5: case D3DFMT_X1R5G5B5: case D3DFMT_A1R5G5B5: case D3DFMT_A4R4G4B4:
++	case D3DFMT_X4R4G4B4: case D3DFMT_A8R3G3B2: case D3DFMT_A8L8: case D3DFMT_A8P8:
++	case D3DFMT_V8U8: case D3DFMT_L6V5U5: case D3DFMT_D16: case D3DFMT_D16_LOCKABLE:
++	case D3DFMT_D15S1: case D3DFMT_INDEX16:
++		i.bytes_per_pixel = 2; break;
++	case D3DFMT_A8: case D3DFMT_L8: case D3DFMT_P8: case D3DFMT_A4L4: case D3DFMT_R3G3B2:
++		i.bytes_per_pixel = 1; break;
++	case D3DFMT_DXT1:
++		i.compressed = true; i.block_bytes = 8; break;
++	case D3DFMT_DXT2: case D3DFMT_DXT3: case D3DFMT_DXT4: case D3DFMT_DXT5:
++		i.compressed = true; i.block_bytes = 16; break;
++	default:
++		i.known = false; break;
++	}
++	return i;
++}
++
++/* Bytes per row (for DXT: per row of 4x4 blocks), as Direct3D reports in D3DLOCKED_RECT.Pitch. */
++inline UINT Row_Pitch(D3DFORMAT format, UINT width)
++{
++	FormatInfo i = Format_Info(format);
++	if (i.compressed) return ((width + 3) / 4) * i.block_bytes;
++	return width * i.bytes_per_pixel;
++}
++
++/* Number of rows in memory (for DXT: rows of blocks). */
++inline UINT Row_Count(D3DFORMAT format, UINT height)
++{
++	return Format_Info(format).compressed ? (height + 3) / 4 : height;
++}
++
++inline UINT Level_Size(D3DFORMAT format, UINT width, UINT height)
++{
++	return Row_Pitch(format, width) * Row_Count(format, height);
++}
++
++/* Memory the GPU can read: physically contiguous, write-combined (as nxdk's samples use).
++** The GPU addresses physical memory, so textures and vertex data must be contiguous. */
++void *Alloc_GPU_Memory(UINT size);
++void Free_GPU_Memory(void *memory);
++
++/* Logs a feature the layer does not provide yet, once per call site. */
++void Log_Once(bool *done, const char *what);
++
++} /* namespace XboxD3D */
++
++#endif /* XBOX_D3D8_INTERNAL_H */
+diff --git a/Code/xbox/d3d8/xbox_d3dx8.cpp b/Code/xbox/d3d8/xbox_d3dx8.cpp
+new file mode 100644
+index 0000000..893e1f7
+--- /dev/null
++++ b/Code/xbox/d3d8/xbox_d3dx8.cpp
+@@ -0,0 +1,244 @@
++/*
++** xbox_d3dx8.cpp -- the D3DX texture helpers for the port's Direct3D layer (Xbox build only).
++**
++** D3DXLoadSurfaceFromSurface converts between the uncompressed formats through 32-bit ARGB
++** and resizes with a box (average) or point filter; this is what the engine uses to build
++** mipmaps and convert textures. DXT surfaces are copied when no conversion or resizing is
++** needed; anything that would need DXT compression or decompression is not done yet.
++*/
++#include "xbox_d3d8_internal.h"
++#include <stdio.h>
++
++namespace XboxD3D {
++
++/* --- Pixel conversion through A8R8G8B8 ------------------------------------------------------ */
++
++static inline DWORD Expand(DWORD value, int bits)
++{
++	/* Scale an n-bit channel to 8 bits by repeating its high bits, as hardware does. */
++	if (bits == 0) return 0;
++	value <<= (8 - bits);
++	return value | (value >> bits);
++}
++
++static bool Read_Pixel(D3DFORMAT format, const BYTE *p, DWORD *argb)
++{
++	DWORD v;
++	switch (format) {
++	case D3DFMT_A8R8G8B8: *argb = *(const DWORD *)p; return true;
++	case D3DFMT_X8R8G8B8: *argb = *(const DWORD *)p | 0xFF000000; return true;
++	case D3DFMT_R8G8B8:   *argb = 0xFF000000 | ((DWORD)p[2] << 16) | ((DWORD)p[1] << 8) | p[0]; return true;
++	case D3DFMT_R5G6B5:
++		v = *(const WORD *)p;
++		*argb = 0xFF000000 | (Expand((v >> 11) & 31, 5) << 16) | (Expand((v >> 5) & 63, 6) << 8) | Expand(v & 31, 5);
++		return true;
++	case D3DFMT_X1R5G5B5:
++	case D3DFMT_A1R5G5B5:
++		v = *(const WORD *)p;
++		*argb = ((format == D3DFMT_X1R5G5B5 || (v & 0x8000)) ? 0xFF000000 : 0) |
++		        (Expand((v >> 10) & 31, 5) << 16) | (Expand((v >> 5) & 31, 5) << 8) | Expand(v & 31, 5);
++		return true;
++	case D3DFMT_A4R4G4B4:
++		v = *(const WORD *)p;
++		*argb = (Expand((v >> 12) & 15, 4) << 24) | (Expand((v >> 8) & 15, 4) << 16) |
++		        (Expand((v >> 4) & 15, 4) << 8) | Expand(v & 15, 4);
++		return true;
++	case D3DFMT_A8: *argb = (DWORD)p[0] << 24; return true;
++	case D3DFMT_L8: *argb = 0xFF000000 | ((DWORD)p[0] * 0x010101); return true;
++	case D3DFMT_A8L8:
++		v = *(const WORD *)p;
++		*argb = ((v >> 8) << 24) | ((v & 0xFF) * 0x010101);
++		return true;
++	default:
++		return false;
++	}
++}
++
++static bool Write_Pixel(D3DFORMAT format, BYTE *p, DWORD argb)
++{
++	DWORD a = argb >> 24, r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
++	switch (format) {
++	case D3DFMT_A8R8G8B8: *(DWORD *)p = argb; return true;
++	case D3DFMT_X8R8G8B8: *(DWORD *)p = argb | 0xFF000000; return true;
++	case D3DFMT_R8G8B8:   p[0] = (BYTE)b; p[1] = (BYTE)g; p[2] = (BYTE)r; return true;
++	case D3DFMT_R5G6B5:   *(WORD *)p = (WORD)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)); return true;
++	case D3DFMT_X1R5G5B5: *(WORD *)p = (WORD)(0x8000 | ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3)); return true;
++	case D3DFMT_A1R5G5B5: *(WORD *)p = (WORD)((a >= 128 ? 0x8000 : 0) | ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3)); return true;
++	case D3DFMT_A4R4G4B4: *(WORD *)p = (WORD)(((a >> 4) << 12) | ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4)); return true;
++	case D3DFMT_A8:       p[0] = (BYTE)a; return true;
++	case D3DFMT_L8:       p[0] = (BYTE)((r * 77 + g * 150 + b * 29) >> 8); return true;      /* luminance */
++	case D3DFMT_A8L8:     *(WORD *)p = (WORD)((a << 8) | ((r * 77 + g * 150 + b * 29) >> 8)); return true;
++	default:
++		return false;
++	}
++}
++
++static bool Is_Convertible(D3DFORMAT format)
++{
++	DWORD dummy;
++	BYTE zero[4] = { 0, 0, 0, 0 };
++	return Read_Pixel(format, zero, &dummy);
++}
++
++} /* namespace XboxD3D */
++
++using namespace XboxD3D;
++
++HRESULT D3DXCreateTexture(IDirect3DDevice8 *pDevice, UINT Width, UINT Height, UINT MipLevels, DWORD Usage,
++                          D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture8 **ppTexture)
++{
++	if (!pDevice || !ppTexture) return D3DERR_INVALIDCALL;
++	if (Width == D3DX_DEFAULT) Width = 256;
++	if (Height == D3DX_DEFAULT) Height = 256;
++	if (MipLevels == D3DX_DEFAULT) MipLevels = 0;     /* both mean the full mipmap chain */
++	return pDevice->CreateTexture(Width, Height, MipLevels, Usage, Format, Pool, ppTexture);
++}
++
++HRESULT D3DXLoadSurfaceFromSurface(IDirect3DSurface8 *pDestSurface, CONST PALETTEENTRY *,
++                                   CONST RECT *pDestRect, IDirect3DSurface8 *pSrcSurface,
++                                   CONST PALETTEENTRY *, CONST RECT *pSrcRect, DWORD Filter, D3DCOLOR)
++{
++	if (!pDestSurface || !pSrcSurface) return D3DERR_INVALIDCALL;
++	D3DSURFACE_DESC sd, dd;
++	pSrcSurface->GetDesc(&sd);
++	pDestSurface->GetDesc(&dd);
++	RECT src_rect = { 0, 0, (LONG)sd.Width, (LONG)sd.Height };
++	RECT dst_rect = { 0, 0, (LONG)dd.Width, (LONG)dd.Height };
++	if (pSrcRect) src_rect = *pSrcRect;
++	if (pDestRect) dst_rect = *pDestRect;
++	int sw = src_rect.right - src_rect.left, sh = src_rect.bottom - src_rect.top;
++	int dw = dst_rect.right - dst_rect.left, dh = dst_rect.bottom - dst_rect.top;
++	if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return D3DERR_INVALIDCALL;
++
++	/* Same format and size: a plain copy (this also covers DXT surfaces). */
++	if (sd.Format == dd.Format && sw == dw && sh == dh) {
++		POINT at = { dst_rect.left, dst_rect.top };
++		IDirect3DDevice8 *device = NULL;
++		pDestSurface->GetDevice(&device);
++		HRESULT hr = device ? device->CopyRects(pSrcSurface, &src_rect, 1, pDestSurface, &at) : D3DERR_INVALIDCALL;
++		if (device) device->Release();
++		return hr;
++	}
++	if (!Is_Convertible(sd.Format) || !Is_Convertible(dd.Format)) {
++		static bool logged;
++		Log_Once(&logged, "D3DXLoadSurfaceFromSurface: DXT conversion or resizing not implemented yet");
++		return D3DERR_NOTAVAILABLE;
++	}
++
++	D3DLOCKED_RECT src, dst;
++	if (FAILED(pSrcSurface->LockRect(&src, NULL, D3DLOCK_READONLY))) return D3DERR_INVALIDCALL;
++	if (FAILED(pDestSurface->LockRect(&dst, NULL, 0))) {
++		pSrcSurface->UnlockRect();
++		return D3DERR_INVALIDCALL;
++	}
++	const UINT sbpp = Format_Info(sd.Format).bytes_per_pixel;
++	const UINT dbpp = Format_Info(dd.Format).bytes_per_pixel;
++	const bool point = (Filter & 0xFFFF) == D3DX_FILTER_POINT || (Filter & 0xFFFF) == D3DX_FILTER_NONE;
++
++	for (int y = 0; y < dh; y++) {
++		/* Source rows covered by this destination row (at least one). */
++		int y0 = src_rect.top + (y * sh) / dh;
++		int y1 = src_rect.top + ((y + 1) * sh) / dh;
++		if (y1 <= y0) y1 = y0 + 1;
++		BYTE *drow = (BYTE *)dst.pBits + (dst_rect.top + y) * dst.Pitch;
++		for (int x = 0; x < dw; x++) {
++			int x0 = src_rect.left + (x * sw) / dw;
++			int x1 = src_rect.left + ((x + 1) * sw) / dw;
++			if (x1 <= x0) x1 = x0 + 1;
++			DWORD out;
++			if (point) {
++				Read_Pixel(sd.Format, (const BYTE *)src.pBits + y0 * src.Pitch + x0 * sbpp, &out);
++			} else {
++				/* Box filter: average every source pixel covered by this destination pixel. */
++				DWORD sum[4] = { 0, 0, 0, 0 }, count = 0;
++				for (int sy = y0; sy < y1; sy++) {
++					const BYTE *srow = (const BYTE *)src.pBits + sy * src.Pitch;
++					for (int sx = x0; sx < x1; sx++) {
++						DWORD c;
++						Read_Pixel(sd.Format, srow + sx * sbpp, &c);
++						sum[0] += c >> 24; sum[1] += (c >> 16) & 0xFF; sum[2] += (c >> 8) & 0xFF; sum[3] += c & 0xFF;
++						count++;
++					}
++				}
++				DWORD half = count / 2;
++				out = (((sum[0] + half) / count) << 24) | (((sum[1] + half) / count) << 16) |
++				      (((sum[2] + half) / count) << 8) | ((sum[3] + half) / count);
++			}
++			Write_Pixel(dd.Format, drow + (dst_rect.left + x) * dbpp, out);
++		}
++	}
++	pDestSurface->UnlockRect();
++	pSrcSurface->UnlockRect();
++	return D3D_OK;
++}
++
++/* Fills the levels below SrcLevel from the level above each, as D3DX does. */
++HRESULT D3DXFilterTexture(IDirect3DBaseTexture8 *pBaseTexture, CONST PALETTEENTRY *, UINT SrcLevel, DWORD Filter)
++{
++	if (!pBaseTexture || pBaseTexture->GetType() != D3DRTYPE_TEXTURE) return D3DERR_INVALIDCALL;
++	IDirect3DTexture8 *texture = static_cast<IDirect3DTexture8 *>(pBaseTexture);
++	if (SrcLevel == D3DX_DEFAULT) SrcLevel = 0;
++	if (Filter == D3DX_DEFAULT) Filter = D3DX_FILTER_BOX;
++	for (UINT level = SrcLevel + 1; level < texture->GetLevelCount(); level++) {
++		IDirect3DSurface8 *src = NULL, *dst = NULL;
++		texture->GetSurfaceLevel(level - 1, &src);
++		texture->GetSurfaceLevel(level, &dst);
++		HRESULT hr = D3DXLoadSurfaceFromSurface(dst, NULL, NULL, src, NULL, NULL, Filter, 0);
++		src->Release();
++		dst->Release();
++		if (FAILED(hr)) return hr;
++	}
++	return D3D_OK;
++}
++
++HRESULT D3DXCreateTextureFromFileExA(IDirect3DDevice8 *, const char *pSrcFile, UINT, UINT, UINT, DWORD,
++                                     D3DFORMAT, D3DPOOL, DWORD, DWORD, D3DCOLOR, D3DXIMAGE_INFO *,
++                                     PALETTEENTRY *, IDirect3DTexture8 **ppTexture)
++{
++	/* The engine loads its textures through its own DDS and Targa readers; this D3DX path
++	** (loading straight from a file on disk) is not provided yet. */
++	static bool logged;
++	Log_Once(&logged, "D3DXCreateTextureFromFileExA: not implemented yet");
++	(void)pSrcFile;
++	if (ppTexture) *ppTexture = NULL;
++	return D3DERR_NOTAVAILABLE;
++}
++
++HRESULT D3DXGetErrorStringA(HRESULT hr, char *pBuffer, UINT BufferLen)
++{
++	if (!pBuffer || BufferLen == 0) return D3DERR_INVALIDCALL;
++	const char *name = NULL;
++	switch (hr) {
++	case D3D_OK:                         name = "D3D_OK"; break;
++	case D3DERR_WRONGTEXTUREFORMAT:      name = "D3DERR_WRONGTEXTUREFORMAT"; break;
++	case D3DERR_UNSUPPORTEDCOLOROPERATION: name = "D3DERR_UNSUPPORTEDCOLOROPERATION"; break;
++	case D3DERR_UNSUPPORTEDCOLORARG:     name = "D3DERR_UNSUPPORTEDCOLORARG"; break;
++	case D3DERR_UNSUPPORTEDALPHAOPERATION: name = "D3DERR_UNSUPPORTEDALPHAOPERATION"; break;
++	case D3DERR_UNSUPPORTEDALPHAARG:     name = "D3DERR_UNSUPPORTEDALPHAARG"; break;
++	case D3DERR_TOOMANYOPERATIONS:       name = "D3DERR_TOOMANYOPERATIONS"; break;
++	case D3DERR_CONFLICTINGTEXTUREFILTER: name = "D3DERR_CONFLICTINGTEXTUREFILTER"; break;
++	case D3DERR_UNSUPPORTEDFACTORVALUE:  name = "D3DERR_UNSUPPORTEDFACTORVALUE"; break;
++	case D3DERR_CONFLICTINGRENDERSTATE:  name = "D3DERR_CONFLICTINGRENDERSTATE"; break;
++	case D3DERR_UNSUPPORTEDTEXTUREFILTER: name = "D3DERR_UNSUPPORTEDTEXTUREFILTER"; break;
++	case D3DERR_CONFLICTINGTEXTUREPALETTE: name = "D3DERR_CONFLICTINGTEXTUREPALETTE"; break;
++	case D3DERR_DRIVERINTERNALERROR:     name = "D3DERR_DRIVERINTERNALERROR"; break;
++	case D3DERR_NOTFOUND:                name = "D3DERR_NOTFOUND"; break;
++	case D3DERR_MOREDATA:                name = "D3DERR_MOREDATA"; break;
++	case D3DERR_DEVICELOST:              name = "D3DERR_DEVICELOST"; break;
++	case D3DERR_DEVICENOTRESET:          name = "D3DERR_DEVICENOTRESET"; break;
++	case D3DERR_NOTAVAILABLE:            name = "D3DERR_NOTAVAILABLE"; break;
++	case D3DERR_OUTOFVIDEOMEMORY:        name = "D3DERR_OUTOFVIDEOMEMORY"; break;
++	case D3DERR_INVALIDDEVICE:           name = "D3DERR_INVALIDDEVICE"; break;
++	case D3DERR_INVALIDCALL:             name = "D3DERR_INVALIDCALL"; break;
++	case D3DERR_DRIVERINVALIDCALL:       name = "D3DERR_DRIVERINVALIDCALL"; break;
++	case E_OUTOFMEMORY:                  name = "E_OUTOFMEMORY"; break;
++	default: break;
++	}
++	if (name) {
++		strncpy(pBuffer, name, BufferLen - 1);
++		pBuffer[BufferLen - 1] = 0;
++	} else {
++		snprintf(pBuffer, BufferLen, "HRESULT 0x%08lX", (unsigned long)hr);
++	}
++	return D3D_OK;
++}
+diff --git a/Code/xbox/include/xbox_win32_types.h b/Code/xbox/include/xbox_win32_types.h
+index e19ecbe..c38a1c3 100644
+--- a/Code/xbox/include/xbox_win32_types.h
++++ b/Code/xbox/include/xbox_win32_types.h
+@@ -19,6 +19,11 @@ typedef struct tagRECT {
+ } RECT, *PRECT, *LPRECT;
+ typedef const RECT *LPCRECT;
+ 
++typedef struct tagSIZE {
++	LONG cx;
++	LONG cy;
++} SIZE, *PSIZE, *LPSIZE;
++
+ typedef struct tagPOINT {
+ 	LONG x;
+ 	LONG y;
+-- 
+2.43.0
+

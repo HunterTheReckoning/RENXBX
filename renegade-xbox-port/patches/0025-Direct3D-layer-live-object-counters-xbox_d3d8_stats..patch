@@ -1,0 +1,177 @@
+From 5ce726e700e77c73598536f4f3666e02839c6fa5 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sun, 4 Oct 2026 20:44:48 +0000
+Subject: [PATCH 25/32] Direct3D layer: live-object counters
+ (xbox_d3d8_stats.h) and culling
+
+- XboxD3D_Get_Stats: live textures, vertex and index buffers (with bytes) and surfaces, for
+  leak checks in test programs
+- D3DRS_CULLMODE: screen y points down, so a triangle clockwise on screen has positive area,
+  which the NV2A calls counterclockwise: D3DCULL_CW is front face CW with the back culled
+---
+ xbox/d3d8/xbox_d3d8.cpp     | 52 +++++++++++++++++++++++++++++++++----
+ xbox/d3d8/xbox_d3d8_stats.h | 18 +++++++++++++
+ 2 files changed, 65 insertions(+), 5 deletions(-)
+ create mode 100644 xbox/d3d8/xbox_d3d8_stats.h
+
+diff --git a/Code/xbox/d3d8/xbox_d3d8.cpp b/Code/xbox/d3d8/xbox_d3d8.cpp
+index fb82885..5a88bb7 100644
+--- a/Code/xbox/d3d8/xbox_d3d8.cpp
++++ b/Code/xbox/d3d8/xbox_d3d8.cpp
+@@ -11,6 +11,7 @@
+ ** natively and which most of Renegade's textures use).
+ */
+ #include "xbox_d3d8_internal.h"
++#include "xbox_d3d8_stats.h"
+ 
+ #include <hal/video.h>
+ #include <pbkit/pbkit.h>
+@@ -58,6 +59,8 @@ void Free_GPU_Memory(void *memory)
+ 	if (memory) MmFreeContiguousMemory(memory);
+ }
+ 
++static XboxD3DStats Stats;   /* live objects; see xbox_d3d8_stats.h */
++
+ void Log_Once(bool *done, const char *what)
+ {
+ 	if (*done) return;
+@@ -151,7 +154,12 @@ public:
+ 
+ 	Texture(Device *device, UINT width, UINT height, UINT levels, DWORD usage, D3DFORMAT format,
+ 	        D3DPOOL pool);
+-	~Texture() override { Free_GPU_Memory(Memory); }
++	~Texture() override
++	{
++		Stats.textures--;
++		Stats.texture_bytes -= MemoryBytes;
++		Free_GPU_Memory(Memory);
++	}
+ 	bool Valid() const { return Memory != NULL; }
+ 	XBOXD3D_REFCOUNT_METHODS
+ 
+@@ -191,6 +199,7 @@ public:
+ 	UINT LevelCount;
+ 	LevelInfo Levels[MAX_LEVELS];
+ 	BYTE *Memory;        /* all levels, one contiguous GPU-visible block */
++	UINT MemoryBytes;
+ 	DWORD Priority, LOD;
+ 	ULONG RefCount;
+ };
+@@ -203,8 +212,15 @@ public:
+ 		: Owner(device), Length(length), Usage(usage), FVF(fvf), Pool(pool), Priority(0), RefCount(1)
+ 	{
+ 		Memory = (BYTE *)Alloc_GPU_Memory(length);
++		Stats.vertex_buffers++;
++		Stats.vertex_bytes += Memory ? length : 0;
++	}
++	~VertexBuffer() override
++	{
++		Stats.vertex_buffers--;
++		Stats.vertex_bytes -= Memory ? Length : 0;
++		Free_GPU_Memory(Memory);
+ 	}
+-	~VertexBuffer() override { Free_GPU_Memory(Memory); }
+ 	bool Valid() const { return Memory != NULL; }
+ 	XBOXD3D_REFCOUNT_METHODS
+ 
+@@ -244,8 +260,15 @@ public:
+ 		: Owner(device), Length(length), Usage(usage), Format(format), Pool(pool), Priority(0), RefCount(1)
+ 	{
+ 		Memory = (BYTE *)malloc(length ? length : 1);
++		Stats.index_buffers++;
++		Stats.index_bytes += Memory ? length : 0;
++	}
++	~IndexBuffer() override
++	{
++		Stats.index_buffers--;
++		Stats.index_bytes -= Memory ? Length : 0;
++		free(Memory);
+ 	}
+-	~IndexBuffer() override { free(Memory); }
+ 	bool Valid() const { return Memory != NULL; }
+ 	XBOXD3D_REFCOUNT_METHODS
+ 
+@@ -724,10 +747,12 @@ Surface::Surface(Device *device, Kind kind, D3DFORMAT format, UINT width, UINT h
+ 	  Bits(bits), Pitch(pitch), OwnsBits(false), Container(container), Owner(device), RefCount(1)
+ {
+ 	if (Container) Container->AddRef();
++	Stats.surfaces++;
+ }
+ 
+ Surface::~Surface()
+ {
++	Stats.surfaces--;
+ 	if (OwnsBits) Free_GPU_Memory(Bits);
+ 	if (Container) Container->Release();
+ }
+@@ -792,6 +817,9 @@ Texture::Texture(Device *device, UINT width, UINT height, UINT levels, DWORD usa
+ 		h = h > 1 ? h / 2 : 1;
+ 	}
+ 	Memory = (BYTE *)Alloc_GPU_Memory(total);
++	MemoryBytes = Memory ? total : 0;
++	Stats.textures++;
++	Stats.texture_bytes += MemoryBytes;
+ 	UINT offset = 0;
+ 	for (UINT i = 0; i < LevelCount; i++) {
+ 		Levels[i].Bits = Memory ? Memory + offset : NULL;
+@@ -1390,10 +1418,19 @@ bool Device::Prepare_Draw(UINT base_vertex)
+ 		pb_end(p);
+ 	}
+ 
+-	/* Render states (culling stays off until it can be checked visually) */
++	/* Render states.
++	** Culling: our screen coordinates have y pointing down, so a triangle that looks clockwise
++	** on screen has a positive signed area in raw coordinates, which the NV2A (following
++	** OpenGL) calls counterclockwise. So Direct3D's "cull clockwise" is front face = CW with the
++	** back culled, and "cull counterclockwise" is front face = CCW. (Renegade culls CW.) */
+ 	DWORD color_mask = RenderStates[D3DRS_COLORWRITEENABLE];
++	DWORD cull = RenderStates[D3DRS_CULLMODE];
+ 	p = pb_begin();
+-	p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, 0);
++	p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, cull == D3DCULL_NONE ? 0 : 1);
++	if (cull != D3DCULL_NONE) {
++		p = pb_push1(p, NV097_SET_FRONT_FACE, cull == D3DCULL_CW ? NV097_SET_FRONT_FACE_V_CW : NV097_SET_FRONT_FACE_V_CCW);
++		p = pb_push1(p, NV097_SET_CULL_FACE, NV097_SET_CULL_FACE_V_BACK);
++	}
+ 	p = pb_push1(p, NV097_SET_DEPTH_TEST_ENABLE, RenderStates[D3DRS_ZENABLE] ? 1 : 0);
+ 	p = pb_push1(p, NV097_SET_DEPTH_FUNC, Compare_To_NV(RenderStates[D3DRS_ZFUNC]));
+ 	p = pb_push1(p, NV097_SET_DEPTH_MASK, RenderStates[D3DRS_ZWRITEENABLE] ? 1 : 0);
+@@ -1560,6 +1597,11 @@ HRESULT Direct3D::CreateDevice(UINT Adapter, D3DDEVTYPE, HWND, DWORD,
+ 
+ } /* namespace XboxD3D */
+ 
++void XboxD3D_Get_Stats(XboxD3DStats *out)
++{
++	if (out) *out = XboxD3D::Stats;
++}
++
+ IDirect3D8 *Direct3DCreate8(UINT SDKVersion)
+ {
+ 	if (SDKVersion != D3D_SDK_VERSION) return NULL;
+diff --git a/Code/xbox/d3d8/xbox_d3d8_stats.h b/Code/xbox/d3d8/xbox_d3d8_stats.h
+new file mode 100644
+index 0000000..efd3e0a
+--- /dev/null
++++ b/Code/xbox/d3d8/xbox_d3d8_stats.h
+@@ -0,0 +1,18 @@
++/*
++** xbox_d3d8_stats.h -- live-object counters for the port's Direct3D layer (Xbox build only).
++** For test programs: if these keep growing while a scene is unchanged, something is leaking
++** Direct3D objects (the engine, or the layer's own reference counting).
++*/
++#ifndef XBOX_D3D8_STATS_H
++#define XBOX_D3D8_STATS_H
++
++struct XboxD3DStats {
++	unsigned textures, texture_bytes;
++	unsigned vertex_buffers, vertex_bytes;
++	unsigned index_buffers, index_bytes;
++	unsigned surfaces;              /* surface objects (texture levels handed out, image surfaces...) */
++};
++
++void XboxD3D_Get_Stats(XboxD3DStats *out);
++
++#endif
+-- 
+2.43.0
+

@@ -1,0 +1,172 @@
+From 6d87d73b8efdb64700d4915f81945f0ba69cd7d1 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 04:42:04 +0000
+Subject: [PATCH 11/32] Add except_xbox.cpp: the Except.h crash-handler
+ interface for Xbox (thread registry kept; no crash dumps)
+
+---
+ wwlib/except_xbox.cpp | 152 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 152 insertions(+)
+ create mode 100644 wwlib/except_xbox.cpp
+
+diff --git a/Code/wwlib/except_xbox.cpp b/Code/wwlib/except_xbox.cpp
+new file mode 100644
+index 0000000..8092e7f
+--- /dev/null
++++ b/Code/wwlib/except_xbox.cpp
+@@ -0,0 +1,152 @@
++/*
++** except_xbox.cpp -- the Except.h interface for the original Xbox (nxdk builds only).
++**
++** On the PC, Except.cpp is a crash handler: it records every thread, and when the game
++** crashes it walks the stacks, looks up symbols and writes a crash report. None of that
++** machinery exists on the Xbox, so Except.cpp is left out of the Xbox build and this file
++** provides the same interface:
++**   - Thread registration is kept (Get_Main_Thread_ID returns the real main thread).
++**   - The exception filter tells the caller to keep searching, so a crash behaves as it
++**     would with no handler installed.
++**   - Stack walking and symbol lookup report that nothing is available.
++**   - Is_Trying_To_Exit is only set by the PC crash handler, so it stays false here.
++*/
++#include "always.h"
++#include "Except.h"
++
++#ifdef NXDK
++
++#include <excpt.h>
++#include <string.h>
++
++namespace {
++
++struct ThreadEntry {
++	unsigned long ThreadID;
++	bool Main;
++	bool Used;
++};
++
++enum { MAX_THREADS = 32 };
++
++struct ThreadRegistry {
++	CRITICAL_SECTION Lock;
++	ThreadEntry Threads[MAX_THREADS];
++	ThreadRegistry()
++	{
++		InitializeCriticalSection(&Lock);
++		memset(Threads, 0, sizeof(Threads));
++	}
++};
++
++ThreadRegistry &registry()
++{
++	static ThreadRegistry r;     // created on first use, so safe during static initialisation
++	return r;
++}
++
++bool ExitOnException = false;
++void (*AppExceptionCallback)(void) = NULL;
++char *(*AppVersionCallback)(void) = NULL;
++
++} // namespace
++
++void Register_Thread_ID(unsigned long thread_id, char *thread_name, bool main_thread)
++{
++	(void)thread_name;
++	ThreadRegistry &r = registry();
++	EnterCriticalSection(&r.Lock);
++	int free_slot = -1;
++	for (int i = 0; i < MAX_THREADS; i++) {
++		if (r.Threads[i].Used && r.Threads[i].ThreadID == thread_id) {
++			r.Threads[i].Main = r.Threads[i].Main || main_thread;
++			LeaveCriticalSection(&r.Lock);
++			return;
++		}
++		if (!r.Threads[i].Used && free_slot < 0) free_slot = i;
++	}
++	if (free_slot >= 0) {
++		r.Threads[free_slot].ThreadID = thread_id;
++		r.Threads[free_slot].Main = main_thread;
++		r.Threads[free_slot].Used = true;
++	}
++	LeaveCriticalSection(&r.Lock);
++}
++
++void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
++{
++	(void)thread_name;
++	ThreadRegistry &r = registry();
++	EnterCriticalSection(&r.Lock);
++	for (int i = 0; i < MAX_THREADS; i++) {
++		if (r.Threads[i].Used && r.Threads[i].ThreadID == thread_id) {
++			r.Threads[i].Used = false;
++			break;
++		}
++	}
++	LeaveCriticalSection(&r.Lock);
++}
++
++unsigned long Get_Main_Thread_ID(void)
++{
++	ThreadRegistry &r = registry();
++	unsigned long id = 0;
++	EnterCriticalSection(&r.Lock);
++	for (int i = 0; i < MAX_THREADS; i++) {
++		if (r.Threads[i].Used && r.Threads[i].Main) {
++			id = r.Threads[i].ThreadID;
++			break;
++		}
++	}
++	LeaveCriticalSection(&r.Lock);
++	return id;
++}
++
++int Exception_Handler(int exception_code, EXCEPTION_POINTERS *e_info)
++{
++	(void)exception_code;
++	(void)e_info;
++	return EXCEPTION_CONTINUE_SEARCH;
++}
++
++int Stack_Walk(unsigned long *return_addresses, int num_addresses, CONTEXT *context)
++{
++	(void)return_addresses;
++	(void)num_addresses;
++	(void)context;
++	return 0;     // no addresses found
++}
++
++bool Lookup_Symbol(void *code_ptr, char *symbol, int &displacement)
++{
++	(void)code_ptr;
++	if (symbol) symbol[0] = 0;
++	displacement = 0;
++	return false;
++}
++
++void Load_Image_Helper(void)
++{
++}
++
++void Register_Application_Exception_Callback(void (*app_callback)(void))
++{
++	AppExceptionCallback = app_callback;
++}
++
++void Register_Application_Version_Callback(char *(*app_version_callback)(void))
++{
++	AppVersionCallback = app_version_callback;
++}
++
++void Set_Exit_On_Exception(bool set)
++{
++	ExitOnException = set;
++}
++
++bool Is_Trying_To_Exit(void)
++{
++	return false;
++}
++
++#endif /* NXDK */
+-- 
+2.43.0
+

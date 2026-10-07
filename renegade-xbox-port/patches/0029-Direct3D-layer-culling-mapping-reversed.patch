@@ -1,0 +1,45 @@
+From 6c66021df16e3b8ee917e6665dd4e634f50c99c1 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sun, 4 Oct 2026 22:45:22 +0000
+Subject: [PATCH 29/32] Direct3D layer: culling mapping reversed
+
+The NV2A judges winding as it appears on screen, as Direct3D does: D3DCULL_CW is front face CCW
+with the back culled. Patch 25 had it the other way round, which an equally reversed test cube
+hid; Westwood's Minigunner (front faces counterclockwise on screen, culled CW by the engine)
+showed inside out. Both test cubes now use Renegade's winding, checked by projection.
+---
+ xbox/d3d8/xbox_d3d8.cpp | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/Code/xbox/d3d8/xbox_d3d8.cpp b/Code/xbox/d3d8/xbox_d3d8.cpp
+index ece2003..231c093 100644
+--- a/Code/xbox/d3d8/xbox_d3d8.cpp
++++ b/Code/xbox/d3d8/xbox_d3d8.cpp
+@@ -1571,10 +1571,11 @@ bool Device::Prepare_Draw(UINT base_vertex)
+ 	}
+ 
+ 	/* Render states.
+-	** Culling: our screen coordinates have y pointing down, so a triangle that looks clockwise
+-	** on screen has a positive signed area in raw coordinates, which the NV2A (following
+-	** OpenGL) calls counterclockwise. So Direct3D's "cull clockwise" is front face = CW with the
+-	** back culled, and "cull counterclockwise" is front face = CCW. (Renegade culls CW.) */
++	** Culling: the NV2A judges a triangle's winding as it appears on screen, as Direct3D does,
++	** so Direct3D's "cull clockwise" is front face = CCW with the back culled, and "cull
++	** counterclockwise" is front face = CW. Renegade culls CW: its models' front faces are
++	** counterclockwise on screen. (Confirmed on xemu with Westwood's own Minigunner model; the
++	** opposite mapping showed models inside out.) */
+ 	DWORD color_mask = RenderStates[D3DRS_COLORWRITEENABLE];
+ 	DWORD cull = RenderStates[D3DRS_CULLMODE];
+ 	p = pb_begin();
+@@ -1587,7 +1588,7 @@ bool Device::Prepare_Draw(UINT base_vertex)
+ 	             (RenderStates[D3DRS_ZENABLE] == D3DZB_USEW ? NV097_SET_CONTROL0_Z_PERSPECTIVE_ENABLE : 0));
+ 	p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, cull == D3DCULL_NONE ? 0 : 1);
+ 	if (cull != D3DCULL_NONE) {
+-		p = pb_push1(p, NV097_SET_FRONT_FACE, cull == D3DCULL_CW ? NV097_SET_FRONT_FACE_V_CW : NV097_SET_FRONT_FACE_V_CCW);
++		p = pb_push1(p, NV097_SET_FRONT_FACE, cull == D3DCULL_CW ? NV097_SET_FRONT_FACE_V_CCW : NV097_SET_FRONT_FACE_V_CW);
+ 		p = pb_push1(p, NV097_SET_CULL_FACE, NV097_SET_CULL_FACE_V_BACK);
+ 	}
+ 	p = pb_push1(p, NV097_SET_DEPTH_TEST_ENABLE, RenderStates[D3DRS_ZENABLE] ? 1 : 0);
+-- 
+2.43.0
+

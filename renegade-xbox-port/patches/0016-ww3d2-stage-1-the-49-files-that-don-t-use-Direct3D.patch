@@ -1,0 +1,495 @@
+From 6f275d404aeccc281397846725004a9fab84b6a4 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 20:00:22 +0000
+Subject: [PATCH 16/32] ww3d2, stage 1: the 49 files that don't use Direct3D
+
+- extra qualifications removed (15, automated), loop scoping (8, automated)
+- this->/using/typename for dependent bases (dllist.h, prim_anim.h)
+- writable-buffer fixes where strings are truncated in place (hmorphanim, rendobj)
+- lightenvironment: untyped statics were int (0) in the shipped game; type made explicit,
+  shipped value kept
+- port layer: lstrcpy/lstrcpyn/lstrcat/lstrlen/lstrcmpi/lstrcpynW, GetCurrentDirectory (D:\),
+  strupr/strlwr, _isnan
+---
+ ww3d2/collect.h            |  2 +-
+ ww3d2/distlod.cpp          |  2 +-
+ ww3d2/dllist.h             |  2 +-
+ ww3d2/hmorphanim.cpp       |  6 ++---
+ ww3d2/htree.cpp            |  2 +-
+ ww3d2/intersec.h           | 16 ++++++-------
+ ww3d2/lightenvironment.cpp |  6 +++--
+ ww3d2/meshbuild.cpp        |  4 ++--
+ ww3d2/metalmap.cpp         |  3 ++-
+ ww3d2/motchan.cpp          |  4 ++--
+ ww3d2/prim_anim.h          | 10 +++++++-
+ ww3d2/rendobj.cpp          |  2 +-
+ ww3d2/rendobj.h            |  2 +-
+ ww3d2/stripoptimizer.cpp   |  6 ++---
+ ww3d2/texturethumbnail.h   |  6 ++---
+ ww3d2/vertmaterial.h       |  2 +-
+ wwlib/xbox_port.cpp        | 48 ++++++++++++++++++++++++++++++++++++++
+ wwlib/xbox_port.h          | 37 +++++++++++++++++++++++++++++
+ 18 files changed, 128 insertions(+), 32 deletions(-)
+
+diff --git a/Code/ww3d2/collect.h b/Code/ww3d2/collect.h
+index 2010600..1220823 100644
+--- a/Code/ww3d2/collect.h
++++ b/Code/ww3d2/collect.h
+@@ -64,7 +64,7 @@ public:
+ 	CollectionClass(void);
+ 	CollectionClass(const CollectionDefClass & def);
+ 	CollectionClass(const CollectionClass & src);
+-	CollectionClass & CollectionClass::operator = (const CollectionClass &);
++	CollectionClass & operator = (const CollectionClass &);
+ 	virtual ~CollectionClass(void);
+ 	virtual RenderObjClass *	Clone(void) const;		
+ 	
+diff --git a/Code/ww3d2/distlod.cpp b/Code/ww3d2/distlod.cpp
+index bf6404c..06dc26e 100644
+--- a/Code/ww3d2/distlod.cpp
++++ b/Code/ww3d2/distlod.cpp
+@@ -119,7 +119,7 @@ RenderObjClass * DistLODPrototypeClass::Create(void)
+ 	HLodClass * hlod = NEW_REF(HLodClass , (name,robj,count));
+ 
+ 	// Now, release the temporary refs and memory for the name
+-	for (i=0; i<count; i++) {
++	for (int i=0; i<count; i++) {
+ 		robj[i]->Release_Ref();
+ 	}
+ 	free(name);
+diff --git a/Code/ww3d2/dllist.h b/Code/ww3d2/dllist.h
+index c8881c9..b36ae60 100644
+--- a/Code/ww3d2/dllist.h
++++ b/Code/ww3d2/dllist.h
+@@ -76,7 +76,7 @@ class DLDestroyListClass : public DLListClass<T>
+ public:
+ 	virtual ~DLDestroyListClass()
+ 	{
+-		while (T* t=Head()) {		
++		while (T* t=this->Head()) {	// PORT: this-> for two-phase lookup		
+ 			delete t;
+ 		}
+ 	}
+diff --git a/Code/ww3d2/hmorphanim.cpp b/Code/ww3d2/hmorphanim.cpp
+index 7e01901..aa27ebb 100644
+--- a/Code/ww3d2/hmorphanim.cpp
++++ b/Code/ww3d2/hmorphanim.cpp
+@@ -279,7 +279,7 @@ static int Build_List_From_String
+ 			// Parse the string and pull out its entries.
+ 			//
+ 			count = 0;
+-			for (entry = buffer;
++			for (const char * entry = buffer;
+ 				  (entry != NULL) && (entry[1] != 0);
+ 				  entry = ::strstr (entry, delimiter))
+ 			{
+@@ -295,7 +295,7 @@ static int Build_List_From_String
+ 				// Copy this entry into its own string
+ 				//
+ 				StringClass entry_string = entry;
+-				char *delim_start = ::strstr (entry_string, delimiter);				
++				char *delim_start = ::strstr (entry_string.Peek_Buffer (), delimiter);  // PORT: writable buffer (same memory)				
+ 				if (delim_start != NULL) {
+ 					delim_start[0] = 0;
+ 				}
+@@ -489,7 +489,7 @@ void HMorphAnimClass::Set_Name(const char * name)
+ 	// Try to find the separator (a period)
+ 	//
+ 	StringClass full_name	= name;
+-	char *separator			= ::strchr (full_name, '.');
++	char *separator			= ::strchr (full_name.Peek_Buffer (), '.');  // PORT: writable buffer (same memory)
+ 	if (separator != NULL) {
+ 		
+ 		//
+diff --git a/Code/ww3d2/htree.cpp b/Code/ww3d2/htree.cpp
+index 688390d..42cad0c 100644
+--- a/Code/ww3d2/htree.cpp
++++ b/Code/ww3d2/htree.cpp
+@@ -761,7 +761,7 @@ void HTreeClass::Combo_Update
+ 
+ 			pivot->IsVisible = false;
+ 
+-			for ( anim_num = 0; (anim_num < anim->Get_Num_Anims()) && (!pivot->IsVisible); anim_num++ ) {
++			for ( int anim_num = 0; (anim_num < anim->Get_Num_Anims()) && (!pivot->IsVisible); anim_num++ ) {
+ 				HAnimClass *motion = anim->Get_Motion( anim_num );
+ 				if ( motion != NULL ) {
+ 					float frame_num = anim->Get_Frame( anim_num );
+diff --git a/Code/ww3d2/intersec.h b/Code/ww3d2/intersec.h
+index 5373f01..19981e7 100644
+--- a/Code/ww3d2/intersec.h
++++ b/Code/ww3d2/intersec.h
+@@ -170,7 +170,7 @@ public:
+ 
+ 
+ 	// this copy routine is used when the model coords are needed to be copied along with the other information.
+-	inline void IntersectionClass::Copy_Results(IntersectionResultClass *Destination, IntersectionResultClass *Source) {
++	inline void Copy_Results(IntersectionResultClass *Destination, IntersectionResultClass *Source) {
+ 		Destination->ModelMatrix = Source->ModelMatrix;
+ 		Destination->ModelLocation = Source->ModelLocation;
+ 		Copy_Partial_Results(Destination, Source);
+@@ -178,7 +178,7 @@ public:
+ 	}
+ 
+ 
+-	inline void IntersectionClass::Copy_Results(IntersectionResultClass *Source) {
++	inline void Copy_Results(IntersectionResultClass *Source) {
+ 		Copy_Results(&Result, Source);
+ 	}
+ 
+@@ -187,7 +187,7 @@ public:
+ 	// otherwise the results are copied into the request structure.
+ 	// This does not copy the matrix or location members; it is intended to be used during poly testing
+ 	// where these values are identical between results, or as a completion function for Copy_Results()
+-	inline void IntersectionClass::Copy_Partial_Results(IntersectionResultClass *Destination, IntersectionResultClass *Source) 
++	inline void Copy_Partial_Results(IntersectionResultClass *Destination, IntersectionResultClass *Source) 
+ 	{
+ 		Destination->IntersectedPolygon = Source->IntersectedPolygon;
+ 		Destination->Intersection = Source->Intersection;
+@@ -222,7 +222,7 @@ public:
+ 	// this will only set the result's range if intersection occurs; it is intended to be used as a first pass intersection test
+ 	// before intersecting the mesh polygons itself.
+ 	// Note: Does NOT do Max_Distance testing
+-	inline bool IntersectionClass::Intersect_Sphere_Quick(SphereClass &Sphere, IntersectionResultClass *FinalResult) 
++	inline bool Intersect_Sphere_Quick(SphereClass &Sphere, IntersectionResultClass *FinalResult) 
+ 	{
+ 		// make a unit vector from the ray origin to the sphere center
+ 		Vector3 sphere_vector(Sphere.Center - *RayLocation);
+@@ -240,7 +240,7 @@ public:
+ 
+ 
+ 	// this will find the intersection with the sphere and the intersection normal if needed.
+-	inline bool IntersectionClass::Intersect_Sphere(SphereClass &Sphere, IntersectionResultClass *FinalResult) 
++	inline bool Intersect_Sphere(SphereClass &Sphere, IntersectionResultClass *FinalResult) 
+ 	{
+ 		if(!Intersect_Sphere_Quick(Sphere, FinalResult)) 
+ 			return false;
+@@ -360,14 +360,14 @@ protected:
+ 	**	Designed for use with _Intersect_Triangles_Z.
+ 	*/
+ 	//static inline void _Intersect_Lines_Z(Vector3 &A, Vector3 &B, Vector2 &UVStart, Vector2 &UVEnd, Vector3 &C, Vector3 &D, Vector3 ClippedPoints[6], Vector2 ClippedUV[6], int &DestIndex);
+-	static inline bool IntersectionClass::In_Front_Of_Line
++	static inline bool In_Front_Of_Line
+ 	(
+ 		const Vector3 & p,			// point to test
+ 		const Vector3 & e0,			// point on edge
+ 		const Vector3 & de			// direction of edge
+ 	);
+ 
+-	static inline float IntersectionClass::Intersect_Lines
++	static inline float Intersect_Lines
+ 	(
+ 		const Vector3 & p0,			// start of line segment
+ 		const Vector3 & p1,			// end of line segment
+@@ -375,7 +375,7 @@ protected:
+ 		const Vector3 & de			// direction of clipping edge
+ 	);
+ 
+-	static inline int IntersectionClass::Clip_Triangle_To_LineXY(	
++	static inline int Clip_Triangle_To_LineXY(	
+ 		int incount,
+ 		Vector3 * InPoints,
+ 		Vector2 * InUVs,
+diff --git a/Code/ww3d2/lightenvironment.cpp b/Code/ww3d2/lightenvironment.cpp
+index 9e4d4bb..7a00efa 100644
+--- a/Code/ww3d2/lightenvironment.cpp
++++ b/Code/ww3d2/lightenvironment.cpp
+@@ -52,8 +52,10 @@ const float DIFFUSE_TO_AMBIENT_FRACTION = 1.0f;
+ /*
+ ** Static variables
+ */
+-static _LightingLODCutoff			= 0.5f;	
+-static _LightingLODCutoff2			= 0.5f * 0.5f;
++// PORT: these had no type, which old MSVC treated as int, so both have always been 0 in the
++// shipped game (0.5 truncates to 0). The type is now explicit; the shipped value is kept.
++static int _LightingLODCutoff			= 0;		// original source: = 0.5f
++static int _LightingLODCutoff2			= 0;		// original source: = 0.5f * 0.5f
+ 
+ 
+ /************************************************************************************************
+diff --git a/Code/ww3d2/meshbuild.cpp b/Code/ww3d2/meshbuild.cpp
+index 8cd54b5..cda7cdb 100644
+--- a/Code/ww3d2/meshbuild.cpp
++++ b/Code/ww3d2/meshbuild.cpp
+@@ -184,7 +184,7 @@ public:
+ 		delete[] HashTable;
+ 	}
+ 
+-	void VertexArrayClass::Set_Bounds(const Vector3 & minv,const Vector3 & maxv)
++	void Set_Bounds(const Vector3 & minv,const Vector3 & maxv)
+ 	{
+ 		Extent = (maxv - minv) / 2.0f;
+ 		Center = (maxv + minv) / 2.0f;
+@@ -309,7 +309,7 @@ public:
+ 		// texcoords must match for all passes and stages
+ 		// Note: I'm checking them separately and last so that I can keep track
+ 		// of how many splits are caused solely by u-v discontinuities...
+-		for (pass=0; pass<MeshBuilderClass::MAX_PASSES; pass++) {
++		for (int pass=0; pass<MeshBuilderClass::MAX_PASSES; pass++) {
+ 			for (int stage=0; stage < MeshBuilderClass::MAX_STAGES; stage++) {
+ 				if (v0.TexCoord[pass][stage] != v1.TexCoord[pass][stage]) {
+ 					UVSplits++;
+diff --git a/Code/ww3d2/metalmap.cpp b/Code/ww3d2/metalmap.cpp
+index ee81aa8..b6b91a2 100644
+--- a/Code/ww3d2/metalmap.cpp
++++ b/Code/ww3d2/metalmap.cpp
+@@ -92,7 +92,8 @@ MetalMapManagerClass::MetalMapManagerClass(INIClass &ini) :
+ 	// Determine how many metals are in this file
+ 	char section[255];
+ 
+-	for (int lp = 0; ; lp++) {
++	int lp;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (lp = 0; ; lp++) {
+ 		sprintf(section, "Metal%02d", lp);
+ 		if (!ini.Find_Section(section)) {
+ 			break;			// NAK - Mar 8, 2000: changed to a break to fix off by one error in lp
+diff --git a/Code/ww3d2/motchan.cpp b/Code/ww3d2/motchan.cpp
+index 05dd175..b1cf5fb 100644
+--- a/Code/ww3d2/motchan.cpp
++++ b/Code/ww3d2/motchan.cpp
+@@ -1303,12 +1303,12 @@ return;
+ 		inv_scale=1.0f/ValueScale;
+ 	}
+ 	inv_scale*=65535.0f;
+-	for (i=0;i<count;++i) {
++	for (int i=0;i<count;++i) {
+ 		float value=Data[i];
+ 		value-=ValueOffset;
+ 		value*=inv_scale;
+ 		int ivalue=WWMath::Float_To_Int_Floor(value);
+-		CompressedData[i]=unsigned short(ivalue);
++		CompressedData[i]=(unsigned short)(ivalue);
+ 
+ 		float new_scale=ValueScale/65535.0f;
+ 		float new_value=int(CompressedData[i]);
+diff --git a/Code/ww3d2/prim_anim.h b/Code/ww3d2/prim_anim.h
+index 59be0f5..6322882 100644
+--- a/Code/ww3d2/prim_anim.h
++++ b/Code/ww3d2/prim_anim.h
+@@ -160,6 +160,14 @@ protected:
+ template<class T>
+ class LERPAnimationChannelClass : public PrimitiveAnimationChannelClass<T>
+ {
++protected:
++	// PORT: name the dependent base's members and type for standard two-phase lookup.
++	using PrimitiveAnimationChannelClass<T>::m_Data;
++	using PrimitiveAnimationChannelClass<T>::m_LastIndex;
++public:
++	typedef typename PrimitiveAnimationChannelClass<T>::KeyClass KeyClass;
++protected:
++
+ public:
+ 
+ 	/////////////////////////////////////////////////////////
+@@ -182,7 +190,7 @@ int PrimitiveAnimationChannelClass<T>::Get_Key_Count (void) const
+ //	Set_Key_Value
+ /////////////////////////////////////////////////////////
+ template<class T>
+-const PrimitiveAnimationChannelClass<T>::KeyClass &PrimitiveAnimationChannelClass<T>::Get_Key (int index) const
++const typename PrimitiveAnimationChannelClass<T>::KeyClass &PrimitiveAnimationChannelClass<T>::Get_Key (int index) const
+ {
+ 	return m_Data[index];
+ }
+diff --git a/Code/ww3d2/rendobj.cpp b/Code/ww3d2/rendobj.cpp
+index c99c90b..ef32489 100644
+--- a/Code/ww3d2/rendobj.cpp
++++ b/Code/ww3d2/rendobj.cpp
+@@ -111,7 +111,7 @@ Filename_From_Asset_Name (const char *asset_name)
+ 		//
+ 		// Do we need to strip off the model's suffix?
+ 		//
+-		char *suffix = ::strchr (filename, '.');
++		char *suffix = ::strchr (filename.Peek_Buffer (), '.');  // PORT: writable buffer (same memory)
+ 		if (suffix != NULL) {
+ 			suffix[0] = 0;
+ 		}
+diff --git a/Code/ww3d2/rendobj.h b/Code/ww3d2/rendobj.h
+index 9123244..8097571 100644
+--- a/Code/ww3d2/rendobj.h
++++ b/Code/ww3d2/rendobj.h
+@@ -184,7 +184,7 @@ public:
+ 
+ 	RenderObjClass(void);
+ 	RenderObjClass(const RenderObjClass & src);
+-	RenderObjClass & RenderObjClass::operator = (const RenderObjClass &);
++	RenderObjClass & operator = (const RenderObjClass &);
+ 	virtual ~RenderObjClass(void)																					{ }
+ 
+ 
+diff --git a/Code/ww3d2/stripoptimizer.cpp b/Code/ww3d2/stripoptimizer.cpp
+index d86fc35..439a522 100644
+--- a/Code/ww3d2/stripoptimizer.cpp
++++ b/Code/ww3d2/stripoptimizer.cpp
+@@ -201,7 +201,7 @@ void StripOptimizerClass::Optimize_Strip_Order (int* strips, int strip_count)
+ 
+ //	WWASSERT((out+outSize)==o);							// HUH?
+ 
+-	for (i = 0; i < outSize; i++)						// copy output
++	for (int i = 0; i < outSize; i++)						// copy output
+ 		strips[i] = out[i];
+ 
+ 	delete[] out;
+@@ -288,7 +288,7 @@ void StripOptimizerClass::Optimize_Triangle_Order (int *tris, int triangle_count
+ 
+ 	WWASSERT(o == (out+triangle_count));
+ 
+-	for (i = 0; i < triangle_count; i++)
++	for (int i = 0; i < triangle_count; i++)
+ 	{
+ 		Tri* d = (Tri*)(tris)+i;
+ 		*d = out[i];
+@@ -716,7 +716,7 @@ inline Vector3i Stripify::getTriangleNodeConnectivityWeights (const TriangleQueu
+ 
+ 	Vector3i v(-1,-1,-1);
+ 
+-	for (i = 0; i < 3; i++) {
++	for (int i = 0; i < 3; i++) {
+ 		if (weight[0] == highestVal) v[i] = +1;
+ 	}
+ 		
+diff --git a/Code/ww3d2/texturethumbnail.h b/Code/ww3d2/texturethumbnail.h
+index c0bf556..c0723d5 100644
+--- a/Code/ww3d2/texturethumbnail.h
++++ b/Code/ww3d2/texturethumbnail.h
+@@ -100,9 +100,9 @@ class ThumbnailManagerClass : public DLNodeClass<ThumbnailManagerClass>
+ 	ThumbnailManagerClass(const char* thumbnail_filename, const char* mix_file_name);
+ 	~ThumbnailManagerClass();
+ 
+-	void ThumbnailManagerClass::Remove_From_Hash(ThumbnailClass* thumb);
+-	void ThumbnailManagerClass::Insert_To_Hash(ThumbnailClass* thumb);
+-	ThumbnailClass* ThumbnailManagerClass::Get_From_Hash(const StringClass& name);
++	void Remove_From_Hash(ThumbnailClass* thumb);
++	void Insert_To_Hash(ThumbnailClass* thumb);
++	ThumbnailClass* Get_From_Hash(const StringClass& name);
+ 
+ 	void Create_Thumbnails();
+ 	static void Update_Thumbnail_File(const char* mix_file_name, bool display_message_box);
+diff --git a/Code/ww3d2/vertmaterial.h b/Code/ww3d2/vertmaterial.h
+index 4d8a616..f0e10fc 100644
+--- a/Code/ww3d2/vertmaterial.h
++++ b/Code/ww3d2/vertmaterial.h
+@@ -258,7 +258,7 @@ private:
+ 	** Apply the render states corresponding to a NULL vetex material to D3D
+ 	*/
+ 	static void			Apply_Null(void);
+-	unsigned long		VertexMaterialClass::Compute_CRC(void) const;
++	unsigned long		Compute_CRC(void) const;
+ 
+ 	static VertexMaterialClass *Presets[PRESET_COUNT];
+ };
+diff --git a/Code/wwlib/xbox_port.cpp b/Code/wwlib/xbox_port.cpp
+index 442f158..88e9079 100644
+--- a/Code/wwlib/xbox_port.cpp
++++ b/Code/wwlib/xbox_port.cpp
+@@ -314,6 +314,54 @@ uintptr_t _beginthread(void (__cdecl *start)(void *), unsigned stack_size, void
+ }
+ 
+ 
++/* --- kernel32 string functions ------------------------------------------------------ */
++
++char *lstrcpyA(char *dst, const char *src)
++{
++	return strcpy(dst, src);
++}
++
++char *lstrcpynA(char *dst, const char *src, int max_count)
++{
++	if (max_count <= 0) return dst;
++	int i = 0;
++	for (; i < max_count - 1 && src[i]; ++i) dst[i] = src[i];
++	dst[i] = 0;
++	return dst;
++}
++
++char *lstrcatA(char *dst, const char *src)
++{
++	return strcat(dst, src);
++}
++
++int lstrlenA(const char *s)
++{
++	return s ? (int)strlen(s) : 0;
++}
++
++int lstrcmpiA(const char *a, const char *b)
++{
++	return _stricmp(a, b);
++}
++
++DWORD GetCurrentDirectoryA(DWORD buffer_size, char *buffer)
++{
++	static const char dir[] = "D:\\";
++	if (!buffer || buffer_size < sizeof(dir)) return sizeof(dir);
++	memcpy(buffer, dir, sizeof(dir));
++	return sizeof(dir) - 1;
++}
++
++wchar_t *lstrcpynW(wchar_t *dst, const wchar_t *src, int max_count)
++{
++	if (max_count <= 0) return dst;
++	int i = 0;
++	for (; i < max_count - 1 && src[i]; ++i) dst[i] = src[i];
++	dst[i] = 0;
++	return dst;
++}
++
+ void DebugBreak(void)
+ {
+ 	__asm__ volatile("int3");
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index d28d054..721cf8b 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -97,6 +97,28 @@ typedef void *HKEY;
+ #define VER_PLATFORM_WIN32_NT      2
+ #endif
+ 
++/* Old MSVC spellings without the leading underscore, and MSVC's _isnan. */
++#ifndef strupr
++#define strupr _strupr
++#endif
++#ifndef strlwr
++#define strlwr _strlwr
++#endif
++#ifndef _isnan
++#define _isnan(x) __builtin_isnan(x)
++#endif
++
++#ifndef GetCurrentDirectory
++#define GetCurrentDirectory GetCurrentDirectoryA
++#endif
++#ifndef lstrcpy
++#define lstrcpy  lstrcpyA
++#define lstrcpyn lstrcpynA
++#define lstrcat  lstrcatA
++#define lstrlen  lstrlenA
++#define lstrcmpi lstrcmpiA
++#endif
++
+ #ifndef strcmpi
+ #define strcmpi _stricmp
+ #endif
+@@ -127,6 +149,21 @@ int   WideCharToMultiByte(UINT code_page, DWORD flags, const wchar_t *src, int s
+ void  DebugBreak(void);
+ BOOL  DosDateTimeToFileTime(WORD fat_date, WORD fat_time, FILETIME *ft);
+ 
++/* kernel32's string functions, with Windows' rules: lstrcpyn copies at most n-1 characters
++** and always terminates; lstrlen(NULL) is 0; lstrcmpi compares without case (Windows uses
++** a locale-aware ordering, so only equality is guaranteed to match exactly). */
++char *lstrcpyA(char *dst, const char *src);
++char *lstrcpynA(char *dst, const char *src, int max_count);
++char *lstrcatA(char *dst, const char *src);
++int   lstrlenA(const char *s);
++int   lstrcmpiA(const char *a, const char *b);
++wchar_t *lstrcpynW(wchar_t *dst, const wchar_t *src, int max_count);
++
++/* No current directory on the Xbox: reports D:\, the folder the game runs from (nxdk mounts
++** it there). Windows rules: returns the length without the terminator, or the size needed
++** (with terminator) if the buffer is too small. */
++DWORD GetCurrentDirectoryA(DWORD buffer_size, char *buffer);
++
+ /* MSVC's _beginthread, built on nxdk's _beginthreadex. Returns the thread handle, or
+ ** (uintptr_t)-1 on failure as MSVC does. Unlike MSVC, the handle is not closed when the
+ ** thread exits (ThreadClass keeps using it); the engine creates only a few threads. */
+-- 
+2.43.0
+

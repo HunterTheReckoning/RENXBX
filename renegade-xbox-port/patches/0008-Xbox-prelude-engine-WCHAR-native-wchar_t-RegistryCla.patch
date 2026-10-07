@@ -1,0 +1,1145 @@
+From f1d7045f37bd9093f56d4a1df340e81bd629f58e Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 03:58:18 +0000
+Subject: [PATCH 08/32] Xbox prelude (engine WCHAR = native wchar_t),
+ RegistryClass on a settings file, threads/system shims, and strictness fixes
+ found by real Clang
+
+- xbox/include/xbox_prelude.h: force-included; nxdk keeps its WCHAR under another name
+- ini/bitstream: WCHAR instead of hard-coded unsigned short; network strings stay 16-bit
+- registry_xbox.cpp + xbox_settings_store: RegistryClass backed by a crash-safe file
+- _beginthread, GetComputerName/GetUserName, FormatMessage, getpid shims
+- thread.cpp: never kill threads on Xbox; wait for cooperative exit
+- data.cpp: no Windows string resources on Xbox
+- this->, extra qualifications, ctype include, writable buffer in translatedb
+---
+ WWMath/v3_rnd.h               |   8 +-
+ wwbitpack/bitstream.cpp       |   4 +-
+ wwbitpack/encodertypeentry.h  |   2 +-
+ wwlib/data.cpp                |  10 +-
+ wwlib/ini.cpp                 |   8 +-
+ wwlib/ini.h                   |   4 +-
+ wwlib/multilist.h             |   4 +-
+ wwlib/registry.cpp            |  15 +-
+ wwlib/registry_xbox.cpp       | 315 ++++++++++++++++++++++++++++++++++
+ wwlib/simplevec.h             |   1 +
+ wwlib/thread.cpp              |  14 ++
+ wwlib/xbox_port.cpp           |  51 ++++++
+ wwlib/xbox_port.h             |  48 ++++++
+ wwlib/xbox_settings_store.cpp | 278 ++++++++++++++++++++++++++++++
+ wwlib/xbox_settings_store.h   |  46 +++++
+ wwtranslatedb/translatedb.cpp |   2 +-
+ xbox/include/xbox_prelude.h   |  28 +++
+ 17 files changed, 808 insertions(+), 30 deletions(-)
+ create mode 100644 wwlib/registry_xbox.cpp
+ create mode 100644 wwlib/xbox_settings_store.cpp
+ create mode 100644 wwlib/xbox_settings_store.h
+ create mode 100644 xbox/include/xbox_prelude.h
+
+diff --git a/Code/WWMath/v3_rnd.h b/Code/WWMath/v3_rnd.h
+index ed9cd6e..6264c78 100644
+--- a/Code/WWMath/v3_rnd.h
++++ b/Code/WWMath/v3_rnd.h
+@@ -129,7 +129,7 @@ class Vector3SolidBoxRandomizer : public Vector3Randomizer {
+ 	private:
+ 
+ 		// Derived classes should have a private dummy assignment operator to block usage
+-		Vector3SolidBoxRandomizer & Vector3SolidBoxRandomizer::operator = (const Vector3SolidBoxRandomizer &that) { that; return *this; }
++		Vector3SolidBoxRandomizer & operator = (const Vector3SolidBoxRandomizer &that) { that; return *this; }
+ 
+ 		Vector3	Extents;
+ };
+@@ -160,7 +160,7 @@ class Vector3SolidSphereRandomizer : public Vector3Randomizer {
+ 	private:
+ 
+ 		// Derived classes should have a private dummy assignment operator to block usage
+-		Vector3SolidSphereRandomizer & Vector3SolidSphereRandomizer::operator = (const Vector3SolidSphereRandomizer &that) { that; return *this; }
++		Vector3SolidSphereRandomizer & operator = (const Vector3SolidSphereRandomizer &that) { that; return *this; }
+ 
+ 		float	Radius;
+ };
+@@ -191,7 +191,7 @@ class Vector3HollowSphereRandomizer : public Vector3Randomizer {
+ 	private:
+ 
+ 		// Derived classes should have a private dummy assignment operator to block usage
+-		Vector3HollowSphereRandomizer & Vector3HollowSphereRandomizer::operator = (const Vector3HollowSphereRandomizer &that) { that; return *this; }
++		Vector3HollowSphereRandomizer & operator = (const Vector3HollowSphereRandomizer &that) { that; return *this; }
+ 
+ 		float	Radius;
+ };
+@@ -223,7 +223,7 @@ class Vector3SolidCylinderRandomizer : public Vector3Randomizer {
+ 	private:
+ 
+ 		// Derived classes should have a private dummy assignment operator to block usage
+-		Vector3SolidCylinderRandomizer & Vector3SolidCylinderRandomizer::operator = (const Vector3SolidCylinderRandomizer &that) { that; return *this; }
++		Vector3SolidCylinderRandomizer & operator = (const Vector3SolidCylinderRandomizer &that) { that; return *this; }
+ 
+ 		float	Extent;
+ 		float	Radius;
+diff --git a/Code/wwbitpack/bitstream.cpp b/Code/wwbitpack/bitstream.cpp
+index d25e367..63c1cb1 100644
+--- a/Code/wwbitpack/bitstream.cpp
++++ b/Code/wwbitpack/bitstream.cpp
+@@ -181,7 +181,7 @@ void BitStreamClass::Add_Wide_Terminated_String(const WCHAR *string, bool permit
+ 
+ 	Add(len);
+ 	for (int i = 0; i < len; i++) {
+-		Add(string[i]);
++		Add((USHORT)string[i]);	// PORT: 16 bits per character on the wire, as with MSVC6's WCHAR
+ 	}
+ }
+ 
+@@ -198,7 +198,7 @@ void BitStreamClass::Get_Wide_Terminated_String(WCHAR *buffer, USHORT buffer_len
+ 		WWASSERT(len > 0 && "Empty string not permitted");
+ 	}
+ 
+-	WCHAR temp = L'?';
++	USHORT temp = L'?';	// PORT: read exactly 16 bits per character (see Add_Wide_Terminated_String)
+ 	int i = 0;
+ 	for (i = 0; i < len; i++) {
+ 		Get(temp);
+diff --git a/Code/wwbitpack/encodertypeentry.h b/Code/wwbitpack/encodertypeentry.h
+index cb40666..8ec4529 100644
+--- a/Code/wwbitpack/encodertypeentry.h
++++ b/Code/wwbitpack/encodertypeentry.h
+@@ -36,7 +36,7 @@
+ class cEncoderTypeEntry
+ {
+ 	public:
+-		cEncoderTypeEntry::cEncoderTypeEntry();
++		cEncoderTypeEntry();
+ 
+ 		void Init(double min, double max, double resolution);
+ 		void Init(int num_bits);
+diff --git a/Code/wwlib/data.cpp b/Code/wwlib/data.cpp
+index 8f3edf2..78b17f1 100644
+--- a/Code/wwlib/data.cpp
++++ b/Code/wwlib/data.cpp
+@@ -200,7 +200,13 @@ typedef struct SRecord {
+  *=============================================================================================*/
+ char const * Fetch_String(int id)
+ {
+-#ifdef _UNIX
++#ifdef NXDK
++	// PORT: the Xbox build has no Windows string resources (game text comes from the
++	// translation database), so there is nothing to fetch.
++	(void)id;
++	return("");
++#endif
++#if defined(_UNIX) || defined(NXDK)  // PORT: no Windows resources on Xbox
+ 	return("");
+ #else
+ 	static SRecord _buffers[64];
+@@ -260,7 +266,7 @@ char const * Fetch_String(int id)
+ 
+ void const * Fetch_Resource(LPCSTR resname, LPCSTR restype)
+ {
+-#ifdef _UNIX
++#if defined(_UNIX) || defined(NXDK)  // PORT: no Windows resources on Xbox
+ 	return(NULL);
+ #else
+ 	/*
+diff --git a/Code/wwlib/ini.cpp b/Code/wwlib/ini.cpp
+index 203f6c8..f8fdd50 100644
+--- a/Code/wwlib/ini.cpp
++++ b/Code/wwlib/ini.cpp
+@@ -96,7 +96,7 @@
+ #include	"xstraw.h"
+ #include	<stdio.h>
+ #include <malloc.h>
+-#ifdef _UNIX
++#if defined(_UNIX) || defined(NXDK)  // PORT: windows.h no longer pulls in ctype.h
+ #include <ctype.h>
+ #endif
+ #include "rawfile.h"
+@@ -992,9 +992,9 @@ int INIClass::Get_UUBlock(char const * section, void * block, int len) const
+  * HISTORY:                                                                                    *
+  *    11/6/2001 4:27PM ST : Created                                                            *
+  *=============================================================================================*/
+-const WideStringClass& INIClass::Get_Wide_String(WideStringClass& new_string, char const * section, char const * entry, unsigned short const * defvalue) const
++const WideStringClass& INIClass::Get_Wide_String(WideStringClass& new_string, char const * section, char const * entry, WCHAR const * defvalue) const
+ {
+-	unsigned short out[1024];
++	WCHAR out[1024];
+ 	char buffer[1024];
+ 
+ 	Base64Pipe b64pipe(Base64Pipe::DECODE);
+@@ -1031,7 +1031,7 @@ const WideStringClass& INIClass::Get_Wide_String(WideStringClass& new_string, ch
+  * HISTORY:                                                                                    *
+  *   11/6/2001 4:29PM ST : Created                                                             *
+  *=============================================================================================*/
+-bool INIClass::Put_Wide_String(char const * section, char const * entry, const unsigned short * string)
++bool INIClass::Put_Wide_String(char const * section, char const * entry, const WCHAR * string)
+ {
+ 	if (section == NULL || entry == NULL || string == NULL) {
+ 		return(false);
+diff --git a/Code/wwlib/ini.h b/Code/wwlib/ini.h
+index 85744a7..67d2938 100644
+--- a/Code/wwlib/ini.h
++++ b/Code/wwlib/ini.h
+@@ -147,7 +147,7 @@ class INIClass {
+ 		int Get_Int(char const * section, char const * entry, int defvalue=0) const;
+ 		int Get_String(char const * section, char const * entry, char const * defvalue, char * buffer, int size) const;
+ 		const StringClass& Get_String(StringClass& new_string, char const * section, char const * entry, char const * defvalue="") const;
+-		const WideStringClass& Get_Wide_String(WideStringClass& new_string, char const * section, char const * entry, unsigned short const * defvalue=L"") const;
++		const WideStringClass& Get_Wide_String(WideStringClass& new_string, char const * section, char const * entry, WCHAR const * defvalue=L"") const;
+ 		int Get_List_Index(char const * section, char const * entry, int const defvalue, char *list[]);
+ 		int *	Get_Alloc_Int_Array(char const * section, char const * entry, int listend);
+ 		int Get_Int_Bitfield(char const * section, char const * entry, int defvalue, char *list[]);
+@@ -180,7 +180,7 @@ class INIClass {
+ 		bool Put_Point(char const * section, char const * entry, TPoint3D<int> const & value);
+ 		bool Put_Point(char const * section, char const * entry, TPoint3D<float> const & value);
+ 		bool Put_Point(char const * section, char const * entry, TPoint2D<int> const & value);
+-		bool Put_Wide_String(char const * section, char const * entry, const unsigned short * string);
++		bool Put_Wide_String(char const * section, char const * entry, const WCHAR * string);
+ 
+ //	protected:
+ 		enum {MAX_LINE_LENGTH=512};
+diff --git a/Code/wwlib/multilist.h b/Code/wwlib/multilist.h
+index 23c0f0a..87f33e8 100644
+--- a/Code/wwlib/multilist.h
++++ b/Code/wwlib/multilist.h
+@@ -491,7 +491,7 @@ protected:
+ public:
+ 	PriorityMultiListIterator(MultiListClass<ObjectType> *list)
+ 		:	OriginalHead (NULL),
+-			MultiListIterator<ObjectType>(list)			{ First (); }
++			MultiListIterator<ObjectType>(list)			{ this->First (); }  // PORT: this-> for two-phase lookup
+ 
+ 	bool
+ 	Process_Head (ObjectType **object)
+@@ -507,7 +507,7 @@ public:
+ 
+ 			// Remove the node from the head of the list and
+ 			// add it to the tail of the list
+-			Remove_Current_Object();
++			this->Remove_Current_Object();
+ 			((MultiListClass<ObjectType> *)PriorityMultiListIterator::List)->Add_Tail ((*object));
+ 
+ 			retval = true;
+diff --git a/Code/wwlib/registry.cpp b/Code/wwlib/registry.cpp
+index 1518ca0..bd9fe81 100644
+--- a/Code/wwlib/registry.cpp
++++ b/Code/wwlib/registry.cpp
+@@ -33,6 +33,8 @@
+  *---------------------------------------------------------------------------------------------*
+  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ 
++#ifndef NXDK  // PORT: the Xbox version of RegistryClass is in registry_xbox.cpp
++
+ #include "registry.h"
+ #include "rawfile.h"
+ #include "ini.h"
+@@ -732,15 +734,4 @@ void RegistryClass::Delete_Registry_Tree(char *path)
+ 	}
+ }
+ 
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
++#endif // NXDK
+diff --git a/Code/wwlib/registry_xbox.cpp b/Code/wwlib/registry_xbox.cpp
+new file mode 100644
+index 0000000..04d9d89
+--- /dev/null
++++ b/Code/wwlib/registry_xbox.cpp
+@@ -0,0 +1,315 @@
++/*
++** registry_xbox.cpp -- RegistryClass for the original Xbox (nxdk builds only).
++**
++** The PC version (registry.cpp) uses the Windows registry under HKEY_LOCAL_MACHINE. The Xbox
++** has no registry, so the same interface is provided on top of XboxSettings, which keeps the
++** values in memory and saves them to one file. Behaviour copied from registry.cpp:
++**   - Floats are stored as their raw 32-bit pattern in a DWORD value.
++**   - Bools are stored as DWORD 0/1 and read back as "non-zero".
++**   - Narrow and wide strings are both REG_SZ on Windows, which converts between them when
++**     read the other way; this does the same (Latin-1, as the rest of the port).
++**   - Getters return the default when the value is missing, has the wrong type, or (for the
++**     char buffer version) doesn't fit, like RegQueryValueEx failing.
++**   - Set_Read_Only(true) makes every write a no-op and stops keys being created.
++** Changes are written to the settings file when a RegistryClass object is destroyed.
++*/
++#include "always.h"
++#include "registry.h"
++
++#ifdef NXDK
++
++#include "wwstring.h"
++#include "widestring.h"
++#include "xbox_settings_store.h"
++#include "wwdebug.h"
++#include <assert.h>
++#include <string.h>
++#include <stdint.h>
++#include <string>
++#include <vector>
++
++bool RegistryClass::IsLocked = false;
++
++namespace {
++
++/* Key handles: RegistryClass stores an int, so keep a table of key paths and store the index. */
++std::vector<std::string> &key_table()
++{
++	static std::vector<std::string> table;
++	return table;
++}
++
++int key_handle(const char *path)
++{
++	std::vector<std::string> &t = key_table();
++	std::string p = path ? path : "";
++	for (size_t i = 0; i < t.size(); ++i) {
++		if (t[i] == p) return (int)i;
++	}
++	t.push_back(p);
++	return (int)t.size() - 1;
++}
++
++const char *key_path(int handle)
++{
++	std::vector<std::string> &t = key_table();
++	return (handle >= 0 && (size_t)handle < t.size()) ? t[handle].c_str() : "";
++}
++
++/* Wide value names are stored as narrow (Latin-1) names. */
++std::string narrow_name(const WCHAR *name)
++{
++	std::string out;
++	for (const WCHAR *p = name; p && *p; ++p) out += (char)((*p <= 0xFF) ? *p : '?');
++	return out;
++}
++
++bool get_dword(int key, const char *name, uint32_t *out)
++{
++	XboxSettings::Type type;
++	const void *data;
++	size_t size;
++	if (!XboxSettings::Get(key_path(key), name, &type, &data, &size)) return false;
++	if (type != XboxSettings::TYPE_DWORD || size != 4) return false;
++	memcpy(out, data, 4);
++	return true;
++}
++
++void collect_name(const char *name, void *context)
++{
++	((DynamicVectorClass<StringClass> *)context)->Add(StringClass(name));
++}
++
++} /* anonymous namespace */
++
++bool RegistryClass::Exists(const char *sub_key)
++{
++	return XboxSettings::Key_Exists(sub_key);
++}
++
++RegistryClass::RegistryClass(const char *sub_key, bool create) :
++	Key(-1),
++	IsValid(false)
++{
++	if (create && !IsLocked) {
++		XboxSettings::Create_Key(sub_key);
++	}
++	if (XboxSettings::Key_Exists(sub_key)) {
++		Key = key_handle(sub_key);
++		IsValid = true;
++	}
++}
++
++RegistryClass::~RegistryClass(void)
++{
++	XboxSettings::Flush();
++}
++
++int RegistryClass::Get_Int(const char *name, int def_value)
++{
++	assert(IsValid);
++	uint32_t v;
++	return get_dword(Key, name, &v) ? (int)v : def_value;
++}
++
++void RegistryClass::Set_Int(const char *name, int value)
++{
++	assert(IsValid);
++	if (IsLocked) return;
++	XboxSettings::Set(key_path(Key), name, XboxSettings::TYPE_DWORD, &value, 4);
++}
++
++bool RegistryClass::Get_Bool(const char *name, bool def_value)
++{
++	return (Get_Int(name, def_value) != 0);
++}
++
++void RegistryClass::Set_Bool(const char *name, bool value)
++{
++	Set_Int(name, value ? 1 : 0);
++}
++
++float RegistryClass::Get_Float(const char *name, float def_value)
++{
++	assert(IsValid);
++	uint32_t bits;
++	if (!get_dword(Key, name, &bits)) return def_value;
++	float f;
++	memcpy(&f, &bits, 4);
++	return f;
++}
++
++void RegistryClass::Set_Float(const char *name, float value)
++{
++	assert(IsValid);
++	if (IsLocked) return;
++	XboxSettings::Set(key_path(Key), name, XboxSettings::TYPE_DWORD, &value, 4);
++}
++
++/* Fetch any string value as narrow text (wide values converted). */
++static bool get_narrow_string(int key, const char *name, std::string *out)
++{
++	XboxSettings::Type type;
++	const void *data;
++	size_t size;
++	if (!XboxSettings::Get(key_path(key), name, &type, &data, &size)) return false;
++	if (type == XboxSettings::TYPE_STRING) {
++		const char *s = (const char *)data;
++		size_t n = 0;
++		while (n < size && s[n]) ++n;
++		out->assign(s, n);
++		return true;
++	}
++	if (type == XboxSettings::TYPE_WSTRING) {
++		const unsigned short *w = (const unsigned short *)data;
++		out->clear();
++		for (size_t i = 0; i < size / 2 && w[i]; ++i) *out += (char)((w[i] <= 0xFF) ? w[i] : '?');
++		return true;
++	}
++	return false;
++}
++
++/* Fetch any string value as 16-bit wide text (narrow values widened). */
++static bool get_wide_string(int key, const char *name, std::vector<WCHAR> *out)
++{
++	XboxSettings::Type type;
++	const void *data;
++	size_t size;
++	if (!XboxSettings::Get(key_path(key), name, &type, &data, &size)) return false;
++	out->clear();
++	if (type == XboxSettings::TYPE_WSTRING) {
++		const unsigned short *w = (const unsigned short *)data;
++		for (size_t i = 0; i < size / 2 && w[i]; ++i) out->push_back((WCHAR)w[i]);
++	} else if (type == XboxSettings::TYPE_STRING) {
++		const char *s = (const char *)data;
++		for (size_t i = 0; i < size && s[i]; ++i) out->push_back((WCHAR)(unsigned char)s[i]);
++	} else {
++		return false;
++	}
++	out->push_back(0);
++	return true;
++}
++
++char *RegistryClass::Get_String(const char *name, char *value, int value_size, const char *default_string)
++{
++	assert(IsValid);
++	std::string s;
++	if (get_narrow_string(Key, name, &s) && (int)s.size() + 1 <= value_size) {
++		memcpy(value, s.c_str(), s.size() + 1);
++	} else if (default_string == NULL) {
++		*value = 0;
++	} else {
++		assert(strlen(default_string) < (unsigned int)value_size);
++		strcpy(value, default_string);
++	}
++	return value;
++}
++
++void RegistryClass::Get_String(const char *name, StringClass &string, const char *default_string)
++{
++	assert(IsValid);
++	string = (default_string == NULL) ? "" : default_string;
++	std::string s;
++	if (get_narrow_string(Key, name, &s)) {
++		string = s.c_str();
++	}
++}
++
++void RegistryClass::Set_String(const char *name, const char *value)
++{
++	assert(IsValid);
++	if (IsLocked) return;
++	XboxSettings::Set(key_path(Key), name, XboxSettings::TYPE_STRING, value, strlen(value) + 1);
++}
++
++void RegistryClass::Get_String(const WCHAR *name, WideStringClass &string, const WCHAR *default_string)
++{
++	assert(IsValid);
++	string = (default_string == NULL) ? L"" : default_string;
++	std::vector<WCHAR> w;
++	if (get_wide_string(Key, narrow_name(name).c_str(), &w)) {
++		string = &w[0];
++	}
++}
++
++void RegistryClass::Set_String(const WCHAR *name, const WCHAR *value)
++{
++	assert(IsValid);
++	if (IsLocked) return;
++	std::vector<unsigned short> w;
++	for (const WCHAR *p = value; *p; ++p) w.push_back((unsigned short)*p);
++	w.push_back(0);
++	XboxSettings::Set(key_path(Key), narrow_name(name).c_str(), XboxSettings::TYPE_WSTRING,
++	                  &w[0], w.size() * 2);
++}
++
++void RegistryClass::Get_Bin(const char *name, void *buffer, int buffer_size)
++{
++	assert(IsValid);
++	XboxSettings::Type type;
++	const void *data;
++	size_t size;
++	/* Like RegQueryValueEx: copy only if the whole value fits, otherwise leave the buffer alone. */
++	if (XboxSettings::Get(key_path(Key), name, &type, &data, &size) && (int)size <= buffer_size) {
++		memcpy(buffer, data, size);
++	}
++}
++
++int RegistryClass::Get_Bin_Size(const char *name)
++{
++	assert(IsValid);
++	size_t size = 0;
++	if (!XboxSettings::Get(key_path(Key), name, NULL, NULL, &size)) return 0;
++	return (int)size;
++}
++
++void RegistryClass::Set_Bin(const char *name, const void *buffer, int buffer_size)
++{
++	assert(IsValid);
++	if (IsLocked) return;
++	XboxSettings::Set(key_path(Key), name, XboxSettings::TYPE_BINARY, buffer, (size_t)buffer_size);
++}
++
++void RegistryClass::Get_Value_List(DynamicVectorClass<StringClass> &list)
++{
++	XboxSettings::List_Values(key_path(Key), collect_name, &list);
++}
++
++void RegistryClass::Delete_Value(const char *name)
++{
++	if (IsLocked) return;
++	XboxSettings::Delete_Value(key_path(Key), name);
++}
++
++void RegistryClass::Deleta_All_Values(void)
++{
++	if (IsLocked) return;
++	DynamicVectorClass<StringClass> value_list;
++	Get_Value_List(value_list);
++	for (int index = 0; index < value_list.Count(); index++) {
++		Delete_Value(value_list[index]);
++	}
++}
++
++void RegistryClass::Delete_Registry_Tree(char *path)
++{
++	if (IsLocked) return;
++	XboxSettings::Delete_Tree(path);
++	XboxSettings::Flush();
++}
++
++/*
++** Exporting and importing whole registry trees to .ini files is only used by the multiplayer
++** dedicated server (slavemaster.cpp). Not supported on the Xbox build.
++*/
++void RegistryClass::Load_Registry(const char *, char *, char *)
++{
++	WWDEBUG_SAY(("RegistryClass::Load_Registry is not supported on Xbox\n"));
++}
++
++void RegistryClass::Save_Registry(const char *, char *)
++{
++	WWDEBUG_SAY(("RegistryClass::Save_Registry is not supported on Xbox\n"));
++}
++
++#endif /* NXDK */
+diff --git a/Code/wwlib/simplevec.h b/Code/wwlib/simplevec.h
+index 3a4ac79..53eb30e 100644
+--- a/Code/wwlib/simplevec.h
++++ b/Code/wwlib/simplevec.h
+@@ -260,6 +260,7 @@ protected:
+ 	using SimpleVecClass<T>::VectorMax;
+ 
+ public:
++	using SimpleVecClass<T>::Length;
+ 
+ 	SimpleDynVecClass(int size = 0);
+ 	virtual ~SimpleDynVecClass(void);
+diff --git a/Code/wwlib/thread.cpp b/Code/wwlib/thread.cpp
+index d5ff718..b5e5967 100644
+--- a/Code/wwlib/thread.cpp
++++ b/Code/wwlib/thread.cpp
+@@ -110,6 +110,19 @@ void ThreadClass::Stop(unsigned ms)
+ 	#else
+ 		running=false;
+ 		unsigned time=TIMEGETTIME();
++#ifdef NXDK
++		// PORT: the Xbox kernel cannot safely kill another thread, and abandoning it would
++		// leave it running against a destroyed object. Engine threads poll 'running' and exit
++		// on their own, so wait for that, warning (once) if it takes longer than expected.
++		bool warned=false;
++		while (handle) {
++			if (!warned && (TIMEGETTIME()-time)>ms) {
++				WWDEBUG_SAY(("ThreadClass::Stop: thread %s is slow to exit, still waiting\n", ThreadName));
++				warned=true;
++			}
++			Sleep(1);
++		}
++#else
+ 		while (handle) {
+ 			if ((TIMEGETTIME()-time)>ms) {
+ 				int res=TerminateThread((HANDLE)handle,0);
+@@ -118,6 +131,7 @@ void ThreadClass::Stop(unsigned ms)
+ 			}
+ 			Sleep(0);
+ 		}
++#endif
+ 	#endif
+ }
+ 
+diff --git a/Code/wwlib/xbox_port.cpp b/Code/wwlib/xbox_port.cpp
+index a979843..85a53c4 100644
+--- a/Code/wwlib/xbox_port.cpp
++++ b/Code/wwlib/xbox_port.cpp
+@@ -10,6 +10,8 @@
+ #include <ctype.h>
+ #include <wctype.h>
+ #include <stdio.h>
++#include <stdlib.h>
++#include <process.h>
+ 
+ extern "C" {
+ 
+@@ -261,6 +263,55 @@ int _snwprintf(wchar_t *buffer, size_t count, const wchar_t *format, ...)
+ 	return n;
+ }
+ 
++/* --- Names, error text, threads ------------------------------------------------------- */
++
++static BOOL copy_name(const char *name, char *buffer, DWORD *size)
++{
++	DWORD needed = (DWORD)strlen(name) + 1;
++	if (!buffer || !size || *size < needed) { if (size) *size = needed; return FALSE; }
++	memcpy(buffer, name, needed);
++	*size = needed - 1;      /* Windows reports the length without the terminator */
++	return TRUE;
++}
++
++BOOL GetComputerNameA(char *buffer, DWORD *size) { return copy_name("XBOX", buffer, size); }
++BOOL GetUserNameA(char *buffer, DWORD *size)     { return copy_name("Player", buffer, size); }
++
++DWORD FormatMessageA(DWORD flags, const void *source, DWORD message_id, DWORD language_id,
++                     char *buffer, DWORD size, va_list *args)
++{
++	(void)flags; (void)source; (void)language_id; (void)args;
++	if (!buffer || size == 0) return 0;
++	int n = snprintf(buffer, size, "Windows error %lu", (unsigned long)message_id);
++	if (n < 0) { buffer[0] = 0; return 0; }
++	return (DWORD)((n < (int)size) ? n : (int)size - 1);
++}
++
++struct BeginThreadArgs {
++	void (__cdecl *start)(void *);
++	void *arg;
++};
++
++static unsigned __stdcall begin_thread_trampoline(void *p)
++{
++	BeginThreadArgs args = *(BeginThreadArgs *)p;
++	free(p);
++	args.start(args.arg);
++	return 0;
++}
++
++uintptr_t _beginthread(void (__cdecl *start)(void *), unsigned stack_size, void *arg)
++{
++	BeginThreadArgs *args = (BeginThreadArgs *)malloc(sizeof(BeginThreadArgs));
++	if (!args) return (uintptr_t)-1;
++	args->start = start;
++	args->arg = arg;
++	uintptr_t handle = _beginthreadex(NULL, stack_size, begin_thread_trampoline, args, 0, NULL);
++	if (!handle) { free(args); return (uintptr_t)-1; }
++	return handle;
++}
++
++
+ void DebugBreak(void)
+ {
+ 	__asm__ volatile("int3");
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index 6b4c46a..c4aa6e2 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -25,9 +25,12 @@ typedef const char *LPCTSTR;
+ #endif
+ 
+ #include <windows.h>
++#include <process.h>
++#include <stdint.h>
+ #include <wchar.h>
+ #include <stdarg.h>
+ #include <stddef.h>
++#include <stdint.h>
+ 
+ /* Path size limits from the MSVC CRT (stdlib.h), same values. */
+ #ifndef _MAX_PATH
+@@ -56,6 +59,37 @@ typedef const char *LPCTSTR;
+ #define _int64 __int64
+ #endif
+ 
++/* Registry key handle type; only named in registry.h's private section on Xbox. */
++typedef void *HKEY;
++
++#ifndef GetComputerName
++#define GetComputerName GetComputerNameA
++#endif
++#ifndef GetUserName
++#define GetUserName GetUserNameA
++#endif
++#ifndef FormatMessage
++#define FormatMessage FormatMessageA
++#endif
++#ifndef FORMAT_MESSAGE_ALLOCATE_BUFFER
++#define FORMAT_MESSAGE_ALLOCATE_BUFFER 0x00000100
++#define FORMAT_MESSAGE_IGNORE_INSERTS  0x00000200
++#define FORMAT_MESSAGE_FROM_STRING     0x00000400
++#define FORMAT_MESSAGE_FROM_HMODULE    0x00000800
++#define FORMAT_MESSAGE_FROM_SYSTEM     0x00001000
++#define FORMAT_MESSAGE_ARGUMENT_ARRAY  0x00002000
++#endif
++#ifndef MAKELANGID
++#define MAKELANGID(p, s) ((((WORD)(s)) << 10) | (WORD)(p))
++#define LANG_NEUTRAL 0x00
++#define SUBLANG_DEFAULT 0x01
++#endif
++
++/* No processes on the Xbox; srandom.cpp only mixes this into a random seed. */
++#ifndef getpid
++#define getpid() ((int)GetCurrentThreadId())
++#endif
++
+ #ifndef strcmpi
+ #define strcmpi _stricmp
+ #endif
+@@ -81,6 +115,20 @@ int   WideCharToMultiByte(UINT code_page, DWORD flags, const wchar_t *src, int s
+ void  DebugBreak(void);
+ BOOL  DosDateTimeToFileTime(WORD fat_date, WORD fat_time, FILETIME *ft);
+ 
++/* MSVC's _beginthread, built on nxdk's _beginthreadex. Returns the thread handle, or
++** (uintptr_t)-1 on failure as MSVC does. Unlike MSVC, the handle is not closed when the
++** thread exits (ThreadClass keeps using it); the engine creates only a few threads. */
++uintptr_t _beginthread(void (__cdecl *start)(void *), unsigned stack_size, void *arg);
++
++/* The Xbox has no computer or user name: these return "XBOX" and "Player"
++** (used only to help seed the secure random generator). */
++BOOL  GetComputerNameA(char *buffer, DWORD *size);
++BOOL  GetUserNameA(char *buffer, DWORD *size);
++
++/* No system message table on the Xbox: formats "Windows error <code>" for debug messages. */
++DWORD FormatMessageA(DWORD flags, const void *source, DWORD message_id, DWORD language_id,
++                     char *buffer, DWORD size, va_list *args);
++
+ /* Wide printf with Microsoft semantics (%s = wide string, %S/%hs = narrow string,
+ ** %c = wide char, %C/%hc = narrow char). Returns the character count, or -1 if the
+ ** output did not fit (like MSVC's _vsnwprintf, the buffer is then not terminated). */
+diff --git a/Code/wwlib/xbox_settings_store.cpp b/Code/wwlib/xbox_settings_store.cpp
+new file mode 100644
+index 0000000..3b9fc02
+--- /dev/null
++++ b/Code/wwlib/xbox_settings_store.cpp
+@@ -0,0 +1,278 @@
++/*
++** xbox_settings_store.cpp -- see xbox_settings_store.h.
++**
++** File format (little-endian):
++**   "RSET" magic, uint32 version (1), uint32 key count, then per key: uint16 length + bytes;
++**   uint32 value count, then per value: uint16 key length + key, uint16 name length + name,
++**   uint8 type, uint32 data length + data.
++** Keys are stored lower-cased; value names keep the case they were first written with.
++*/
++#include "xbox_settings_store.h"
++
++#include <stdio.h>
++#include <string.h>
++#include <ctype.h>
++#include <map>
++#include <set>
++#include <string>
++#include <vector>
++
++namespace XboxSettings {
++namespace {
++
++struct Value {
++	std::string name;                 /* as first written */
++	Type type;
++	std::vector<unsigned char> data;
++};
++
++struct Store {
++	bool loaded;
++	bool dirty;
++	std::string path;
++	std::set<std::string> keys;                   /* lower-cased key paths */
++	std::map<std::string, Value> values;          /* lower(key) + '\n' + lower(name) */
++	Store() : loaded(false), dirty(false), path("D:\\renegade_settings.dat") {}
++};
++
++Store &store()
++{
++	static Store s;
++	return s;
++}
++
++std::string normalize_key(const char *key)
++{
++	std::string out = key ? key : "";
++	for (size_t i = 0; i < out.size(); ++i) {
++		if (out[i] == '/') out[i] = '\\';
++		out[i] = (char)tolower((unsigned char)out[i]);
++	}
++	while (!out.empty() && out[out.size() - 1] == '\\') out.erase(out.size() - 1);
++	while (!out.empty() && out[0] == '\\') out.erase(0, 1);
++	return out;
++}
++
++std::string lower(const char *s)
++{
++	std::string out = s ? s : "";
++	for (size_t i = 0; i < out.size(); ++i) out[i] = (char)tolower((unsigned char)out[i]);
++	return out;
++}
++
++std::string value_id(const std::string &key, const char *name)
++{
++	return key + '\n' + lower(name);
++}
++
++/* --- File I/O ------------------------------------------------------------------------------ */
++
++void put_u8(std::vector<unsigned char> &b, unsigned v) { b.push_back((unsigned char)v); }
++void put_u16(std::vector<unsigned char> &b, unsigned v) { put_u8(b, v & 0xFF); put_u8(b, (v >> 8) & 0xFF); }
++void put_u32(std::vector<unsigned char> &b, unsigned long v)
++{
++	put_u16(b, (unsigned)(v & 0xFFFF)); put_u16(b, (unsigned)((v >> 16) & 0xFFFF));
++}
++void put_str(std::vector<unsigned char> &b, const std::string &s)
++{
++	put_u16(b, (unsigned)s.size());
++	b.insert(b.end(), s.begin(), s.end());
++}
++
++struct Reader {
++	const unsigned char *p, *end;
++	bool ok;
++	bool need(size_t n) { if ((size_t)(end - p) < n) ok = false; return ok; }
++	unsigned u8() { if (!need(1)) return 0; return *p++; }
++	unsigned u16() { unsigned lo = u8(); return lo | (u8() << 8); }
++	unsigned long u32() { unsigned long lo = u16(); return lo | ((unsigned long)u16() << 16); }
++	std::string str()
++	{
++		unsigned n = u16();
++		if (!need(n)) return std::string();
++		std::string s((const char *)p, n); p += n; return s;
++	}
++};
++
++void ensure_loaded()
++{
++	if (!store().loaded) Reload();
++}
++
++} /* anonymous namespace */
++
++/* --- Public interface ----------------------------------------------------------------------- */
++
++void Set_File(const char *path)
++{
++	store().path = path ? path : "";
++	store().loaded = false;      /* read the new file on next use */
++}
++
++const char *Get_File(void) { return store().path.c_str(); }
++
++bool Reload(void)
++{
++	Store &s = store();
++	s.keys.clear();
++	s.values.clear();
++	s.loaded = true;
++	s.dirty = false;
++
++	FILE *f = fopen(s.path.c_str(), "rb");
++	if (!f) {
++		/* A power cut between Flush()'s remove() and rename() leaves only the finished .tmp. */
++		std::string tmp = s.path + ".tmp";
++		if (rename(tmp.c_str(), s.path.c_str()) == 0) f = fopen(s.path.c_str(), "rb");
++	}
++	if (!f) return false;
++	std::vector<unsigned char> buf;
++	unsigned char chunk[4096];
++	size_t n;
++	while ((n = fread(chunk, 1, sizeof(chunk), f)) > 0) buf.insert(buf.end(), chunk, chunk + n);
++	fclose(f);
++
++	Reader r = { buf.empty() ? NULL : &buf[0], buf.empty() ? NULL : &buf[0] + buf.size(), true };
++	if (!r.need(4) || memcmp(r.p, "RSET", 4) != 0) return false;
++	r.p += 4;
++	if (r.u32() != 1) return false;
++
++	std::set<std::string> keys;
++	std::map<std::string, Value> values;
++	unsigned long key_count = r.u32();
++	for (unsigned long i = 0; i < key_count && r.ok; ++i) keys.insert(r.str());
++	unsigned long value_count = r.u32();
++	for (unsigned long i = 0; i < value_count && r.ok; ++i) {
++		std::string key = r.str();
++		Value v;
++		v.name = r.str();
++		v.type = (Type)r.u8();
++		unsigned long len = r.u32();
++		if (!r.need(len)) break;
++		v.data.assign(r.p, r.p + len);
++		r.p += len;
++		values[value_id(key, v.name.c_str())] = v;
++	}
++	if (!r.ok) return false;     /* damaged file: start empty rather than half-loaded */
++	s.keys.swap(keys);
++	s.values.swap(values);
++	return true;
++}
++
++bool Flush(void)
++{
++	Store &s = store();
++	if (!s.dirty) return true;
++
++	std::vector<unsigned char> b;
++	b.insert(b.end(), "RSET", "RSET" + 4);
++	put_u32(b, 1);
++	put_u32(b, (unsigned long)s.keys.size());
++	for (std::set<std::string>::const_iterator k = s.keys.begin(); k != s.keys.end(); ++k) put_str(b, *k);
++	put_u32(b, (unsigned long)s.values.size());
++	for (std::map<std::string, Value>::const_iterator v = s.values.begin(); v != s.values.end(); ++v) {
++		put_str(b, v->first.substr(0, v->first.find('\n')));
++		put_str(b, v->second.name);
++		put_u8(b, (unsigned)v->second.type);
++		put_u32(b, (unsigned long)v->second.data.size());
++		b.insert(b.end(), v->second.data.begin(), v->second.data.end());
++	}
++
++	/* Write to a temporary file first so a power cut can't leave a half-written settings file. */
++	std::string tmp = s.path + ".tmp";
++	FILE *f = fopen(tmp.c_str(), "wb");
++	if (!f) return false;
++	bool ok = fwrite(&b[0], 1, b.size(), f) == b.size();
++	ok = (fclose(f) == 0) && ok;
++	if (!ok) { remove(tmp.c_str()); return false; }
++	remove(s.path.c_str());
++	if (rename(tmp.c_str(), s.path.c_str()) != 0) return false;
++	s.dirty = false;
++	return true;
++}
++
++bool Key_Exists(const char *key)
++{
++	ensure_loaded();
++	return store().keys.count(normalize_key(key)) != 0;
++}
++
++void Create_Key(const char *key)
++{
++	ensure_loaded();
++	std::string k = normalize_key(key);
++	if (store().keys.insert(k).second) store().dirty = true;
++}
++
++void Delete_Tree(const char *key)
++{
++	ensure_loaded();
++	Store &s = store();
++	std::string k = normalize_key(key);
++	std::string prefix = k + "\\";
++	for (std::set<std::string>::iterator i = s.keys.begin(); i != s.keys.end();) {
++		if (*i == k || i->compare(0, prefix.size(), prefix) == 0) { s.keys.erase(i++); s.dirty = true; }
++		else ++i;
++	}
++	for (std::map<std::string, Value>::iterator i = s.values.begin(); i != s.values.end();) {
++		std::string vk = i->first.substr(0, i->first.find('\n'));
++		if (vk == k || vk.compare(0, prefix.size(), prefix) == 0) { s.values.erase(i++); s.dirty = true; }
++		else ++i;
++	}
++}
++
++bool Get(const char *key, const char *name, Type *type, const void **data, size_t *size)
++{
++	ensure_loaded();
++	std::map<std::string, Value>::const_iterator i = store().values.find(value_id(normalize_key(key), name));
++	if (i == store().values.end()) return false;
++	if (type) *type = i->second.type;
++	if (data) *data = i->second.data.empty() ? (const void *)"" : (const void *)&i->second.data[0];
++	if (size) *size = i->second.data.size();
++	return true;
++}
++
++void Set(const char *key, const char *name, Type type, const void *data, size_t size)
++{
++	ensure_loaded();
++	Store &s = store();
++	std::string k = normalize_key(key);
++	s.keys.insert(k);
++	std::string id = value_id(k, name);
++	std::map<std::string, Value>::iterator i = s.values.find(id);
++	const unsigned char *bytes = (const unsigned char *)data;
++	if (i != s.values.end()) {
++		if (i->second.type == type && i->second.data.size() == size &&
++		    (size == 0 || memcmp(&i->second.data[0], bytes, size) == 0)) {
++			return;    /* unchanged: don't mark dirty */
++		}
++		i->second.type = type;
++		i->second.data.assign(bytes, bytes + size);
++	} else {
++		Value v;
++		v.name = name ? name : "";
++		v.type = type;
++		v.data.assign(bytes, bytes + size);
++		s.values[id] = v;
++	}
++	s.dirty = true;
++}
++
++void Delete_Value(const char *key, const char *name)
++{
++	ensure_loaded();
++	if (store().values.erase(value_id(normalize_key(key), name))) store().dirty = true;
++}
++
++void List_Values(const char *key, void (*callback)(const char *name, void *context), void *context)
++{
++	ensure_loaded();
++	std::string prefix = normalize_key(key) + '\n';
++	const std::map<std::string, Value> &v = store().values;
++	for (std::map<std::string, Value>::const_iterator i = v.lower_bound(prefix);
++	     i != v.end() && i->first.compare(0, prefix.size(), prefix) == 0; ++i) {
++		callback(i->second.name.c_str(), context);
++	}
++}
++
++} /* namespace XboxSettings */
+diff --git a/Code/wwlib/xbox_settings_store.h b/Code/wwlib/xbox_settings_store.h
+new file mode 100644
+index 0000000..7229d36
+--- /dev/null
++++ b/Code/wwlib/xbox_settings_store.h
+@@ -0,0 +1,46 @@
++/*
++** xbox_settings_store.h -- a small persistent key/value store that stands in for the Windows
++** registry on the original Xbox. RegistryClass (registry_xbox.cpp) is built on top of it.
++**
++** Keys are paths like "Software\\Westwood\\Renegade\\Options"; names and keys are matched
++** case-insensitively, as in the Windows registry. Everything lives in memory and is written
++** to one file when Flush() is called (RegistryClass does this when a key object goes away).
++**
++** No engine dependencies, so it can be unit-tested on any machine.
++*/
++#ifndef XBOX_SETTINGS_STORE_H
++#define XBOX_SETTINGS_STORE_H
++
++#include <stddef.h>
++
++namespace XboxSettings {
++
++enum Type {
++	TYPE_DWORD   = 1,   /* 4 bytes; also used for floats (raw bits), as RegistryClass did on PC */
++	TYPE_STRING  = 2,   /* narrow string, stored with its terminator */
++	TYPE_WSTRING = 3,   /* 16-bit wide string, stored with its terminator */
++	TYPE_BINARY  = 4
++};
++
++/* Where the settings file lives. Default "D:\\renegade_settings.dat" (next to the XBE). */
++void        Set_File(const char *path);
++const char *Get_File(void);
++
++bool Key_Exists(const char *key);
++void Create_Key(const char *key);
++void Delete_Tree(const char *key);          /* the key, its values and every key below it */
++
++/* Returns false if the value does not exist. Data stays valid until the value is changed. */
++bool Get(const char *key, const char *name, Type *type, const void **data, size_t *size);
++void Set(const char *key, const char *name, Type type, const void *data, size_t size);
++void Delete_Value(const char *key, const char *name);
++
++/* Calls back once per value under the key (not sub-keys), with the name as first stored. */
++void List_Values(const char *key, void (*callback)(const char *name, void *context), void *context);
++
++bool Flush(void);    /* write the file if anything changed; returns false if writing failed */
++bool Reload(void);   /* discard memory and read the file again; returns false if no file */
++
++} /* namespace XboxSettings */
++
++#endif /* XBOX_SETTINGS_STORE_H */
+diff --git a/Code/wwtranslatedb/translatedb.cpp b/Code/wwtranslatedb/translatedb.cpp
+index 90a723c..321c240 100644
+--- a/Code/wwtranslatedb/translatedb.cpp
++++ b/Code/wwtranslatedb/translatedb.cpp
+@@ -1334,7 +1334,7 @@ int Build_List_From_String
+ 				// Copy this entry into its own string
+ 				//
+ 				StringClass entry_string = entry;
+-				char *delim_start = ::strstr (entry_string, delimiter);				
++				char *delim_start = ::strstr (entry_string.Peek_Buffer (), delimiter);  // PORT: writable buffer (same memory)				
+ 				if (delim_start != NULL) {
+ 					delim_start[0] = 0;
+ 				}
+diff --git a/Code/xbox/include/xbox_prelude.h b/Code/xbox/include/xbox_prelude.h
+new file mode 100644
+index 0000000..04ec8bc
+--- /dev/null
++++ b/Code/xbox/include/xbox_prelude.h
+@@ -0,0 +1,28 @@
++/*
++** xbox_prelude.h -- force-included first in every engine file of the Xbox build:
++**     nxdk-cxx -include Code/xbox/include/xbox_prelude.h ...
++**
++** WCHAR: the engine mixes WCHAR, wchar_t and L"..." literals freely, because under MSVC 6
++** they were all the same type. nxdk defines WCHAR as unsigned short, while Clang's wchar_t
++** is a separate built-in type, so the two no longer mix. Making the engine's WCHAR the
++** native wchar_t (as modern Windows SDKs do) restores that. nxdk's own headers keep their
++** unsigned short type under another name, so nxdk itself is untouched; both are 16 bits.
++*/
++#ifndef XBOX_PRELUDE_H
++#define XBOX_PRELUDE_H
++
++#if defined(NXDK) && defined(__cplusplus)
++
++#define WCHAR NXDK_WCHAR      /* nxdk's headers declare their own type under this name */
++#include <windows.h>
++#undef WCHAR
++typedef wchar_t WCHAR;        /* the engine's WCHAR: native 16-bit wchar_t */
++
++#include <wchar.h>
++#include "../../wwlib/xbox_port.h"   /* port shims, for files that don't include always.h */
++
++static_assert(sizeof(wchar_t) == 2, "Xbox build expects a 16-bit wchar_t");
++static_assert(sizeof(NXDK_WCHAR) == sizeof(wchar_t), "nxdk WCHAR size changed");
++
++#endif /* NXDK && __cplusplus */
++#endif /* XBOX_PRELUDE_H */
+-- 
+2.43.0
+

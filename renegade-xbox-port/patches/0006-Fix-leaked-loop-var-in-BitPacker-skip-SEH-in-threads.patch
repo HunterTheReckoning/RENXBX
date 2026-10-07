@@ -1,0 +1,146 @@
+From 6fcfae4787a896f019ca0c88d4a4337fe5fcd904 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 00:37:52 +0000
+Subject: [PATCH 06/32] Fix leaked loop var in BitPacker, skip SEH in threads
+ on nxdk, _int64 alias, template<> definitions (with {} so they define),
+ blitter specializations
+
+---
+ wwbitpack/BitPacker.cpp |  3 ++-
+ wwlib/blitblit.h        | 10 +++++-----
+ wwlib/int.cpp           |  2 +-
+ wwlib/mempool.h         |  2 +-
+ wwlib/thread.cpp        |  4 ++++
+ wwlib/xbox_port.h       |  5 +++++
+ 6 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/Code/wwbitpack/BitPacker.cpp b/Code/wwbitpack/BitPacker.cpp
+index b1df6e7..6772a9b 100644
+--- a/Code/wwbitpack/BitPacker.cpp
++++ b/Code/wwbitpack/BitPacker.cpp
+@@ -177,7 +177,8 @@ void cBitPacker::Get_Bits(ULONG & value, UINT num_bits)
+ 	value = (ULONG(Buffer[byte_num++]) << (bit_offset+24));
+ 	num_bits-=bit_count;
+ 
+-	for (int shift=24-bit_count;shift>0;shift-=8,num_bits-=8) value|=unsigned(Buffer[byte_num++]) << shift;
++	int shift;  // PORT: used after the loop (MSVC6 leaked loop variables)
++	for (shift=24-bit_count;shift>0;shift-=8,num_bits-=8) value|=unsigned(Buffer[byte_num++]) << shift;
+ 	if (num_bits>0) value|=Buffer[byte_num++]>>(-shift);
+ 
+ 	value >>= 32-read_len;
+diff --git a/Code/wwlib/blitblit.h b/Code/wwlib/blitblit.h
+index caea84c..2a79020 100644
+--- a/Code/wwlib/blitblit.h
++++ b/Code/wwlib/blitblit.h
+@@ -452,7 +452,7 @@ class BlitTransLucent75 : public Blitter {
+ */
+ #if defined(_MSC_VER)
+ 
+-inline void BlitTrans<unsigned char>::BlitForward(void * dest, void const * source, int len) const
++template<> inline void BlitTrans<unsigned char>::BlitForward(void * dest, void const * source, int len) const
+ {
+ 	__asm {
+ 		mov	esi,[source]
+@@ -477,7 +477,7 @@ fini:;
+ }
+ 
+ 
+-inline void BlitTransXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
++template<> inline void BlitTransXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
+ {
+ 	unsigned short const * xlator = TranslateTable;
+ 
+@@ -507,7 +507,7 @@ over:;
+ }
+ 
+ 
+-inline void BlitTransRemapXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
++template<> inline void BlitTransRemapXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
+ {
+ 	unsigned short const * translator = TranslateTable;
+ 	unsigned char const * remapper = RemapTable;
+@@ -544,7 +544,7 @@ over:;
+ }
+ 
+ 
+-inline void BlitTransZRemapXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
++template<> inline void BlitTransZRemapXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
+ {
+ 	unsigned short const * translator = TranslateTable;
+ 	unsigned char const * remapper = *RemapTable;
+@@ -581,7 +581,7 @@ over:;
+ }
+ 
+ 
+-inline void BlitPlainXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
++template<> inline void BlitPlainXlat<unsigned short>::BlitForward(void * dest, void const * source, int len) const
+ {
+ 	unsigned short const * remapper = TranslateTable;
+ 	__asm {
+diff --git a/Code/wwlib/int.cpp b/Code/wwlib/int.cpp
+index 62141e1..ca5cc73 100644
+--- a/Code/wwlib/int.cpp
++++ b/Code/wwlib/int.cpp
+@@ -42,7 +42,7 @@
+ template<> int bignum::Error = 0;
+ template<> bool bignum::Carry = false;
+ template<> bool bignum::Borrow = false;
+-bignum bignum::Remainder;
++template<> bignum bignum::Remainder{};  // PORT: {} makes this a definition, not just a declaration
+ 
+ 
+ 
+diff --git a/Code/wwlib/mempool.h b/Code/wwlib/mempool.h
+index 34feec8..5d9f505 100644
+--- a/Code/wwlib/mempool.h
++++ b/Code/wwlib/mempool.h
+@@ -158,7 +158,7 @@ private:
+ ** the class.
+ */
+ #define DEFINE_AUTO_POOL(T,BLOCKSIZE) \
+-template<> ObjectPoolClass<T,BLOCKSIZE> AutoPoolClass<T,BLOCKSIZE>::Allocator;  /* PORT: template<> required */
++template<> ObjectPoolClass<T,BLOCKSIZE> AutoPoolClass<T,BLOCKSIZE>::Allocator{};  /* PORT: template<> required; {} makes it a definition */
+ 
+ 
+ /***********************************************************************************************
+diff --git a/Code/wwlib/thread.cpp b/Code/wwlib/thread.cpp
+index 9ca9142..d5ff718 100644
+--- a/Code/wwlib/thread.cpp
++++ b/Code/wwlib/thread.cpp
+@@ -55,6 +55,7 @@ void __cdecl ThreadClass::Internal_Thread_Function(void* params)
+ #ifdef _WIN32
+ 	Register_Thread_ID(tc->ThreadID, tc->ThreadName);
+ 
++#ifndef NXDK  // PORT: no structured exception handling on the Xbox build; just run the thread
+ 	if (tc->ExceptionHandler != NULL) {
+ 		__try {
+ 			tc->Thread_Function();
+@@ -62,6 +63,9 @@ void __cdecl ThreadClass::Internal_Thread_Function(void* params)
+ 	} else {
+ 		tc->Thread_Function();
+ 	}
++#else
++	tc->Thread_Function();
++#endif
+ 
+ #else //_WIN32
+ 	tc->Thread_Function();
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index ceff868..6b4c46a 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -51,6 +51,11 @@ typedef const char *LPCTSTR;
+ #define CP_ACP 0
+ #endif
+ 
++/* Single-underscore MSVC spelling of __int64. */
++#ifndef _int64
++#define _int64 __int64
++#endif
++
+ #ifndef strcmpi
+ #define strcmpi _stricmp
+ #endif
+-- 
+2.43.0
+

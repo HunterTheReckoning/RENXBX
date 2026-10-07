@@ -1,0 +1,49 @@
+From 6e6f4e12e89f40852ff4e053a466a342e9d97f7d Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 05:01:08 +0000
+Subject: [PATCH 14/32] Float_To_Long: compiler-understood fistp on x86 instead
+ of lrintf/lrint
+
+nxdk's lrintf is a placeholder that halts (assert(0)); the smoke test hit it. This keeps
+the original x87 rounding (to nearest, ties to even) without the C library.
+---
+ WWMath/wwmath.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/Code/WWMath/wwmath.h b/Code/WWMath/wwmath.h
+index 539e794..7498b58 100644
+--- a/Code/WWMath/wwmath.h
++++ b/Code/WWMath/wwmath.h
+@@ -313,8 +313,17 @@ WWINLINE long WWMath::Float_To_Long(float f)
+ #else 
+ WWINLINE long WWMath::Float_To_Long(float f)
+ {
++#if defined(__i386__) && (defined(__GNUC__) || defined(__clang__))
++	// PORT: the original's fistp (round to nearest, ties to even, in the default FPU mode),
++	// written so the compiler knows exactly what it reads and writes. nxdk's lrintf is a
++	// placeholder that halts the program, so it can't be used.
++	int result;
++	__asm__ ("fistpl %0" : "=m" (result) : "t" (f) : "st");
++	return result;
++#else
+ 	// PORT: fistp rounds to nearest (default FPU mode); a cast would truncate.
+ 	return lrintf(f);
++#endif
+ }
+ #endif
+ 
+@@ -325,6 +334,11 @@ WWINLINE long WWMath::Float_To_Long(double f)
+ 	__asm fld	qword ptr [f]
+ 	__asm fistp dword ptr [retval]
+ 	return retval;
++#elif defined(__i386__) && (defined(__GNUC__) || defined(__clang__))
++	// PORT: the original's fistp, written so the compiler understands it (see above).
++	int result;
++	__asm__ ("fistpl %0" : "=m" (result) : "t" (f) : "st");
++	return result;
+ #else 
+ 	// PORT: fistp rounds to nearest (default FPU mode); a cast would truncate.
+ 	return lrint(f);
+-- 
+2.43.0
+

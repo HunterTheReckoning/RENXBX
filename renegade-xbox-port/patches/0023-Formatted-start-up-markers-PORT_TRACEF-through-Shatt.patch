@@ -1,0 +1,153 @@
+From 7d10877b1679d679aa9016f4f6b8bc1107d30995 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sun, 4 Oct 2026 03:59:51 +0000
+Subject: [PATCH 23/32] Formatted start-up markers (PORT_TRACEF) through
+ ShatterSystem::Init and the asset manager's load-on-demand path
+
+---
+ ww3d2/assetmgr.cpp      | 10 ++++++++++
+ ww3d2/shattersystem.cpp |  9 +++++++++
+ wwlib/xbox_port.cpp     | 11 +++++++++++
+ wwlib/xbox_port.h       |  6 ++++++
+ 4 files changed, 36 insertions(+)
+
+diff --git a/Code/ww3d2/assetmgr.cpp b/Code/ww3d2/assetmgr.cpp
+index 06b42d9..61aa4ed 100644
+--- a/Code/ww3d2/assetmgr.cpp
++++ b/Code/ww3d2/assetmgr.cpp
+@@ -507,11 +507,15 @@ bool WW3DAssetManager::Load_3D_Assets( const char * filename )
+ {
+ 	bool result = false;
+ 
++	PORT_TRACE("assets: asking the file factory");
+ 	FileClass * file = _TheFileFactory->Get_File( filename );
++	PORT_TRACEF(("assets: file factory returned %s", file ? "a file" : "nothing"));
+ 	if ( file ) {
++		PORT_TRACEF(("assets: checking %s", file->File_Name()));
+ 		if ( file->Is_Available() ) {
+ 			result = WW3DAssetManager::Load_3D_Assets( *file );
+ 		}
++		PORT_TRACE("assets: returning the file");
+ 		_TheFileFactory->Return_File( file );
+ 	}
+ 
+@@ -900,22 +904,27 @@ HTreeClass *	WW3DAssetManager::Get_HTree(const char * name)
+ 	WWPROFILE( "WW3DAssetManager::Get_HTree" );
+ 
+ 	// Try to find the htree
++	PORT_TRACEF(("assets: Get_HTree %s: checking loaded trees", name));
+ 	HTreeClass * htree = HTreeManager.Get_Tree(name);
+ 
+ 	if (WW3D_Load_On_Demand && htree == NULL) {	// If we didn't find it, try to load on demand
+ 		
++		PORT_TRACE("assets: not loaded; reporting load-on-demand");
+ 		AssetStatusClass::Peek_Instance()->Report_Load_On_Demand_HTree(name);
+ 
+ 		char filename[ MAX_PATH ];
+ 		sprintf( filename, "%s.w3d", name);
+ 
+ 		// If we can't find it, try the parent directory
++		PORT_TRACEF(("assets: loading %s", filename));
+ 		if ( Load_3D_Assets( filename ) == false ) {
+ 			StringClass	new_filename("..\\",true);
+ 			new_filename+=filename;
++			PORT_TRACEF(("assets: not found; trying %s", (const char *)new_filename));
+ 			Load_3D_Assets( new_filename );
+ 		}
+ 
++		PORT_TRACE("assets: checking loaded trees again");
+ 		htree = HTreeManager.Get_Tree(name);	// Try again
+ 
+ 		if (htree == NULL) {
+@@ -924,6 +933,7 @@ HTreeClass *	WW3DAssetManager::Get_HTree(const char * name)
+ 	}
+ 
+ 	return htree;
++	PORT_TRACEF(("assets: Get_HTree done: %s", htree ? "found" : "missing"));
+ }
+ 
+ /***********************************************************************************************
+diff --git a/Code/ww3d2/shattersystem.cpp b/Code/ww3d2/shattersystem.cpp
+index bc7e8ea..b6ed389 100644
+--- a/Code/ww3d2/shattersystem.cpp
++++ b/Code/ww3d2/shattersystem.cpp
+@@ -804,6 +804,7 @@ void ShatterSystem::Init(void)
+ 	** Resize the Mesh Fragment pointer array to handle the maximum number
+ 	** of mesh fragments.
+ 	*/
++	PORT_TRACE("shatter: resizing the fragment array");
+ 	MeshFragments.Resize(MAX_MESH_FRAGMENTS);
+ 
+ 	/*
+@@ -813,8 +814,15 @@ void ShatterSystem::Init(void)
+ 	StringClass htree_name;
+ 	htree_name.Format(SHATTER_PATTERN_FORMAT,0);
+ 
++	PORT_TRACEF(("shatter: looking up %s", (const char *)htree_name));
+ 	HTreeClass * htree = WW3DAssetManager::Get_Instance()->Get_HTree(htree_name);
++	PORT_TRACEF(("shatter: first lookup returned %s", htree ? "a tree" : "nothing"));
++	unsigned port_iterations = 0;
+ 	while (htree != NULL) {
++		port_iterations++;
++		if (port_iterations <= 3 || (port_iterations % 1000) == 0) {
++			PORT_TRACEF(("shatter: loop %u, %d pivots, %d patterns so far", port_iterations, htree->Num_Pivots(), ShatterPatterns.Count()));
++		}
+ 		if ((htree->Num_Pivots() > 1) && (htree->Num_Pivots() < MAX_MESH_FRAGMENTS)) {
+ 			int leaf_counter = 0;
+ 			htree->Base_Update(Matrix3D(1));
+@@ -827,6 +835,7 @@ void ShatterSystem::Init(void)
+ 		htree_name.Format(SHATTER_PATTERN_FORMAT,ShatterPatterns.Count());
+ 		htree = WW3DAssetManager::Get_Instance()->Get_HTree(htree_name);
+ 	}
++	PORT_TRACE("shatter: done");
+ }
+ 
+ void ShatterSystem::Shutdown(void)
+diff --git a/Code/wwlib/xbox_port.cpp b/Code/wwlib/xbox_port.cpp
+index def39d9..6294346 100644
+--- a/Code/wwlib/xbox_port.cpp
++++ b/Code/wwlib/xbox_port.cpp
+@@ -17,6 +17,17 @@ extern "C" {
+ 
+ void (*XboxPort_Trace)(const char *message) = NULL;
+ 
++void Xbox_Trace_Format(const char *format, ...)
++{
++	if (!XboxPort_Trace) return;
++	char line[160];
++	va_list args;
++	va_start(args, format);
++	vsnprintf(line, sizeof(line), format, args);
++	va_end(args);
++	XboxPort_Trace(line);
++}
++
+ void _splitpath(const char *path, char *drive, char *dir, char *fname, char *ext)
+ {
+ 	if (drive) drive[0] = 0;
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index 406b965..c78032c 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -131,6 +131,9 @@ extern "C" {
+ ** to see how far start-up gets; in the game it stays NULL and PORT_TRACE does nothing. */
+ extern void (*XboxPort_Trace)(const char *message);
+ #define PORT_TRACE(message) do { if (XboxPort_Trace) XboxPort_Trace(message); } while (0)
++/* Formatted marker: PORT_TRACEF(("loaded %s", name)); */
++void Xbox_Trace_Format(const char *format, ...);
++#define PORT_TRACEF(args) do { if (XboxPort_Trace) Xbox_Trace_Format args; } while (0)
+ 
+ /* MSVC CRT functions missing from nxdk (implemented in xbox_port.cpp). */
+ void  _splitpath(const char *path, char *drive, char *dir, char *fname, char *ext);
+@@ -213,5 +216,8 @@ int   _snwprintf(wchar_t *buffer, size_t count, const wchar_t *format, ...);
+ #ifndef PORT_TRACE
+ #define PORT_TRACE(message)
+ #endif
++#ifndef PORT_TRACEF
++#define PORT_TRACEF(args)
++#endif
+ 
+ #endif /* XBOX_PORT_H */
+-- 
+2.43.0
+

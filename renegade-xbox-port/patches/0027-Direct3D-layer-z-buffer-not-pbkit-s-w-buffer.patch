@@ -1,0 +1,35 @@
+From 040be3cc7fde021047555c224c8c967e009d26c7 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sun, 4 Oct 2026 21:03:10 +0000
+Subject: [PATCH 27/32] Direct3D layer: z-buffer, not pbkit's w-buffer
+
+pbkit's pb_target_back_buffer enables the NV2A's w-buffer every frame ("We use W"), which stores
+w as depth and interpolates it linearly on screen: wrong per triangle, so crossing surfaces met
+along triangle edges instead of their true intersection. The layer now sets the depth mode from
+D3DRS_ZENABLE on every draw: a z-buffer (0x00100001, the hardware default) normally, a w-buffer
+only for D3DZB_USEW. Found with the crossing-planes test and the w = 1 diagnostic.
+---
+ xbox/d3d8/xbox_d3d8.cpp | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/Code/xbox/d3d8/xbox_d3d8.cpp b/Code/xbox/d3d8/xbox_d3d8.cpp
+index aa248e0..d14e397 100644
+--- a/Code/xbox/d3d8/xbox_d3d8.cpp
++++ b/Code/xbox/d3d8/xbox_d3d8.cpp
+@@ -1428,6 +1428,13 @@ bool Device::Prepare_Draw(UINT base_vertex)
+ 	DWORD color_mask = RenderStates[D3DRS_COLORWRITEENABLE];
+ 	DWORD cull = RenderStates[D3DRS_CULLMODE];
+ 	p = pb_begin();
++	/* Depth buffering: pbkit's pb_target_back_buffer (called every frame) turns on the NV2A's
++	** w-buffer (Z_PERSPECTIVE_ENABLE, "We use W"), which stores each pixel's w as depth and
++	** interpolates it linearly on screen, which is wrong per triangle. Direct3D's normal depth
++	** mode is a z-buffer; a w-buffer only with D3DZB_USEW. The other two bits are pbkit's. */
++	p = pb_push1(p, NV097_SET_CONTROL0,
++	             NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE | NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE |
++	             (RenderStates[D3DRS_ZENABLE] == D3DZB_USEW ? NV097_SET_CONTROL0_Z_PERSPECTIVE_ENABLE : 0));
+ 	p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, cull == D3DCULL_NONE ? 0 : 1);
+ 	if (cull != D3DCULL_NONE) {
+ 		p = pb_push1(p, NV097_SET_FRONT_FACE, cull == D3DCULL_CW ? NV097_SET_FRONT_FACE_V_CW : NV097_SET_FRONT_FACE_V_CCW);
+-- 
+2.43.0
+

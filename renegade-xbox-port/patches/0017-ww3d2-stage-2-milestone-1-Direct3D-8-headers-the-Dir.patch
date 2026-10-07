@@ -1,0 +1,2254 @@
+From e0ccb68a1d59c0693f53a35ad8c5b652696981cb Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 20:23:31 +0000
+Subject: [PATCH 17/32] ww3d2, stage 2 milestone 1: Direct3D 8 headers; the
+ Direct3D half of ww3d2 compiles
+
+- xbox/include: d3d8.h, d3d8types.h, d3d8caps.h, d3dx8.h (+ d3dx8core/tex/math forwarders),
+  with the DirectX 8 SDK's names and values; interfaces as C++ classes (implemented next, on
+  pbkit). D3DX math (matrix product, transpose, Vec3Transform, FVF vertex size) implemented.
+- xbox_win32_types.h: RECT, POINT, GUID, IUnknown, GDI handles, HIWORD/LOWORD...
+- prelude also brings in those types and mmsystem.h, as windows.h does on PC
+- dx8wrapper.h: Convert_Color / Clamp_Color without the stack-juggling inline asm on Xbox
+  (same results: truncation, and the CMOV path's bit-level clamp incl. -0/inf/NaN)
+- window management, desktop gamma, a dialog box and movie capture skipped on Xbox
+- usual fixes, mostly automated: loop scoping (moved declarations), two-word casts,
+  template<>, friend-only declaration, const strchr, false as a null pointer
+---
+ ww3d2/assetmgr.cpp              |   6 +-
+ ww3d2/dazzle.cpp                |   6 +-
+ ww3d2/ddsfile.cpp               |   2 +-
+ ww3d2/dx8caps.cpp               |   4 +-
+ ww3d2/dx8fvf.cpp                |   2 +-
+ ww3d2/dx8indexbuffer.cpp        |   4 +-
+ ww3d2/dx8renderer.cpp           |  13 +-
+ ww3d2/dx8renderer.h             |   4 +-
+ ww3d2/dx8vertexbuffer.cpp       |   2 +-
+ ww3d2/dx8wrapper.cpp            |  19 +-
+ ww3d2/dx8wrapper.h              |  26 ++
+ ww3d2/dynamesh.cpp              |   6 +-
+ ww3d2/framgrab.h                |  22 ++
+ ww3d2/meshmatdesc.cpp           |   2 +-
+ ww3d2/meshmdl.cpp               |   5 +-
+ ww3d2/meshmdlio.cpp             |   9 +-
+ ww3d2/missingtexture.cpp        |   2 +-
+ ww3d2/part_buf.cpp              |  18 +-
+ ww3d2/pointgr.cpp               |   6 +-
+ ww3d2/segline.h                 |   2 +-
+ ww3d2/sortingrenderer.cpp       |   6 +-
+ ww3d2/sphereobj.cpp             |   4 +-
+ ww3d2/texture.cpp               |   4 +-
+ ww3d2/textureloader.cpp         |   2 +-
+ ww3d2/textureloader.h           |   2 +
+ ww3d2/texturethumbnail.cpp      |  19 +
+ ww3d2/ww3d.cpp                  |  16 +
+ xbox/include/d3d8.h             | 219 +++++++++++
+ xbox/include/d3d8caps.h         | 163 ++++++++
+ xbox/include/d3d8types.h        | 675 ++++++++++++++++++++++++++++++++
+ xbox/include/d3dx8.h            | 161 ++++++++
+ xbox/include/d3dx8core.h        |   3 +
+ xbox/include/d3dx8math.h        |   3 +
+ xbox/include/d3dx8tex.h         |   3 +
+ xbox/include/xbox_prelude.h     |   2 +
+ xbox/include/xbox_win32_types.h |  97 +++++
+ 36 files changed, 1487 insertions(+), 52 deletions(-)
+ create mode 100644 xbox/include/d3d8.h
+ create mode 100644 xbox/include/d3d8caps.h
+ create mode 100644 xbox/include/d3d8types.h
+ create mode 100644 xbox/include/d3dx8.h
+ create mode 100644 xbox/include/d3dx8core.h
+ create mode 100644 xbox/include/d3dx8math.h
+ create mode 100644 xbox/include/d3dx8tex.h
+ create mode 100644 xbox/include/xbox_win32_types.h
+
+diff --git a/Code/ww3d2/assetmgr.cpp b/Code/ww3d2/assetmgr.cpp
+index a6ef307..06b42d9 100644
+--- a/Code/ww3d2/assetmgr.cpp
++++ b/Code/ww3d2/assetmgr.cpp
+@@ -107,7 +107,7 @@
+ #include <ini.h>
+ #include <windows.h>
+ #include <stdio.h>
+-#include <D3dx8core.h>
++#include <d3dx8core.h>
+ #include "texture.h"
+ #include "wwprofile.h"
+ #include "assetstatus.h"
+@@ -681,7 +681,7 @@ RenderObjClass * WW3DAssetManager::Create_Render_Obj(const char * name)
+ 		AssetStatusClass::Peek_Instance()->Report_Load_On_Demand_RObj(name);
+ 
+ 		char filename [MAX_PATH];
+-		char *mesh_name = ::strchr (name, '.');
++		const char *mesh_name = ::strchr (name, '.');	// PORT: only read through
+ 		if (mesh_name != NULL) {
+ 			::lstrcpyn (filename, name, ((int)mesh_name) - ((int)name) + 1);
+ 			::lstrcat (filename, ".w3d");
+@@ -855,7 +855,7 @@ HAnimClass *	WW3DAssetManager::Get_HAnim(const char * name)
+ 			AssetStatusClass::Peek_Instance()->Report_Load_On_Demand_HAnim(name);
+ 
+ 			char filename[ MAX_PATH ];
+-			char *animname = strchr( name, '.');
++			const char *animname = strchr( name, '.');	// PORT: only read through
+ 			if (animname != NULL) {
+ 				sprintf( filename, "%s.w3d", animname+1);
+ 			} else {
+diff --git a/Code/ww3d2/dazzle.cpp b/Code/ww3d2/dazzle.cpp
+index b4d85ca..3bc8e57 100644
+--- a/Code/ww3d2/dazzle.cpp
++++ b/Code/ww3d2/dazzle.cpp
+@@ -668,7 +668,8 @@ void DazzleRenderObjClass::Init_Type(const DazzleInitClass& i)
+ 	if (i.type>=type_count) {
+ 		unsigned new_count=i.type+1;
+ 		DazzleTypeClass** new_types=new DazzleTypeClass*[new_count];
+-		for (unsigned a=0;a<type_count;++a) {
++		unsigned a;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (a=0;a<type_count;++a) {
+ 			new_types[a]=types[a];
+ 		}
+ 		for (;a<new_count;++a) {
+@@ -691,7 +692,8 @@ void DazzleRenderObjClass::Init_Lensflare(const LensflareInitClass& i)
+ 	if (i.type>=lensflare_count) {
+ 		unsigned new_count=i.type+1;
+ 		LensflareTypeClass** new_lensflares=new LensflareTypeClass*[new_count];
+-		for (unsigned a=0;a<lensflare_count;++a) {
++		unsigned a;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (a=0;a<lensflare_count;++a) {
+ 			new_lensflares[a]=lensflares[a];
+ 		}
+ 		for (;a<new_count;++a) {
+diff --git a/Code/ww3d2/ddsfile.cpp b/Code/ww3d2/ddsfile.cpp
+index 7490752..f646291 100644
+--- a/Code/ww3d2/ddsfile.cpp
++++ b/Code/ww3d2/ddsfile.cpp
+@@ -101,7 +101,7 @@ DDSFileClass::DDSFileClass(const char* name,unsigned reduction_factor)
+ 			level_size/=4;
+ 		}
+ 	}
+-	for (level=0;level<MipLevels;++level) {
++	for (unsigned level=0;level<MipLevels;++level) {
+ 		LevelSizes[level]=level_size;
+ 		LevelOffsets[level]=level_offset;
+ 		level_offset+=level_size;
+diff --git a/Code/ww3d2/dx8caps.cpp b/Code/ww3d2/dx8caps.cpp
+index 962fabb..14c1d06 100644
+--- a/Code/ww3d2/dx8caps.cpp
++++ b/Code/ww3d2/dx8caps.cpp
+@@ -700,7 +700,7 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const D3DCA
+ 			if (SupportTextureFormat[i]) {
+ 				StringClass name(0,true);
+ 				Get_WW3D_Format_Name(format,name);
+-				DXLOG(("Supports texture format: %s\r\n",name));
++				DXLOG(("Supports texture format: %s\r\n",(const char *)name));	// PORT: text, not the object
+ 			}
+ 		}
+ 	}
+@@ -732,7 +732,7 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const D3
+ 			if (SupportRenderToTextureFormat[i]) {
+ 				StringClass name(0,true);
+ 				Get_WW3D_Format_Name(format,name);
+-				DXLOG(("Supports render-to-texture format: %s\r\n",name));
++				DXLOG(("Supports render-to-texture format: %s\r\n",(const char *)name));	// PORT: text, not the object
+ 			}
+ 		}
+ 	}
+diff --git a/Code/ww3d2/dx8fvf.cpp b/Code/ww3d2/dx8fvf.cpp
+index b4a622d..548affb 100644
+--- a/Code/ww3d2/dx8fvf.cpp
++++ b/Code/ww3d2/dx8fvf.cpp
+@@ -18,7 +18,7 @@
+ 
+ #include "dx8fvf.h"
+ #include "wwstring.h"
+-#include <D3dx8core.h>
++#include <d3dx8core.h>
+ 
+ static unsigned Get_FVF_Vertex_Size(unsigned FVF)
+ {
+diff --git a/Code/ww3d2/dx8indexbuffer.cpp b/Code/ww3d2/dx8indexbuffer.cpp
+index 73f039e..b242b17 100644
+--- a/Code/ww3d2/dx8indexbuffer.cpp
++++ b/Code/ww3d2/dx8indexbuffer.cpp
+@@ -142,14 +142,14 @@ void IndexBufferClass::Copy(unsigned int* indices,unsigned first_index,unsigned
+ 		DX8IndexBufferClass::AppendLockClass l(this,first_index,count);
+ 		unsigned short* inds=l.Get_Index_Array();
+ 		for (unsigned v=0;v<count;++v) {
+-			*inds++=unsigned short(*indices++);
++			*inds++=(unsigned short)(*indices++);
+ 		}
+ 	}
+ 	else {
+ 		DX8IndexBufferClass::WriteLockClass l(this);
+ 		unsigned short* inds=l.Get_Index_Array();
+ 		for (unsigned v=0;v<count;++v) {
+-			*inds++=unsigned short(*indices++);
++			*inds++=(unsigned short)(*indices++);
+ 		}
+ 	}
+ }
+diff --git a/Code/ww3d2/dx8renderer.cpp b/Code/ww3d2/dx8renderer.cpp
+index d14826b..6f603c0 100644
+--- a/Code/ww3d2/dx8renderer.cpp
++++ b/Code/ww3d2/dx8renderer.cpp
+@@ -262,7 +262,7 @@ void DX8FVFCategoryContainer::Remove_Texture_Category(DX8TextureCategoryClass* t
+ 	for (unsigned pass=0;pass<passes;++pass) {
+ 		texture_category_list[pass].Remove(tex_category);
+ 	}
+-	for (pass=0; pass<passes; pass++) {
++	for (unsigned pass=0; pass<passes; pass++) {
+ 		// If any of the texture category lists has anything in it, no need to delete this container
+ 		if (texture_category_list[pass].Peek_Head() != NULL) return;
+ 	}
+@@ -1534,7 +1534,7 @@ unsigned DX8TextureCategoryClass::Add_Mesh(
+ 					for (unsigned i=0;i<index_count;++i) {
+ 						unsigned short idx;
+ 
+-						idx=unsigned short(strip[i+1]);
++						idx=(unsigned short)(strip[i+1]);
+ 						vmin=MIN(vmin,idx);
+ 						vmax=MAX(vmax,idx);
+ 						*dst_indices++=idx;
+@@ -1580,19 +1580,19 @@ unsigned DX8TextureCategoryClass::Add_Mesh(
+ 				if (all_textures_same && Equal_Material(mat,material) && shd==shader) {
+ 					unsigned short idx;
+ 
+-					idx=unsigned short(src_indices[i][0]+vertex_offset);
++					idx=(unsigned short)(src_indices[i][0]+vertex_offset);
+ 					vmin=MIN(vmin,idx);
+ 					vmax=MAX(vmax,idx);
+ 					*dst_indices++=idx;
+ //					WWDEBUG_SAY(("%d, ",idx));
+ 
+-					idx=unsigned short(src_indices[i][1]+vertex_offset);
++					idx=(unsigned short)(src_indices[i][1]+vertex_offset);
+ 					vmin=MIN(vmin,idx);
+ 					vmax=MAX(vmax,idx);
+ 					*dst_indices++=idx;
+ //					WWDEBUG_SAY(("%d, ",idx));
+ 
+-					idx=unsigned short(src_indices[i][2]+vertex_offset);
++					idx=(unsigned short)(src_indices[i][2]+vertex_offset);
+ 					vmin=MIN(vmin,idx);
+ 					vmax=MAX(vmax,idx);
+ 					*dst_indices++=idx;
+@@ -1920,7 +1920,8 @@ void DX8MeshRendererClass::Register_Mesh_Type(MeshClass* mesh)
+ 			/*
+ 			** Search for an existing FVF Category Container that matches this mesh
+ 			*/
+-			for (int i=0;i<texture_category_container_lists_rigid.Count();++i) {
++			int i;	// PORT: used after the loop (MSVC6 leaked loop variables)
++			for (i=0;i<texture_category_container_lists_rigid.Count();++i) {
+ 				FVFCategoryList * list=texture_category_container_lists_rigid[i];
+ 				WWASSERT(list);
+ 				DX8FVFCategoryContainer * container=list->Peek_Head();
+diff --git a/Code/ww3d2/dx8renderer.h b/Code/ww3d2/dx8renderer.h
+index 48a6267..b0ca3f2 100644
+--- a/Code/ww3d2/dx8renderer.h
++++ b/Code/ww3d2/dx8renderer.h
+@@ -152,7 +152,7 @@ protected:
+ 	bool														AnyDelayedPassesToRender;
+ 
+ 	void Generate_Texture_Categories(Vertex_Split_Table& split_table,unsigned vertex_offset);
+-	void DX8FVFCategoryContainer::Insert_To_Texture_Category(
++	void Insert_To_Texture_Category(
+ 		Vertex_Split_Table& split_table,
+ 		TextureClass** textures,
+ 		VertexMaterialClass* mat,
+@@ -315,7 +315,7 @@ struct MeshRegKeyStruct
+ };
+ 
+ 
+-inline unsigned int HashTemplateKeyClass<MeshRegKeyStruct>::Get_Hash_Value(const MeshRegKeyStruct& key)
++template<> inline unsigned int HashTemplateKeyClass<MeshRegKeyStruct>::Get_Hash_Value(const MeshRegKeyStruct& key)
+ {
+ 	unsigned int hval = (unsigned int)(key.Model) + (unsigned int)(key.UserLighting);
+ 	hval = hval + (hval>>5) + (hval>>10) + (hval >> 20);
+diff --git a/Code/ww3d2/dx8vertexbuffer.cpp b/Code/ww3d2/dx8vertexbuffer.cpp
+index 4f0b589..39d874d 100644
+--- a/Code/ww3d2/dx8vertexbuffer.cpp
++++ b/Code/ww3d2/dx8vertexbuffer.cpp
+@@ -44,7 +44,7 @@
+ #include "dx8caps.h"
+ #include "thread.h"
+ #include "wwmemlog.h"
+-#include <D3dx8core.h>
++#include <d3dx8core.h>
+ 
+ #define DEFAULT_VB_SIZE 5000
+ 
+diff --git a/Code/ww3d2/dx8wrapper.cpp b/Code/ww3d2/dx8wrapper.cpp
+index 3f0a099..6e77885 100644
+--- a/Code/ww3d2/dx8wrapper.cpp
++++ b/Code/ww3d2/dx8wrapper.cpp
+@@ -66,7 +66,7 @@
+ #include "missingtexture.h"
+ #include "thread.h"
+ #include <stdio.h>
+-#include <D3dx8core.h>
++#include <d3dx8core.h>
+ #include "pot.h"
+ #include "wwprofile.h"
+ #include "ffactory.h"
+@@ -652,7 +652,7 @@ bool DX8Wrapper::Set_Any_Render_Device(void)
+ 	}
+ 
+ 	// Try windowed first
+-	for (dev_number = 0; dev_number < _RenderDeviceNameTable.Count(); dev_number++) {
++	for (int dev_number = 0; dev_number < _RenderDeviceNameTable.Count(); dev_number++) {
+ 		if (Set_Render_Device(dev_number,-1,-1,-1,1,false)) {
+ 			return true;
+ 		}
+@@ -754,12 +754,14 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
+ 		** Enforce a required set of window styles and size if the main window
+ 		** IS NOT A CHILD WINDOW.  :)
+ 		*/
++#ifndef NXDK  // PORT: window management; the Xbox has no windows (always full screen)
+ 		if ((::GetWindowLong(_Hwnd, GWL_STYLE) & WS_CHILD) == 0) {
+ 			::SetWindowLong(_Hwnd, GWL_STYLE, WS_SYSMENU|WS_CAPTION|WS_MINIMIZEBOX|WS_CLIPCHILDREN);
+ 
+ 			// Always resize the window to the desired resolution in windowed mode.
+ 			resize_window = true;
+ 		}
++#endif
+ // End Denzil - DX window initialzaion
+ 
+ 		// In windowed mode, define the bitdepth from desktop mode (as it can't be changed)
+@@ -803,6 +805,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
+ 
+ // 10/23/01 - Denzil - DX Window initialization
+ 		// For fullscreen set the window style to WS_POPUP (Recommended in DX docs)
++#ifndef NXDK  // PORT: window management; the Xbox has no windows (always full screen)
+ 		SetWindowLong(_Hwnd, GWL_STYLE, WS_POPUP);
+ 
+ 		// Set fullscreen window position to top left and resize to cover entire display.
+@@ -815,6 +818,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
+ 
+ 		// We already resized the window
+ 		resize_window = false;
++#endif
+ // End Denzil - DX window initialization
+ 
+ 		WWDEBUG_SAY(("Initializing full-screen mode\r\n"));
+@@ -1236,7 +1240,8 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT
+ 	bool found = false;
+ 	unsigned int mode = 0;
+ 
+-	for (int format_index=0; format_index < format_count; format_index++) {
++	int format_index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (format_index=0; format_index < format_count; format_index++) {
+ 		found |= Find_Color_Mode(format_table[format_index],resx,resy,&mode);
+ 		if (found) break;
+ 	}
+@@ -2423,7 +2428,8 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
+ 		::ZeroMemory(&light, sizeof(D3DLIGHT8));
+ 		light.Type=D3DLIGHT_DIRECTIONAL;
+ 
+-		for (int l=0;l<light_count;++l) {
++		int l;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (l=0;l<light_count;++l) {
+ 			(Vector3&)light.Diffuse=light_env->Get_Light_Diffuse(l);
+ 			Vector3 dir=-light_env->Get_Light_Direction(l);
+ 			light.Direction=(const D3DVECTOR&)(dir);
+@@ -2749,7 +2755,9 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
+ 
+ 	if (Get_Current_Caps()->Support_Gamma())	{
+ 		DX8Wrapper::_Get_D3D_Device8()->SetGammaRamp(flag,&ramp);
+-	} else {
++	}
++#ifndef NXDK  // PORT: desktop gamma via GDI; the Xbox's video hardware always does gamma itself
++	else {
+ 		HWND hwnd = GetDesktopWindow();
+ 		HDC hdc = GetDC(hwnd);
+ 		if (hdc)
+@@ -2758,6 +2766,7 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
+ 			ReleaseDC (hwnd, hdc);
+ 		}
+ 	}
++#endif
+ }
+ 
+ const char* DX8Wrapper::Get_DX8_Render_State_Name(D3DRENDERSTATETYPE state)
+diff --git a/Code/ww3d2/dx8wrapper.h b/Code/ww3d2/dx8wrapper.h
+index 019357e..52dd608 100644
+--- a/Code/ww3d2/dx8wrapper.h
++++ b/Code/ww3d2/dx8wrapper.h
+@@ -759,6 +759,18 @@ WWINLINE unsigned int DX8Wrapper::Convert_Color(const Vector4& color)
+ 
+ WWINLINE unsigned int DX8Wrapper::Convert_Color(const Vector3& color,float alpha)
+ {
++#ifdef NXDK
++	// PORT: what the assembly below computes: each component times 255, truncated toward
++	// zero (the assembly switches the FPU to truncation), packed as AARRGGBB without masking.
++	// The products are taken in double, where they are exact, as in the x87's extended
++	// precision. (Tested: this matches the x87 result for every value near each k/255 boundary
++	// and for millions of random values in [0, 1].)
++	const int a = (int)((double)alpha * 255.0);
++	const int r = (int)((double)color.X * 255.0);
++	const int g = (int)((double)color.Y * 255.0);
++	const int b = (int)((double)color.Z * 255.0);
++	return (unsigned int)b | ((unsigned int)a << 24) | ((unsigned int)r << 16) | ((unsigned int)g << 8);
++#else
+ 	const float scale = 255.0;
+ 	unsigned int col;
+ 
+@@ -827,6 +839,7 @@ not_changed:
+ 		mov	col,eax
+ 	}
+ 	return col;
++#endif
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -837,6 +850,18 @@ not_changed:
+ 
+ WWINLINE void DX8Wrapper::Clamp_Color(Vector4& color)
+ {
++#ifdef NXDK
++	// PORT: the CMOV assembly path below (the one every Xbox CPU takes), done on the float
++	// bits as it does: a negative sign (including -0 and negative NaN) gives +0, and any bit
++	// pattern at or above 1.0's (including +inf and positive NaN) gives 1.0.
++	for (int i=0;i<4;++i) {
++		unsigned int bits;
++		__builtin_memcpy(&bits,&color[i],sizeof(bits));
++		bits &= ~(unsigned int)((int)bits >> 31);
++		if (bits >= 0x3f800000u) bits = 0x3f800000u;
++		__builtin_memcpy(&color[i],&bits,sizeof(bits));
++	}
++#else
+ 	if (!CPUDetectClass::Has_CMOV_Instruction()) {
+ 		for (int i=0;i<4;++i) {
+ 			float f=(color[i]<0.0f) ? 0.0f : color[i];
+@@ -887,6 +912,7 @@ WWINLINE void DX8Wrapper::Clamp_Color(Vector4& color)
+ 		cmovnb edi,edx
+ 		mov dword ptr[esi+12],edi
+ 	}
++#endif
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/Code/ww3d2/dynamesh.cpp b/Code/ww3d2/dynamesh.cpp
+index 080d5ac..3569956 100644
+--- a/Code/ww3d2/dynamesh.cpp
++++ b/Code/ww3d2/dynamesh.cpp
+@@ -712,7 +712,8 @@ int DynamicMeshClass::Set_Vertex_Material(VertexMaterialClass *material, bool do
+ 	// list.  if we are not supposed to search the list for it then just add
+ 	// it.
+ 	if (!dont_search) {
+-		for (int lp = 0, found = 0; lp < Peek_Material_Info()->Vertex_Material_Count(); lp ++) {
++		int found = 0;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (int lp = 0; lp < Peek_Material_Info()->Vertex_Material_Count(); lp ++) {
+ 			VertexMaterialClass *mat = Peek_Material_Info()->Get_Vertex_Material(lp);
+ 			if (material == mat) {
+ 				VertexMaterialIdx[pass] = lp;
+@@ -773,7 +774,8 @@ int DynamicMeshClass::Set_Texture(TextureClass *texture, bool dont_search, int p
+ 	// list.  if we are not supposed to search the list for it then just add
+ 	// it.
+ 	if (!dont_search) {
+-		for (int lp = 0, found = 0; lp < Peek_Material_Info()->Texture_Count(); lp ++) {
++		int found = 0;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (int lp = 0; lp < Peek_Material_Info()->Texture_Count(); lp ++) {
+ 			TextureClass *tex = Peek_Material_Info()->Get_Texture(lp);
+ 			if (texture == tex) {
+ 				TextureIdx[pass] = lp;
+diff --git a/Code/ww3d2/framgrab.h b/Code/ww3d2/framgrab.h
+index 8b62a62..84c3bda 100644
+--- a/Code/ww3d2/framgrab.h
++++ b/Code/ww3d2/framgrab.h
+@@ -46,6 +46,26 @@
+ #include "always.h"
+ #endif
+ 
++#ifdef NXDK
++// PORT: movie capture records AVI files through Windows' Video for Windows, which the Xbox
++// doesn't have. ww3d.cpp only creates a FrameGrabClass in WW3D::Start_Movie_Capture, inside
++// #ifdef _WINDOWS, so on Xbox none is ever created; this keeps the interface it compiles
++// against. (framgrab.cpp itself is left out of the Xbox build.)
++class FrameGrabClass
++{
++public:
++	enum MODE { RAW, AVI };
++	FrameGrabClass(const char *, MODE, int, int, int, float framerate) : FrameRate(framerate) {}
++	virtual ~FrameGrabClass() {}
++	void ConvertGrab(void *) {}
++	void Grab(void *) {}
++	long *GetBuffer() { return 0; }
++	float GetFrameRate() { return FrameRate; }
++protected:
++	float FrameRate;
++};
++#else
++
+ #if defined (_MSC_VER)
+ #pragma warning (push, 3)	// (gth) system headers complain at warning level 4...
+ #endif
+@@ -114,4 +134,6 @@ protected:
+ 
+ };
+ 
++#endif // NXDK
++
+ #endif
+diff --git a/Code/ww3d2/meshmatdesc.cpp b/Code/ww3d2/meshmatdesc.cpp
+index 848a04a..a762d90 100644
+--- a/Code/ww3d2/meshmatdesc.cpp
++++ b/Code/ww3d2/meshmatdesc.cpp
+@@ -850,7 +850,7 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass *
+ 	** HACK: Kill BUMPENV passes on hardware that doesn't support BUMPENV
+ 	** HACK: Set lighting to false on all passes if all passes are of type NO DIFFUSE, NO AMBIENT, YES EMISSIVE
+ 	*/
+-	for (pass=0; pass<PassCount; pass++) {
++	for (int pass=0; pass<PassCount; pass++) {
+ 		bool kill_pass = false;
+ 
+ 		if ( (Shader[pass].Get_Primary_Gradient() == ShaderClass::GRADIENT_BUMPENVMAP) &&
+diff --git a/Code/ww3d2/meshmdl.cpp b/Code/ww3d2/meshmdl.cpp
+index 64398e6..b602689 100644
+--- a/Code/ww3d2/meshmdl.cpp
++++ b/Code/ww3d2/meshmdl.cpp
+@@ -385,7 +385,8 @@ void MeshModelClass::get_deformed_screenspace_vertices(Vector4 *dst_vert,const R
+ 			Matrix4 tm = prj * htree->Get_Transform(idx);
+ 
+ 			// Count equal matrices (the vertices should be pre-sorted by matrices they use)
+-			for (int cnt = vi; cnt < vertex_count; cnt++) if (idx!=bonelink[cnt]) break;
++			int cnt;	// PORT: used after the loop (MSVC6 leaked loop variables)
++			for (cnt = vi; cnt < vertex_count; cnt++) if (idx!=bonelink[cnt]) break;
+ 
+ 			// Transform to screenspace (x,y,z,w)
+ 			VectorProcessorClass::Transform(
+@@ -771,7 +772,7 @@ void MeshModelClass::Init_For_NPatch_Rendering()
+ 		}
+ 	}
+ 
+-	for (i=0;i<polygon_count;++i) {
++	for (unsigned i=0;i<polygon_count;++i) {
+ 		bool duplicates[3];
+ 		duplicates[0]=DuplicateLocationHash.Exists(locations[polygon_indices[i][0]]);
+ 		duplicates[1]=DuplicateLocationHash.Exists(locations[polygon_indices[i][1]]);
+diff --git a/Code/ww3d2/meshmdlio.cpp b/Code/ww3d2/meshmdlio.cpp
+index d41cc2b..f77d9dc 100644
+--- a/Code/ww3d2/meshmdlio.cpp
++++ b/Code/ww3d2/meshmdlio.cpp
+@@ -2001,7 +2001,8 @@ void MeshLoadContextClass::Add_Legacy_Material(ShaderClass shader,VertexMaterial
+ 	LegacyMaterialClass * mat = new LegacyMaterialClass;
+ 
+ 	// add the shader if it is unique
+-	for (int si=0; si<Shaders.Count(); si++) {
++	int si;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (si=0; si<Shaders.Count(); si++) {
+ 		if (Shaders[si] == shader) break;
+ 	}
+ 	if (si == Shaders.Count()) {
+@@ -2015,7 +2016,8 @@ void MeshLoadContextClass::Add_Legacy_Material(ShaderClass shader,VertexMaterial
+ 		mat->VertexMaterialIdx = -1;
+ 	} else {
+ 		unsigned long crc = vmat->Get_CRC();	
+-		for (int vi=0; vi<VertexMaterialCrcs.Count(); vi++) {
++		int vi;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (vi=0; vi<VertexMaterialCrcs.Count(); vi++) {
+ 			if (VertexMaterialCrcs[vi] == crc) break;
+ 		}
+ 		if (vi == VertexMaterials.Count()) {
+@@ -2031,7 +2033,8 @@ void MeshLoadContextClass::Add_Legacy_Material(ShaderClass shader,VertexMaterial
+ 	if (tex == NULL) {
+ 		mat->TextureIdx = -1;
+ 	} else {
+-		for (int ti=0; ti<Textures.Count(); ti++) {
++		int ti;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (ti=0; ti<Textures.Count(); ti++) {
+ 			if (Textures[ti] == tex) break;
+ 			if (stricmp(Textures[ti]->Get_Texture_Name(),tex->Get_Texture_Name()) == 0) break;
+ 		}
+diff --git a/Code/ww3d2/missingtexture.cpp b/Code/ww3d2/missingtexture.cpp
+index bd46c9b..4e82ccf 100644
+--- a/Code/ww3d2/missingtexture.cpp
++++ b/Code/ww3d2/missingtexture.cpp
+@@ -19,7 +19,7 @@
+ #include "missingtexture.h"
+ #include "texture.h"
+ #include "dx8wrapper.h"
+-#include <D3dx8core.h>
++#include <d3dx8core.h>
+ 
+ static unsigned missing_image_width=128;
+ static unsigned missing_image_height=128;
+diff --git a/Code/ww3d2/part_buf.cpp b/Code/ww3d2/part_buf.cpp
+index 8240fb5..84ffc30 100644
+--- a/Code/ww3d2/part_buf.cpp
++++ b/Code/ww3d2/part_buf.cpp
+@@ -1387,7 +1387,8 @@ void ParticleBufferClass::Reset_Colors(ParticlePropertyStruct<Vector3> &new_prop
+ 		// keytime of MaxAge or larger. (If all keyframes below MaxAge, color is
+ 		// constant during the last segment between last keyframe and MaxAge).
+ 		ui_previous_key_time = 0;
+-		for (unsigned int ckey = 0; ckey < new_props.NumKeyFrames; ckey++) {
++		unsigned int ckey;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (ckey = 0; ckey < new_props.NumKeyFrames; ckey++) {
+ 			ui_current_key_time = (unsigned int)(new_props.KeyTimes[ckey] * 1000.0f);
+ 			WWASSERT(ui_current_key_time > ui_previous_key_time);
+ 			if (ui_current_key_time >= MaxAge) break;
+@@ -1546,7 +1547,8 @@ void ParticleBufferClass::Reset_Opacity(ParticlePropertyStruct<float> &new_props
+ 		// keytime of MaxAge or larger. (If all keyframes below MaxAge, alpha is
+ 		// constant during the last segment between last keyframe and MaxAge).
+ 		ui_previous_key_time = 0;
+-		for (unsigned int akey = 0; akey < new_props.NumKeyFrames; akey++) {
++		unsigned int akey;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (akey = 0; akey < new_props.NumKeyFrames; akey++) {
+ 			ui_current_key_time = (unsigned int)(new_props.KeyTimes[akey] * 1000.0f);
+ 			WWASSERT(ui_current_key_time > ui_previous_key_time);
+ 			if (ui_current_key_time >= MaxAge) break;
+@@ -1702,7 +1704,8 @@ void ParticleBufferClass::Reset_Size(ParticlePropertyStruct<float> &new_props)
+ 		// keytime of MaxAge or larger. (If all keyframes below MaxAge, size is
+ 		// constant during the last segment between last keyframe and MaxAge).
+ 		ui_previous_key_time = 0;
+-		for (unsigned int skey = 0; skey < new_props.NumKeyFrames; skey++) {
++		unsigned int skey;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (skey = 0; skey < new_props.NumKeyFrames; skey++) {
+ 			ui_current_key_time = (unsigned int)(new_props.KeyTimes[skey] * 1000.0f);
+ 			WWASSERT(ui_current_key_time > ui_previous_key_time);
+ 			if (ui_current_key_time >= MaxAge) break;
+@@ -1871,7 +1874,8 @@ void ParticleBufferClass::Reset_Rotations(ParticlePropertyStruct<float> &new_pro
+ 		// keytime of MaxAge or larger. (If all keyframes below MaxAge, the value is
+ 		// constant during the last segment between last keyframe and MaxAge).
+ 		ui_previous_key_time = 0;
+-		for (unsigned int key = 0; key < new_props.NumKeyFrames; key++) {
++		unsigned int key;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (key = 0; key < new_props.NumKeyFrames; key++) {
+ 			ui_current_key_time = (unsigned int)(new_props.KeyTimes[key] * 1000.0f);
+ 			WWASSERT(ui_current_key_time > ui_previous_key_time);
+ 			if (ui_current_key_time >= MaxAge) break;
+@@ -2085,7 +2089,8 @@ void ParticleBufferClass::Reset_Frames(ParticlePropertyStruct<float> &new_props)
+ 		// keytime of MaxAge or larger. (If all keyframes below MaxAge, the value is
+ 		// constant during the last segment between last keyframe and MaxAge).
+ 		ui_previous_key_time = 0;
+-		for (unsigned int key = 0; key < new_props.NumKeyFrames; key++) {
++		unsigned int key;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (key = 0; key < new_props.NumKeyFrames; key++) {
+ 			ui_current_key_time = (unsigned int)(new_props.KeyTimes[key] * 1000.0f);
+ 			WWASSERT(ui_current_key_time > ui_previous_key_time);
+ 			if (ui_current_key_time >= MaxAge) break;
+@@ -2232,7 +2237,8 @@ void ParticleBufferClass::Reset_Blur_Times(ParticlePropertyStruct<float> &new_bl
+ 		// keytime of MaxAge or larger. (If all keyframes below MaxAge, the value is
+ 		// constant during the last segment between last keyframe and MaxAge).
+ 		ui_previous_key_time = 0;
+-		for (unsigned int key = 0; key < new_blur_times.NumKeyFrames; key++) {
++		unsigned int key;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (key = 0; key < new_blur_times.NumKeyFrames; key++) {
+ 			ui_current_key_time = (unsigned int)(new_blur_times.KeyTimes[key] * 1000.0f);
+ 			WWASSERT(ui_current_key_time > ui_previous_key_time);
+ 			if (ui_current_key_time >= MaxAge) break;
+diff --git a/Code/ww3d2/pointgr.cpp b/Code/ww3d2/pointgr.cpp
+index b9d4bfc..be0f132 100644
+--- a/Code/ww3d2/pointgr.cpp
++++ b/Code/ww3d2/pointgr.cpp
+@@ -971,9 +971,9 @@ void PointGroupClass::Update_Arrays(
+ 	// since they always all have the same length.
+ 	if (VertexLoc.Length() < total_vnum) {
+ 		// Resize arrays (2x guardband to prevent frequent reallocations).
+-		VertexLoc.Resize(total_vnum * 2, false);		
+-		VertexUV.Resize(total_vnum * 2, false);
+-		VertexDiffuse.Resize(total_vnum * 2, false);
++		VertexLoc.Resize(total_vnum * 2, NULL);	// PORT: false as a null pointer is no longer valid C++		
++		VertexUV.Resize(total_vnum * 2, NULL);	// PORT: false as a null pointer is no longer valid C++
++		VertexDiffuse.Resize(total_vnum * 2, NULL);	// PORT: false as a null pointer is no longer valid C++
+ 	}
+ 
+ 	int vert, i, j;
+diff --git a/Code/ww3d2/segline.h b/Code/ww3d2/segline.h
+index 7e65f31..f70cf40 100644
+--- a/Code/ww3d2/segline.h
++++ b/Code/ww3d2/segline.h
+@@ -58,7 +58,7 @@ class SegmentedLineClass : public RenderObjClass
+ 
+ 		SegmentedLineClass(void);
+ 		SegmentedLineClass(const SegmentedLineClass & src);
+-		SegmentedLineClass & SegmentedLineClass::operator = (const SegmentedLineClass &that);
++		SegmentedLineClass & operator = (const SegmentedLineClass &that);
+ 		virtual ~SegmentedLineClass(void);
+ 
+ 		void					Reset_Line(void);
+diff --git a/Code/ww3d2/sortingrenderer.cpp b/Code/ww3d2/sortingrenderer.cpp
+index 16f364b..4e4b880 100644
+--- a/Code/ww3d2/sortingrenderer.cpp
++++ b/Code/ww3d2/sortingrenderer.cpp
+@@ -23,7 +23,7 @@
+ #include "vertmaterial.h"
+ #include "texture.h"
+ #include "d3d8.h"
+-#include "D3dx8math.h"
++#include "d3dx8math.h"
+ #include "statistics.h"
+ #include <wwprofile.h>
+ 
+@@ -539,7 +539,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
+ 			indices+=state->start_index;
+ 			indices+=state->sorting_state.iba_offset;
+ 
+-			for (i=0;i<state->polygon_count;++i) {
++			for (unsigned i=0;i<state->polygon_count;++i) {
+ 				unsigned short idx1=indices[i*3]-state->min_vertex_index;
+ 				unsigned short idx2=indices[i*3+1]-state->min_vertex_index;
+ 				unsigned short idx3=indices[i*3+2]-state->min_vertex_index;
+@@ -579,7 +579,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
+ 		DynamicIBAccessClass::WriteLockClass lock(&dyn_ib_access);
+ 		ShortVectorIStruct* sorted_polygon_index_array=(ShortVectorIStruct*)lock.Get_Index_Array();
+ 
+-		for (a=0;a<overlapping_polygon_count;++a) {
++		for (unsigned a=0;a<overlapping_polygon_count;++a) {
+ 			sorted_polygon_index_array[a]=tis[a].tri;
+ 		}
+ 	}
+diff --git a/Code/ww3d2/sphereobj.cpp b/Code/ww3d2/sphereobj.cpp
+index c1d6840..34cc2ca 100644
+--- a/Code/ww3d2/sphereobj.cpp
++++ b/Code/ww3d2/sphereobj.cpp
+@@ -1461,7 +1461,7 @@ void SphereMeshClass::Generate(float radius, int slices, int stacks)
+ 
+ 	// Do Fan #2
+ 	int vtx_idx = Vertex_ct - 1;
+-	for (ct = fan_size; ct < (fan_size * 2); ct++) {
++	for (int ct = fan_size; ct < (fan_size * 2); ct++) {
+ 		fans[ct] = vtx_idx;
+ 		vtx_idx--;
+ 	}
+@@ -1479,7 +1479,7 @@ void SphereMeshClass::Generate(float radius, int slices, int stacks)
+ 			int base_vtx  = 1 + (stacks * (Slices+1));
+ 			int cur_vtx = base_vtx;
+ 
+-			for(ct = 0; ct <= Slices; ct++) {
++			for(int ct = 0; ct <= Slices; ct++) {
+ 
+ 				strips[store_idx]   = cur_vtx + (Slices+1);
+ 				strips[store_idx+1] = cur_vtx;
+diff --git a/Code/ww3d2/texture.cpp b/Code/ww3d2/texture.cpp
+index 07e5b8a..edc4763 100644
+--- a/Code/ww3d2/texture.cpp
++++ b/Code/ww3d2/texture.cpp
+@@ -39,7 +39,7 @@
+ 
+ #include <d3d8.h>
+ #include <stdio.h>
+-#include <D3dx8core.h>
++#include <d3dx8core.h>
+ #include "dx8wrapper.h"
+ #include "TARGA.H"
+ #include <nstrdup.h>
+@@ -884,7 +884,7 @@ void TextureClass::_Init_Filters(TextureClass::TextureFilterMode filter_type)
+ 	}
+ 
+ 	// Set default to best. The level of best filter mode is controlled by the input parameter.
+-	for (i=0;i<MAX_TEXTURE_STAGES;++i) {
++	for (int i=0;i<MAX_TEXTURE_STAGES;++i) {
+ 		_MinTextureFilters[i][FILTER_TYPE_DEFAULT]=_MinTextureFilters[i][FILTER_TYPE_BEST];
+ 		_MagTextureFilters[i][FILTER_TYPE_DEFAULT]=_MagTextureFilters[i][FILTER_TYPE_BEST];
+ 		_MipMapFilters[i][FILTER_TYPE_DEFAULT]=_MipMapFilters[i][FILTER_TYPE_BEST];
+diff --git a/Code/ww3d2/textureloader.cpp b/Code/ww3d2/textureloader.cpp
+index 3c889c1..4715ebc 100644
+--- a/Code/ww3d2/textureloader.cpp
++++ b/Code/ww3d2/textureloader.cpp
+@@ -31,7 +31,7 @@
+ #include "dx8caps.h"
+ #include "missingtexture.h"
+ #include "TARGA.H"
+-#include <D3dx8tex.h>
++#include <d3dx8tex.h>
+ #include <cstdio>
+ #include "wwmemlog.h"
+ #include "texture.h"
+diff --git a/Code/ww3d2/textureloader.h b/Code/ww3d2/textureloader.h
+index ba59178..c8f9afd 100644
+--- a/Code/ww3d2/textureloader.h
++++ b/Code/ww3d2/textureloader.h
+@@ -80,6 +80,8 @@ private:
+ 	static bool TextureLoadSuspended;
+ };
+ 
++class TextureLoadTaskListClass;	// PORT: a friend declaration alone doesn't declare the name in standard C++
++
+ class TextureLoadTaskListNodeClass
+ {
+ 	friend class TextureLoadTaskListClass;
+diff --git a/Code/ww3d2/texturethumbnail.cpp b/Code/ww3d2/texturethumbnail.cpp
+index cfee168..86ec2d4 100644
+--- a/Code/ww3d2/texturethumbnail.cpp
++++ b/Code/ww3d2/texturethumbnail.cpp
+@@ -16,6 +16,8 @@
+ **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
++#include <stdio.h>	// PORT: sprintf, for the Xbox search path below
++#include <string.h>
+ #include "texturethumbnail.h"
+ #include "hashtemplate.h"
+ #include "missingtexture.h"
+@@ -613,6 +615,10 @@ void ThumbnailManagerClass::Update_Thumbnail_File(const char* mix_file_name,bool
+ 
+ 	if (display_message_box && !message_box_displayed) {
+ 		message_box_displayed=true;
++#ifdef NXDK
++		// PORT: no dialog boxes on the Xbox; log the same notice and carry on.
++		WWDEBUG_SAY(("Updating texture thumbnails: some or all need updating; this will take a while.\n"));
++#else
+ 		::MessageBox(NULL,
+ 			"Some or all texture thumbnails need to be updated.\n"
+ 			"This will take a while. The update will only be done once\n"
+@@ -620,6 +626,7 @@ void ThumbnailManagerClass::Update_Thumbnail_File(const char* mix_file_name,bool
+ 			"updated.",
+ 			"Updating texture thumbnails",
+ 			MB_OK);
++#endif
+ 	}
+ 
+ 	// we don't currently have a thumbnail file (either we just deleted it or it never existed, we don't care)
+@@ -650,10 +657,20 @@ void ThumbnailManagerClass::Pre_Init(bool display_message_box)
+ 	GetCurrentDirectory(sizeof(cur_dir),cur_dir);
+ 	StringClass new_dir(cur_dir,true);
+ 	new_dir+="\\Data";
++#ifdef NXDK
++	// PORT: no current directory on the Xbox. Search Data\ next to the game with a full path
++	// instead of changing into it (cur_dir is "D:\", so add a separator only if missing).
++	char pattern[300];
++	size_t cur_len = strlen(cur_dir);
++	sprintf(pattern, "%s%sData\\*.mix", cur_dir, (cur_len && cur_dir[cur_len-1] == '\\') ? "" : "\\");
++	WIN32_FIND_DATA find_data;
++	HANDLE handle=FindFirstFile(pattern,&find_data);
++#else
+ 	SetCurrentDirectory(new_dir);
+ 
+ 	WIN32_FIND_DATA find_data;
+ 	HANDLE handle=FindFirstFile("*.mix",&find_data);
++#endif
+ 	if (handle!=INVALID_HANDLE_VALUE) {
+ 		for (;;) {
+ 			if (!(find_data.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)) {
+@@ -665,7 +682,9 @@ void ThumbnailManagerClass::Pre_Init(bool display_message_box)
+ 			}
+ 		}
+ 	}
++#ifndef NXDK
+ 	SetCurrentDirectory(cur_dir);
++#endif
+ 
+ 	// First generate thumbnails for always.dat
+ 	Update_Thumbnail_File("always.dat",display_message_box);
+diff --git a/Code/ww3d2/ww3d.cpp b/Code/ww3d2/ww3d.cpp
+index e3b9aa3..5688daf 100644
+--- a/Code/ww3d2/ww3d.cpp
++++ b/Code/ww3d2/ww3d.cpp
+@@ -1283,7 +1283,15 @@ void WW3D::Make_Screen_Shot( const char * filename_base )
+ 	fb->GetDesc(&desc);
+ 
+ 	RECT bounds;
++#ifdef NXDK
++	// PORT: the game is the whole screen on Xbox, so capture the whole front buffer.
++	bounds.left = 0;
++	bounds.top = 0;
++	bounds.right = desc.Width;
++	bounds.bottom = desc.Height;
++#else
+ 	GetWindowRect(_Hwnd,&bounds);
++#endif
+ 
+ 	D3DLOCKED_RECT lrect;
+ 
+@@ -1565,7 +1573,15 @@ void WW3D::Update_Movie_Capture( void )
+ 	fb->GetDesc(&desc);
+ 
+ 	RECT bounds;
++#ifdef NXDK
++	// PORT: the game is the whole screen on Xbox, so capture the whole front buffer.
++	bounds.left = 0;
++	bounds.top = 0;
++	bounds.right = desc.Width;
++	bounds.bottom = desc.Height;
++#else
+ 	GetWindowRect(_Hwnd,&bounds);
++#endif
+ 
+ 	D3DLOCKED_RECT lrect;
+ 
+diff --git a/Code/xbox/include/d3d8.h b/Code/xbox/include/d3d8.h
+new file mode 100644
+index 0000000..352d097
+--- /dev/null
++++ b/Code/xbox/include/d3d8.h
+@@ -0,0 +1,219 @@
++/*
++** d3d8.h -- the Direct3D 8 interface, as far as Renegade uses it (Xbox build only).
++**
++** Names, signatures, constants and error codes match Microsoft's DirectX 8 SDK, so the
++** engine's Direct3D code compiles unchanged. The interfaces are plain C++ classes with
++** COM-style reference counting; the port's Direct3D layer (built on nxdk's pbkit) provides
++** the implementations. Only methods Renegade calls, and their natural pairs, are declared:
++** a call to anything else fails to compile, which flags it rather than hiding it.
++*/
++#ifndef D3D8_H
++#define D3D8_H
++
++#ifndef DIRECT3D_VERSION
++#define DIRECT3D_VERSION 0x0800
++#endif
++
++#include "d3d8types.h"
++#include "d3d8caps.h"
++
++#define D3D_SDK_VERSION 220
++
++/* CreateDevice behaviour flags */
++#define D3DCREATE_FPU_PRESERVE               0x00000002L
++#define D3DCREATE_MULTITHREADED              0x00000004L
++#define D3DCREATE_PUREDEVICE                 0x00000010L
++#define D3DCREATE_SOFTWARE_VERTEXPROCESSING  0x00000020L
++#define D3DCREATE_HARDWARE_VERTEXPROCESSING  0x00000040L
++#define D3DCREATE_MIXED_VERTEXPROCESSING     0x00000080L
++
++#define D3DADAPTER_DEFAULT    0
++#define D3DENUM_NO_WHQL_LEVEL 0x00000002L
++
++/* Error codes */
++#define _FACD3D 0x876
++#define MAKE_D3DHRESULT(code) MAKE_HRESULT(1, _FACD3D, code)
++
++#define D3D_OK S_OK
++#define D3DERR_WRONGTEXTUREFORMAT         MAKE_D3DHRESULT(2072)
++#define D3DERR_UNSUPPORTEDCOLOROPERATION  MAKE_D3DHRESULT(2073)
++#define D3DERR_UNSUPPORTEDCOLORARG        MAKE_D3DHRESULT(2074)
++#define D3DERR_UNSUPPORTEDALPHAOPERATION  MAKE_D3DHRESULT(2075)
++#define D3DERR_UNSUPPORTEDALPHAARG        MAKE_D3DHRESULT(2076)
++#define D3DERR_TOOMANYOPERATIONS          MAKE_D3DHRESULT(2077)
++#define D3DERR_CONFLICTINGTEXTUREFILTER   MAKE_D3DHRESULT(2078)
++#define D3DERR_UNSUPPORTEDFACTORVALUE     MAKE_D3DHRESULT(2079)
++#define D3DERR_CONFLICTINGRENDERSTATE     MAKE_D3DHRESULT(2081)
++#define D3DERR_UNSUPPORTEDTEXTUREFILTER   MAKE_D3DHRESULT(2082)
++#define D3DERR_CONFLICTINGTEXTUREPALETTE  MAKE_D3DHRESULT(2086)
++#define D3DERR_DRIVERINTERNALERROR        MAKE_D3DHRESULT(2087)
++#define D3DERR_NOTFOUND                   MAKE_D3DHRESULT(2150)
++#define D3DERR_MOREDATA                   MAKE_D3DHRESULT(2151)
++#define D3DERR_DEVICELOST                 MAKE_D3DHRESULT(2152)
++#define D3DERR_DEVICENOTRESET             MAKE_D3DHRESULT(2153)
++#define D3DERR_NOTAVAILABLE               MAKE_D3DHRESULT(2154)
++#define D3DERR_OUTOFVIDEOMEMORY           MAKE_D3DHRESULT(380)
++#define D3DERR_INVALIDDEVICE              MAKE_D3DHRESULT(2155)
++#define D3DERR_INVALIDCALL                MAKE_D3DHRESULT(2156)
++#define D3DERR_DRIVERINVALIDCALL          MAKE_D3DHRESULT(2157)
++
++#ifdef __cplusplus
++
++struct IDirect3D8;
++struct IDirect3DDevice8;
++struct IDirect3DResource8;
++struct IDirect3DBaseTexture8;
++struct IDirect3DTexture8;
++struct IDirect3DSurface8;
++struct IDirect3DVertexBuffer8;
++struct IDirect3DIndexBuffer8;
++struct IDirect3DSwapChain8;
++
++typedef IDirect3D8 *LPDIRECT3D8, *PDIRECT3D8;
++typedef IDirect3DDevice8 *LPDIRECT3DDEVICE8, *PDIRECT3DDEVICE8;
++typedef IDirect3DResource8 *LPDIRECT3DRESOURCE8, *PDIRECT3DRESOURCE8;
++typedef IDirect3DBaseTexture8 *LPDIRECT3DBASETEXTURE8, *PDIRECT3DBASETEXTURE8;
++typedef IDirect3DTexture8 *LPDIRECT3DTEXTURE8, *PDIRECT3DTEXTURE8;
++typedef IDirect3DSurface8 *LPDIRECT3DSURFACE8, *PDIRECT3DSURFACE8;
++typedef IDirect3DVertexBuffer8 *LPDIRECT3DVERTEXBUFFER8, *PDIRECT3DVERTEXBUFFER8;
++typedef IDirect3DIndexBuffer8 *LPDIRECT3DINDEXBUFFER8, *PDIRECT3DINDEXBUFFER8;
++typedef IDirect3DSwapChain8 *LPDIRECT3DSWAPCHAIN8, *PDIRECT3DSWAPCHAIN8;
++
++struct IDirect3D8 : public IUnknown {
++	virtual UINT GetAdapterCount(void) = 0;
++	virtual HRESULT GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER8 *pIdentifier) = 0;
++	virtual UINT GetAdapterModeCount(UINT Adapter) = 0;
++	virtual HRESULT EnumAdapterModes(UINT Adapter, UINT Mode, D3DDISPLAYMODE *pMode) = 0;
++	virtual HRESULT GetAdapterDisplayMode(UINT Adapter, D3DDISPLAYMODE *pMode) = 0;
++	virtual HRESULT CheckDeviceType(UINT Adapter, D3DDEVTYPE CheckType, D3DFORMAT DisplayFormat,
++	                                D3DFORMAT BackBufferFormat, BOOL Windowed) = 0;
++	virtual HRESULT CheckDeviceFormat(UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat,
++	                                  DWORD Usage, D3DRESOURCETYPE RType, D3DFORMAT CheckFormat) = 0;
++	virtual HRESULT CheckDepthStencilMatch(UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat,
++	                                       D3DFORMAT RenderTargetFormat, D3DFORMAT DepthStencilFormat) = 0;
++	virtual HRESULT GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType, D3DCAPS8 *pCaps) = 0;
++	virtual HMONITOR GetAdapterMonitor(UINT Adapter) = 0;
++	virtual HRESULT CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow,
++	                             DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters,
++	                             IDirect3DDevice8 **ppReturnedDeviceInterface) = 0;
++};
++
++struct IDirect3DDevice8 : public IUnknown {
++	virtual HRESULT TestCooperativeLevel(void) = 0;
++	virtual UINT GetAvailableTextureMem(void) = 0;
++	virtual HRESULT ResourceManagerDiscardBytes(DWORD Bytes) = 0;
++	virtual HRESULT GetDirect3D(IDirect3D8 **ppD3D8) = 0;
++	virtual HRESULT GetDeviceCaps(D3DCAPS8 *pCaps) = 0;
++	virtual HRESULT GetDisplayMode(D3DDISPLAYMODE *pMode) = 0;
++	virtual HRESULT CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS *pPresentationParameters,
++	                                          IDirect3DSwapChain8 **pSwapChain) = 0;
++	virtual HRESULT Reset(D3DPRESENT_PARAMETERS *pPresentationParameters) = 0;
++	virtual HRESULT Present(CONST RECT *pSourceRect, CONST RECT *pDestRect, HWND hDestWindowOverride,
++	                        CONST RGNDATA *pDirtyRegion) = 0;
++	virtual HRESULT GetBackBuffer(UINT BackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface8 **ppBackBuffer) = 0;
++	virtual void SetGammaRamp(DWORD Flags, CONST D3DGAMMARAMP *pRamp) = 0;
++	virtual void GetGammaRamp(D3DGAMMARAMP *pRamp) = 0;
++	virtual HRESULT CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format,
++	                              D3DPOOL Pool, IDirect3DTexture8 **ppTexture) = 0;
++	virtual HRESULT CreateVertexBuffer(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool,
++	                                   IDirect3DVertexBuffer8 **ppVertexBuffer) = 0;
++	virtual HRESULT CreateIndexBuffer(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool,
++	                                  IDirect3DIndexBuffer8 **ppIndexBuffer) = 0;
++	virtual HRESULT CreateRenderTarget(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample,
++	                                   BOOL Lockable, IDirect3DSurface8 **ppSurface) = 0;
++	virtual HRESULT CreateDepthStencilSurface(UINT Width, UINT Height, D3DFORMAT Format,
++	                                          D3DMULTISAMPLE_TYPE MultiSample, IDirect3DSurface8 **ppSurface) = 0;
++	virtual HRESULT CreateImageSurface(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface8 **ppSurface) = 0;
++	virtual HRESULT CopyRects(IDirect3DSurface8 *pSourceSurface, CONST RECT *pSourceRectsArray, UINT cRects,
++	                          IDirect3DSurface8 *pDestinationSurface, CONST POINT *pDestPointsArray) = 0;
++	virtual HRESULT UpdateTexture(IDirect3DBaseTexture8 *pSourceTexture, IDirect3DBaseTexture8 *pDestinationTexture) = 0;
++	virtual HRESULT GetFrontBuffer(IDirect3DSurface8 *pDestSurface) = 0;
++	virtual HRESULT SetRenderTarget(IDirect3DSurface8 *pRenderTarget, IDirect3DSurface8 *pNewZStencil) = 0;
++	virtual HRESULT GetRenderTarget(IDirect3DSurface8 **ppRenderTarget) = 0;
++	virtual HRESULT GetDepthStencilSurface(IDirect3DSurface8 **ppZStencilSurface) = 0;
++	virtual HRESULT BeginScene(void) = 0;
++	virtual HRESULT EndScene(void) = 0;
++	virtual HRESULT Clear(DWORD Count, CONST D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil) = 0;
++	virtual HRESULT SetTransform(D3DTRANSFORMSTATETYPE State, CONST D3DMATRIX *pMatrix) = 0;
++	virtual HRESULT GetTransform(D3DTRANSFORMSTATETYPE State, D3DMATRIX *pMatrix) = 0;
++	virtual HRESULT SetViewport(CONST D3DVIEWPORT8 *pViewport) = 0;
++	virtual HRESULT GetViewport(D3DVIEWPORT8 *pViewport) = 0;
++	virtual HRESULT SetMaterial(CONST D3DMATERIAL8 *pMaterial) = 0;
++	virtual HRESULT GetMaterial(D3DMATERIAL8 *pMaterial) = 0;
++	virtual HRESULT SetLight(DWORD Index, CONST D3DLIGHT8 *pLight) = 0;
++	virtual HRESULT GetLight(DWORD Index, D3DLIGHT8 *pLight) = 0;
++	virtual HRESULT LightEnable(DWORD Index, BOOL Enable) = 0;
++	virtual HRESULT GetLightEnable(DWORD Index, BOOL *pEnable) = 0;
++	virtual HRESULT SetRenderState(D3DRENDERSTATETYPE State, DWORD Value) = 0;
++	virtual HRESULT GetRenderState(D3DRENDERSTATETYPE State, DWORD *pValue) = 0;
++	virtual HRESULT GetTexture(DWORD Stage, IDirect3DBaseTexture8 **ppTexture) = 0;
++	virtual HRESULT SetTexture(DWORD Stage, IDirect3DBaseTexture8 *pTexture) = 0;
++	virtual HRESULT GetTextureStageState(DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD *pValue) = 0;
++	virtual HRESULT SetTextureStageState(DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value) = 0;
++	virtual HRESULT ValidateDevice(DWORD *pNumPasses) = 0;
++	virtual HRESULT DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount) = 0;
++	virtual HRESULT DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT minIndex, UINT NumVertices,
++	                                     UINT startIndex, UINT primCount) = 0;
++	virtual HRESULT SetVertexShader(DWORD Handle) = 0;
++	virtual HRESULT GetVertexShader(DWORD *pHandle) = 0;
++	virtual HRESULT SetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer8 *pStreamData, UINT Stride) = 0;
++	virtual HRESULT GetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer8 **ppStreamData, UINT *pStride) = 0;
++	virtual HRESULT SetIndices(IDirect3DIndexBuffer8 *pIndexData, UINT BaseVertexIndex) = 0;
++	virtual HRESULT GetIndices(IDirect3DIndexBuffer8 **ppIndexData, UINT *pBaseVertexIndex) = 0;
++};
++
++struct IDirect3DResource8 : public IUnknown {
++	virtual HRESULT GetDevice(IDirect3DDevice8 **ppDevice) = 0;
++	virtual DWORD SetPriority(DWORD PriorityNew) = 0;
++	virtual DWORD GetPriority(void) = 0;
++	virtual void PreLoad(void) = 0;
++	virtual D3DRESOURCETYPE GetType(void) = 0;
++};
++
++struct IDirect3DBaseTexture8 : public IDirect3DResource8 {
++	virtual DWORD SetLOD(DWORD LODNew) = 0;
++	virtual DWORD GetLOD(void) = 0;
++	virtual DWORD GetLevelCount(void) = 0;
++};
++
++struct IDirect3DTexture8 : public IDirect3DBaseTexture8 {
++	virtual HRESULT GetLevelDesc(UINT Level, D3DSURFACE_DESC *pDesc) = 0;
++	virtual HRESULT GetSurfaceLevel(UINT Level, IDirect3DSurface8 **ppSurfaceLevel) = 0;
++	virtual HRESULT LockRect(UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags) = 0;
++	virtual HRESULT UnlockRect(UINT Level) = 0;
++	virtual HRESULT AddDirtyRect(CONST RECT *pDirtyRect) = 0;
++};
++
++/* As in Direct3D 8, a surface is not a resource: it derives directly from IUnknown. */
++struct IDirect3DSurface8 : public IUnknown {
++	virtual HRESULT GetDevice(IDirect3DDevice8 **ppDevice) = 0;
++	virtual HRESULT GetContainer(REFIID riid, void **ppContainer) = 0;
++	virtual HRESULT GetDesc(D3DSURFACE_DESC *pDesc) = 0;
++	virtual HRESULT LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags) = 0;
++	virtual HRESULT UnlockRect(void) = 0;
++};
++
++struct IDirect3DVertexBuffer8 : public IDirect3DResource8 {
++	virtual HRESULT Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DWORD Flags) = 0;
++	virtual HRESULT Unlock(void) = 0;
++	virtual HRESULT GetDesc(D3DVERTEXBUFFER_DESC *pDesc) = 0;
++};
++
++struct IDirect3DIndexBuffer8 : public IDirect3DResource8 {
++	virtual HRESULT Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DWORD Flags) = 0;
++	virtual HRESULT Unlock(void) = 0;
++	virtual HRESULT GetDesc(D3DINDEXBUFFER_DESC *pDesc) = 0;
++};
++
++struct IDirect3DSwapChain8 : public IUnknown {
++	virtual HRESULT Present(CONST RECT *pSourceRect, CONST RECT *pDestRect, HWND hDestWindowOverride,
++	                        CONST RGNDATA *pDirtyRegion) = 0;
++	virtual HRESULT GetBackBuffer(UINT BackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface8 **ppBackBuffer) = 0;
++};
++
++/* Creates the Direct3D object (provided by the port's Direct3D layer). */
++IDirect3D8 *Direct3DCreate8(UINT SDKVersion);
++
++#endif /* __cplusplus */
++
++#endif /* D3D8_H */
+diff --git a/Code/xbox/include/d3d8caps.h b/Code/xbox/include/d3d8caps.h
+new file mode 100644
+index 0000000..df9176c
+--- /dev/null
++++ b/Code/xbox/include/d3d8caps.h
+@@ -0,0 +1,163 @@
++/*
++** d3d8caps.h -- the Direct3D 8 capabilities structure and capability bits (Xbox build).
++** Same layout, names and values as Microsoft's DirectX 8 SDK. On the Xbox the GPU is fixed,
++** so the layer fills this in once, describing the NV2A.
++*/
++#ifndef D3D8CAPS_H
++#define D3D8CAPS_H
++
++#include "d3d8types.h"
++
++typedef struct _D3DCAPS8 {
++	D3DDEVTYPE DeviceType;
++	UINT AdapterOrdinal;
++	DWORD Caps;
++	DWORD Caps2;
++	DWORD Caps3;
++	DWORD PresentationIntervals;
++	DWORD CursorCaps;
++	DWORD DevCaps;
++	DWORD PrimitiveMiscCaps;
++	DWORD RasterCaps;
++	DWORD ZCmpCaps;
++	DWORD SrcBlendCaps;
++	DWORD DestBlendCaps;
++	DWORD AlphaCmpCaps;
++	DWORD ShadeCaps;
++	DWORD TextureCaps;
++	DWORD TextureFilterCaps;
++	DWORD CubeTextureFilterCaps;
++	DWORD VolumeTextureFilterCaps;
++	DWORD TextureAddressCaps;
++	DWORD VolumeTextureAddressCaps;
++	DWORD LineCaps;
++	DWORD MaxTextureWidth, MaxTextureHeight;
++	DWORD MaxVolumeExtent;
++	DWORD MaxTextureRepeat;
++	DWORD MaxTextureAspectRatio;
++	DWORD MaxAnisotropy;
++	float MaxVertexW;
++	float GuardBandLeft;
++	float GuardBandTop;
++	float GuardBandRight;
++	float GuardBandBottom;
++	float ExtentsAdjust;
++	DWORD StencilCaps;
++	DWORD FVFCaps;
++	DWORD TextureOpCaps;
++	DWORD MaxTextureBlendStages;
++	DWORD MaxSimultaneousTextures;
++	DWORD VertexProcessingCaps;
++	DWORD MaxActiveLights;
++	DWORD MaxUserClipPlanes;
++	DWORD MaxVertexBlendMatrices;
++	DWORD MaxVertexBlendMatrixIndex;
++	float MaxPointSize;
++	DWORD MaxPrimitiveCount;
++	DWORD MaxVertexIndex;
++	DWORD MaxStreams;
++	DWORD MaxStreamStride;
++	DWORD VertexShaderVersion;
++	DWORD MaxVertexShaderConst;
++	DWORD PixelShaderVersion;
++	float MaxPixelShaderValue;
++} D3DCAPS8;
++
++/* Caps2 */
++#define D3DCAPS2_NO2DDURING3DSCENE 0x00000002L
++#define D3DCAPS2_FULLSCREENGAMMA   0x00020000L
++#define D3DCAPS2_CANRENDERWINDOWED 0x00080000L
++#define D3DCAPS2_CANCALIBRATEGAMMA 0x00100000L
++#define D3DCAPS2_RESERVED          0x02000000L
++#define D3DCAPS2_CANMANAGERESOURCE 0x10000000L
++#define D3DCAPS2_DYNAMICTEXTURES   0x20000000L
++
++/* DevCaps */
++#define D3DDEVCAPS_EXECUTESYSTEMMEMORY     0x00000010L
++#define D3DDEVCAPS_EXECUTEVIDEOMEMORY      0x00000020L
++#define D3DDEVCAPS_TLVERTEXSYSTEMMEMORY    0x00000040L
++#define D3DDEVCAPS_TLVERTEXVIDEOMEMORY     0x00000080L
++#define D3DDEVCAPS_TEXTURESYSTEMMEMORY     0x00000100L
++#define D3DDEVCAPS_TEXTUREVIDEOMEMORY      0x00000200L
++#define D3DDEVCAPS_DRAWPRIMTLVERTEX        0x00000400L
++#define D3DDEVCAPS_CANRENDERAFTERFLIP      0x00000800L
++#define D3DDEVCAPS_TEXTURENONLOCALVIDMEM   0x00001000L
++#define D3DDEVCAPS_DRAWPRIMITIVES2         0x00002000L
++#define D3DDEVCAPS_SEPARATETEXTUREMEMORIES 0x00004000L
++#define D3DDEVCAPS_DRAWPRIMITIVES2EX       0x00008000L
++#define D3DDEVCAPS_HWTRANSFORMANDLIGHT     0x00010000L
++#define D3DDEVCAPS_CANBLTSYSTONONLOCAL     0x00020000L
++#define D3DDEVCAPS_HWRASTERIZATION         0x00080000L
++#define D3DDEVCAPS_PUREDEVICE              0x00100000L
++#define D3DDEVCAPS_QUINTICRTPATCHES        0x00200000L
++#define D3DDEVCAPS_RTPATCHES               0x00400000L
++#define D3DDEVCAPS_RTPATCHHANDLEZERO       0x00800000L
++#define D3DDEVCAPS_NPATCHES                0x01000000L
++
++/* RasterCaps */
++#define D3DPRASTERCAPS_DITHER              0x00000001L
++#define D3DPRASTERCAPS_PAT                 0x00000008L
++#define D3DPRASTERCAPS_ZTEST               0x00000010L
++#define D3DPRASTERCAPS_FOGVERTEX           0x00000080L
++#define D3DPRASTERCAPS_FOGTABLE            0x00000100L
++#define D3DPRASTERCAPS_ANTIALIASEDGES      0x00001000L
++#define D3DPRASTERCAPS_MIPMAPLODBIAS       0x00002000L
++#define D3DPRASTERCAPS_ZBIAS               0x00004000L
++#define D3DPRASTERCAPS_ZBUFFERLESSHSR      0x00008000L
++#define D3DPRASTERCAPS_FOGRANGE            0x00010000L
++#define D3DPRASTERCAPS_ANISOTROPY          0x00020000L
++#define D3DPRASTERCAPS_WBUFFER             0x00040000L
++#define D3DPRASTERCAPS_WFOG                0x00100000L
++#define D3DPRASTERCAPS_ZFOG                0x00200000L
++#define D3DPRASTERCAPS_COLORPERSPECTIVE    0x00400000L
++#define D3DPRASTERCAPS_STRETCHBLTMULTISAMPLE 0x00800000L
++
++/* Texture filter caps */
++#define D3DPTFILTERCAPS_MINFPOINT          0x00000100L
++#define D3DPTFILTERCAPS_MINFLINEAR         0x00000200L
++#define D3DPTFILTERCAPS_MINFANISOTROPIC    0x00000400L
++#define D3DPTFILTERCAPS_MIPFPOINT          0x00010000L
++#define D3DPTFILTERCAPS_MIPFLINEAR         0x00020000L
++#define D3DPTFILTERCAPS_MAGFPOINT          0x01000000L
++#define D3DPTFILTERCAPS_MAGFLINEAR         0x02000000L
++#define D3DPTFILTERCAPS_MAGFANISOTROPIC    0x04000000L
++#define D3DPTFILTERCAPS_MAGFAFLATCUBIC     0x08000000L
++#define D3DPTFILTERCAPS_MAGFGAUSSIANCUBIC  0x10000000L
++
++/* Texture operation caps */
++#define D3DTEXOPCAPS_DISABLE                   0x00000001L
++#define D3DTEXOPCAPS_SELECTARG1                0x00000002L
++#define D3DTEXOPCAPS_SELECTARG2                0x00000004L
++#define D3DTEXOPCAPS_MODULATE                  0x00000008L
++#define D3DTEXOPCAPS_MODULATE2X                0x00000010L
++#define D3DTEXOPCAPS_MODULATE4X                0x00000020L
++#define D3DTEXOPCAPS_ADD                       0x00000040L
++#define D3DTEXOPCAPS_ADDSIGNED                 0x00000080L
++#define D3DTEXOPCAPS_ADDSIGNED2X               0x00000100L
++#define D3DTEXOPCAPS_SUBTRACT                  0x00000200L
++#define D3DTEXOPCAPS_ADDSMOOTH                 0x00000400L
++#define D3DTEXOPCAPS_BLENDDIFFUSEALPHA         0x00000800L
++#define D3DTEXOPCAPS_BLENDTEXTUREALPHA         0x00001000L
++#define D3DTEXOPCAPS_BLENDFACTORALPHA          0x00002000L
++#define D3DTEXOPCAPS_BLENDTEXTUREALPHAPM       0x00004000L
++#define D3DTEXOPCAPS_BLENDCURRENTALPHA         0x00008000L
++#define D3DTEXOPCAPS_PREMODULATE               0x00010000L
++#define D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR    0x00020000L
++#define D3DTEXOPCAPS_MODULATECOLOR_ADDALPHA    0x00040000L
++#define D3DTEXOPCAPS_MODULATEINVALPHA_ADDCOLOR 0x00080000L
++#define D3DTEXOPCAPS_MODULATEINVCOLOR_ADDALPHA 0x00100000L
++#define D3DTEXOPCAPS_BUMPENVMAP                0x00200000L
++#define D3DTEXOPCAPS_BUMPENVMAPLUMINANCE       0x00400000L
++#define D3DTEXOPCAPS_DOTPRODUCT3               0x00800000L
++#define D3DTEXOPCAPS_MULTIPLYADD               0x01000000L
++#define D3DTEXOPCAPS_LERP                      0x02000000L
++
++/* Presentation intervals */
++#define D3DPRESENT_INTERVAL_DEFAULT   0x00000000L
++#define D3DPRESENT_INTERVAL_ONE       0x00000001L
++#define D3DPRESENT_INTERVAL_TWO       0x00000002L
++#define D3DPRESENT_INTERVAL_THREE     0x00000004L
++#define D3DPRESENT_INTERVAL_FOUR      0x00000008L
++#define D3DPRESENT_INTERVAL_IMMEDIATE 0x80000000L
++
++#endif /* D3D8CAPS_H */
+diff --git a/Code/xbox/include/d3d8types.h b/Code/xbox/include/d3d8types.h
+new file mode 100644
+index 0000000..e8ba341
+--- /dev/null
++++ b/Code/xbox/include/d3d8types.h
+@@ -0,0 +1,675 @@
++/*
++** d3d8types.h -- Direct3D 8 types, constants and structures for the Xbox build.
++**
++** Covers what Renegade uses, with the same names and values as Microsoft's DirectX 8 SDK.
++** Values matter: the engine indexes arrays with render-state, texture-stage-state and
++** format numbers, and decodes vertex formats (FVF) bit by bit.
++*/
++#ifndef D3D8TYPES_H
++#define D3D8TYPES_H
++
++#include "xbox_win32_types.h"
++
++typedef DWORD D3DCOLOR;
++
++#define D3DCOLOR_ARGB(a, r, g, b) \
++	((D3DCOLOR)((((a) & 0xff) << 24) | (((r) & 0xff) << 16) | (((g) & 0xff) << 8) | ((b) & 0xff)))
++#define D3DCOLOR_RGBA(r, g, b, a) D3DCOLOR_ARGB(a, r, g, b)
++#define D3DCOLOR_XRGB(r, g, b)    D3DCOLOR_ARGB(0xff, r, g, b)
++#define D3DCOLOR_COLORVALUE(r, g, b, a) \
++	D3DCOLOR_RGBA((DWORD)((r) * 255.f), (DWORD)((g) * 255.f), (DWORD)((b) * 255.f), (DWORD)((a) * 255.f))
++
++typedef struct _D3DVECTOR {
++	float x, y, z;
++} D3DVECTOR;
++
++typedef struct _D3DCOLORVALUE {
++	float r, g, b, a;
++} D3DCOLORVALUE;
++
++typedef struct _D3DRECT {
++	LONG x1, y1, x2, y2;
++} D3DRECT;
++
++typedef struct _D3DMATRIX {
++	union {
++		struct {
++			float _11, _12, _13, _14;
++			float _21, _22, _23, _24;
++			float _31, _32, _33, _34;
++			float _41, _42, _43, _44;
++		};
++		float m[4][4];
++	};
++} D3DMATRIX;
++
++typedef struct _D3DVIEWPORT8 {
++	DWORD X, Y, Width, Height;
++	float MinZ, MaxZ;
++} D3DVIEWPORT8;
++
++#define D3DMAXUSERCLIPPLANES 32
++
++typedef struct _D3DMATERIAL8 {
++	D3DCOLORVALUE Diffuse;
++	D3DCOLORVALUE Ambient;
++	D3DCOLORVALUE Specular;
++	D3DCOLORVALUE Emissive;
++	float Power;
++} D3DMATERIAL8;
++
++typedef enum _D3DLIGHTTYPE {
++	D3DLIGHT_POINT = 1,
++	D3DLIGHT_SPOT = 2,
++	D3DLIGHT_DIRECTIONAL = 3,
++	D3DLIGHT_FORCE_DWORD = 0x7fffffff
++} D3DLIGHTTYPE;
++
++typedef struct _D3DLIGHT8 {
++	D3DLIGHTTYPE Type;
++	D3DCOLORVALUE Diffuse;
++	D3DCOLORVALUE Specular;
++	D3DCOLORVALUE Ambient;
++	D3DVECTOR Position;
++	D3DVECTOR Direction;
++	float Range;
++	float Falloff;
++	float Attenuation0;
++	float Attenuation1;
++	float Attenuation2;
++	float Theta;
++	float Phi;
++} D3DLIGHT8;
++
++/* Clear flags */
++#define D3DCLEAR_TARGET  0x00000001l
++#define D3DCLEAR_ZBUFFER 0x00000002l
++#define D3DCLEAR_STENCIL 0x00000004l
++
++typedef enum _D3DSHADEMODE {
++	D3DSHADE_FLAT = 1,
++	D3DSHADE_GOURAUD = 2,
++	D3DSHADE_PHONG = 3,
++	D3DSHADE_FORCE_DWORD = 0x7fffffff
++} D3DSHADEMODE;
++
++typedef enum _D3DFILLMODE {
++	D3DFILL_POINT = 1,
++	D3DFILL_WIREFRAME = 2,
++	D3DFILL_SOLID = 3,
++	D3DFILL_FORCE_DWORD = 0x7fffffff
++} D3DFILLMODE;
++
++typedef enum _D3DBLEND {
++	D3DBLEND_ZERO = 1,
++	D3DBLEND_ONE = 2,
++	D3DBLEND_SRCCOLOR = 3,
++	D3DBLEND_INVSRCCOLOR = 4,
++	D3DBLEND_SRCALPHA = 5,
++	D3DBLEND_INVSRCALPHA = 6,
++	D3DBLEND_DESTALPHA = 7,
++	D3DBLEND_INVDESTALPHA = 8,
++	D3DBLEND_DESTCOLOR = 9,
++	D3DBLEND_INVDESTCOLOR = 10,
++	D3DBLEND_SRCALPHASAT = 11,
++	D3DBLEND_BOTHSRCALPHA = 12,
++	D3DBLEND_BOTHINVSRCALPHA = 13,
++	D3DBLEND_FORCE_DWORD = 0x7fffffff
++} D3DBLEND;
++
++typedef enum _D3DBLENDOP {
++	D3DBLENDOP_ADD = 1,
++	D3DBLENDOP_SUBTRACT = 2,
++	D3DBLENDOP_REVSUBTRACT = 3,
++	D3DBLENDOP_MIN = 4,
++	D3DBLENDOP_MAX = 5,
++	D3DBLENDOP_FORCE_DWORD = 0x7fffffff
++} D3DBLENDOP;
++
++typedef enum _D3DTEXTUREADDRESS {
++	D3DTADDRESS_WRAP = 1,
++	D3DTADDRESS_MIRROR = 2,
++	D3DTADDRESS_CLAMP = 3,
++	D3DTADDRESS_BORDER = 4,
++	D3DTADDRESS_MIRRORONCE = 5,
++	D3DTADDRESS_FORCE_DWORD = 0x7fffffff
++} D3DTEXTUREADDRESS;
++
++typedef enum _D3DCULL {
++	D3DCULL_NONE = 1,
++	D3DCULL_CW = 2,
++	D3DCULL_CCW = 3,
++	D3DCULL_FORCE_DWORD = 0x7fffffff
++} D3DCULL;
++
++typedef enum _D3DCMPFUNC {
++	D3DCMP_NEVER = 1,
++	D3DCMP_LESS = 2,
++	D3DCMP_EQUAL = 3,
++	D3DCMP_LESSEQUAL = 4,
++	D3DCMP_GREATER = 5,
++	D3DCMP_NOTEQUAL = 6,
++	D3DCMP_GREATEREQUAL = 7,
++	D3DCMP_ALWAYS = 8,
++	D3DCMP_FORCE_DWORD = 0x7fffffff
++} D3DCMPFUNC;
++
++typedef enum _D3DSTENCILOP {
++	D3DSTENCILOP_KEEP = 1,
++	D3DSTENCILOP_ZERO = 2,
++	D3DSTENCILOP_REPLACE = 3,
++	D3DSTENCILOP_INCRSAT = 4,
++	D3DSTENCILOP_DECRSAT = 5,
++	D3DSTENCILOP_INVERT = 6,
++	D3DSTENCILOP_INCR = 7,
++	D3DSTENCILOP_DECR = 8,
++	D3DSTENCILOP_FORCE_DWORD = 0x7fffffff
++} D3DSTENCILOP;
++
++typedef enum _D3DFOGMODE {
++	D3DFOG_NONE = 0,
++	D3DFOG_EXP = 1,
++	D3DFOG_EXP2 = 2,
++	D3DFOG_LINEAR = 3,
++	D3DFOG_FORCE_DWORD = 0x7fffffff
++} D3DFOGMODE;
++
++typedef enum _D3DZBUFFERTYPE {
++	D3DZB_FALSE = 0,
++	D3DZB_TRUE = 1,
++	D3DZB_USEW = 2,
++	D3DZB_FORCE_DWORD = 0x7fffffff
++} D3DZBUFFERTYPE;
++
++typedef enum _D3DPRIMITIVETYPE {
++	D3DPT_POINTLIST = 1,
++	D3DPT_LINELIST = 2,
++	D3DPT_LINESTRIP = 3,
++	D3DPT_TRIANGLELIST = 4,
++	D3DPT_TRIANGLESTRIP = 5,
++	D3DPT_TRIANGLEFAN = 6,
++	D3DPT_FORCE_DWORD = 0x7fffffff
++} D3DPRIMITIVETYPE;
++
++typedef enum _D3DTRANSFORMSTATETYPE {
++	D3DTS_VIEW = 2,
++	D3DTS_PROJECTION = 3,
++	D3DTS_TEXTURE0 = 16,
++	D3DTS_TEXTURE1 = 17,
++	D3DTS_TEXTURE2 = 18,
++	D3DTS_TEXTURE3 = 19,
++	D3DTS_TEXTURE4 = 20,
++	D3DTS_TEXTURE5 = 21,
++	D3DTS_TEXTURE6 = 22,
++	D3DTS_TEXTURE7 = 23,
++	D3DTS_FORCE_DWORD = 0x7fffffff
++} D3DTRANSFORMSTATETYPE;
++
++#define D3DTS_WORLDMATRIX(index) (D3DTRANSFORMSTATETYPE)((index) + 256)
++#define D3DTS_WORLD  D3DTS_WORLDMATRIX(0)
++#define D3DTS_WORLD1 D3DTS_WORLDMATRIX(1)
++#define D3DTS_WORLD2 D3DTS_WORLDMATRIX(2)
++#define D3DTS_WORLD3 D3DTS_WORLDMATRIX(3)
++
++typedef enum _D3DRENDERSTATETYPE {
++	D3DRS_ZENABLE = 7,
++	D3DRS_FILLMODE = 8,
++	D3DRS_SHADEMODE = 9,
++	D3DRS_LINEPATTERN = 10,
++	D3DRS_ZWRITEENABLE = 14,
++	D3DRS_ALPHATESTENABLE = 15,
++	D3DRS_LASTPIXEL = 16,
++	D3DRS_SRCBLEND = 19,
++	D3DRS_DESTBLEND = 20,
++	D3DRS_CULLMODE = 22,
++	D3DRS_ZFUNC = 23,
++	D3DRS_ALPHAREF = 24,
++	D3DRS_ALPHAFUNC = 25,
++	D3DRS_DITHERENABLE = 26,
++	D3DRS_ALPHABLENDENABLE = 27,
++	D3DRS_FOGENABLE = 28,
++	D3DRS_SPECULARENABLE = 29,
++	D3DRS_ZVISIBLE = 30,
++	D3DRS_FOGCOLOR = 34,
++	D3DRS_FOGTABLEMODE = 35,
++	D3DRS_FOGSTART = 36,
++	D3DRS_FOGEND = 37,
++	D3DRS_FOGDENSITY = 38,
++	D3DRS_EDGEANTIALIAS = 40,
++	D3DRS_ZBIAS = 47,
++	D3DRS_RANGEFOGENABLE = 48,
++	D3DRS_STENCILENABLE = 52,
++	D3DRS_STENCILFAIL = 53,
++	D3DRS_STENCILZFAIL = 54,
++	D3DRS_STENCILPASS = 55,
++	D3DRS_STENCILFUNC = 56,
++	D3DRS_STENCILREF = 57,
++	D3DRS_STENCILMASK = 58,
++	D3DRS_STENCILWRITEMASK = 59,
++	D3DRS_TEXTUREFACTOR = 60,
++	D3DRS_WRAP0 = 128,
++	D3DRS_WRAP1 = 129,
++	D3DRS_WRAP2 = 130,
++	D3DRS_WRAP3 = 131,
++	D3DRS_WRAP4 = 132,
++	D3DRS_WRAP5 = 133,
++	D3DRS_WRAP6 = 134,
++	D3DRS_WRAP7 = 135,
++	D3DRS_CLIPPING = 136,
++	D3DRS_LIGHTING = 137,
++	D3DRS_AMBIENT = 139,
++	D3DRS_FOGVERTEXMODE = 140,
++	D3DRS_COLORVERTEX = 141,
++	D3DRS_LOCALVIEWER = 142,
++	D3DRS_NORMALIZENORMALS = 143,
++	D3DRS_DIFFUSEMATERIALSOURCE = 145,
++	D3DRS_SPECULARMATERIALSOURCE = 146,
++	D3DRS_AMBIENTMATERIALSOURCE = 147,
++	D3DRS_EMISSIVEMATERIALSOURCE = 148,
++	D3DRS_VERTEXBLEND = 151,
++	D3DRS_CLIPPLANEENABLE = 152,
++	D3DRS_SOFTWAREVERTEXPROCESSING = 153,
++	D3DRS_POINTSIZE = 154,
++	D3DRS_POINTSIZE_MIN = 155,
++	D3DRS_POINTSPRITEENABLE = 156,
++	D3DRS_POINTSCALEENABLE = 157,
++	D3DRS_POINTSCALE_A = 158,
++	D3DRS_POINTSCALE_B = 159,
++	D3DRS_POINTSCALE_C = 160,
++	D3DRS_MULTISAMPLEANTIALIAS = 161,
++	D3DRS_MULTISAMPLEMASK = 162,
++	D3DRS_PATCHEDGESTYLE = 163,
++	D3DRS_PATCHSEGMENTS = 164,
++	D3DRS_DEBUGMONITORTOKEN = 165,
++	D3DRS_POINTSIZE_MAX = 166,
++	D3DRS_INDEXEDVERTEXBLENDENABLE = 167,
++	D3DRS_COLORWRITEENABLE = 168,
++	D3DRS_TWEENFACTOR = 170,
++	D3DRS_BLENDOP = 171,
++	D3DRS_POSITIONORDER = 172,
++	D3DRS_NORMALORDER = 173,
++	D3DRS_FORCE_DWORD = 0x7fffffff
++} D3DRENDERSTATETYPE;
++
++typedef enum _D3DMATERIALCOLORSOURCE {
++	D3DMCS_MATERIAL = 0,
++	D3DMCS_COLOR1 = 1,
++	D3DMCS_COLOR2 = 2,
++	D3DMCS_FORCE_DWORD = 0x7fffffff
++} D3DMATERIALCOLORSOURCE;
++
++/* Wrap flags for D3DRS_WRAP0..7 */
++#define D3DWRAP_U 0x00000001L
++#define D3DWRAP_V 0x00000002L
++#define D3DWRAP_W 0x00000004L
++
++#define D3DCOLORWRITEENABLE_RED   (1L << 0)
++#define D3DCOLORWRITEENABLE_GREEN (1L << 1)
++#define D3DCOLORWRITEENABLE_BLUE  (1L << 2)
++#define D3DCOLORWRITEENABLE_ALPHA (1L << 3)
++
++typedef enum _D3DVERTEXBLENDFLAGS {
++	D3DVBF_DISABLE = 0,
++	D3DVBF_1WEIGHTS = 1,
++	D3DVBF_2WEIGHTS = 2,
++	D3DVBF_3WEIGHTS = 3,
++	D3DVBF_TWEENING = 255,
++	D3DVBF_0WEIGHTS = 256,
++	D3DVBF_FORCE_DWORD = 0x7fffffff
++} D3DVERTEXBLENDFLAGS;
++
++typedef enum _D3DTEXTURETRANSFORMFLAGS {
++	D3DTTFF_DISABLE = 0,
++	D3DTTFF_COUNT1 = 1,
++	D3DTTFF_COUNT2 = 2,
++	D3DTTFF_COUNT3 = 3,
++	D3DTTFF_COUNT4 = 4,
++	D3DTTFF_PROJECTED = 256,
++	D3DTTFF_FORCE_DWORD = 0x7fffffff
++} D3DTEXTURETRANSFORMFLAGS;
++
++typedef enum _D3DPATCHEDGESTYLE {
++	D3DPATCHEDGE_DISCRETE = 0,
++	D3DPATCHEDGE_CONTINUOUS = 1,
++	D3DPATCHEDGE_FORCE_DWORD = 0x7fffffff
++} D3DPATCHEDGESTYLE;
++
++typedef enum _D3DDEBUGMONITORTOKENS {
++	D3DDMT_ENABLE = 0,
++	D3DDMT_DISABLE = 1,
++	D3DDMT_FORCE_DWORD = 0x7fffffff
++} D3DDEBUGMONITORTOKENS;
++
++typedef enum _D3DTEXTURESTAGESTATETYPE {
++	D3DTSS_COLOROP = 1,
++	D3DTSS_COLORARG1 = 2,
++	D3DTSS_COLORARG2 = 3,
++	D3DTSS_ALPHAOP = 4,
++	D3DTSS_ALPHAARG1 = 5,
++	D3DTSS_ALPHAARG2 = 6,
++	D3DTSS_BUMPENVMAT00 = 7,
++	D3DTSS_BUMPENVMAT01 = 8,
++	D3DTSS_BUMPENVMAT10 = 9,
++	D3DTSS_BUMPENVMAT11 = 10,
++	D3DTSS_TEXCOORDINDEX = 11,
++	D3DTSS_ADDRESSU = 13,
++	D3DTSS_ADDRESSV = 14,
++	D3DTSS_BORDERCOLOR = 15,
++	D3DTSS_MAGFILTER = 16,
++	D3DTSS_MINFILTER = 17,
++	D3DTSS_MIPFILTER = 18,
++	D3DTSS_MIPMAPLODBIAS = 19,
++	D3DTSS_MAXMIPLEVEL = 20,
++	D3DTSS_MAXANISOTROPY = 21,
++	D3DTSS_BUMPENVLSCALE = 22,
++	D3DTSS_BUMPENVLOFFSET = 23,
++	D3DTSS_TEXTURETRANSFORMFLAGS = 24,
++	D3DTSS_ADDRESSW = 25,
++	D3DTSS_COLORARG0 = 26,
++	D3DTSS_ALPHAARG0 = 27,
++	D3DTSS_RESULTARG = 28,
++	D3DTSS_FORCE_DWORD = 0x7fffffff
++} D3DTEXTURESTAGESTATETYPE;
++
++/* Texture coordinate generation, combined with the coordinate index in D3DTSS_TEXCOORDINDEX */
++#define D3DTSS_TCI_PASSTHRU                    0x00000000
++#define D3DTSS_TCI_CAMERASPACENORMAL           0x00010000
++#define D3DTSS_TCI_CAMERASPACEPOSITION         0x00020000
++#define D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR 0x00030000
++
++typedef enum _D3DTEXTUREOP {
++	D3DTOP_DISABLE = 1,
++	D3DTOP_SELECTARG1 = 2,
++	D3DTOP_SELECTARG2 = 3,
++	D3DTOP_MODULATE = 4,
++	D3DTOP_MODULATE2X = 5,
++	D3DTOP_MODULATE4X = 6,
++	D3DTOP_ADD = 7,
++	D3DTOP_ADDSIGNED = 8,
++	D3DTOP_ADDSIGNED2X = 9,
++	D3DTOP_SUBTRACT = 10,
++	D3DTOP_ADDSMOOTH = 11,
++	D3DTOP_BLENDDIFFUSEALPHA = 12,
++	D3DTOP_BLENDTEXTUREALPHA = 13,
++	D3DTOP_BLENDFACTORALPHA = 14,
++	D3DTOP_BLENDTEXTUREALPHAPM = 15,
++	D3DTOP_BLENDCURRENTALPHA = 16,
++	D3DTOP_PREMODULATE = 17,
++	D3DTOP_MODULATEALPHA_ADDCOLOR = 18,
++	D3DTOP_MODULATECOLOR_ADDALPHA = 19,
++	D3DTOP_MODULATEINVALPHA_ADDCOLOR = 20,
++	D3DTOP_MODULATEINVCOLOR_ADDALPHA = 21,
++	D3DTOP_BUMPENVMAP = 22,
++	D3DTOP_BUMPENVMAPLUMINANCE = 23,
++	D3DTOP_DOTPRODUCT3 = 24,
++	D3DTOP_MULTIPLYADD = 25,
++	D3DTOP_LERP = 26,
++	D3DTOP_FORCE_DWORD = 0x7fffffff
++} D3DTEXTUREOP;
++
++/* Texture argument values */
++#define D3DTA_SELECTMASK     0x0000000f
++#define D3DTA_DIFFUSE        0x00000000
++#define D3DTA_CURRENT        0x00000001
++#define D3DTA_TEXTURE        0x00000002
++#define D3DTA_TFACTOR        0x00000003
++#define D3DTA_SPECULAR       0x00000004
++#define D3DTA_TEMP           0x00000005
++#define D3DTA_COMPLEMENT     0x00000010
++#define D3DTA_ALPHAREPLICATE 0x00000020
++
++typedef enum _D3DTEXTUREFILTERTYPE {
++	D3DTEXF_NONE = 0,
++	D3DTEXF_POINT = 1,
++	D3DTEXF_LINEAR = 2,
++	D3DTEXF_ANISOTROPIC = 3,
++	D3DTEXF_FLATCUBIC = 4,
++	D3DTEXF_GAUSSIANCUBIC = 5,
++	D3DTEXF_FORCE_DWORD = 0x7fffffff
++} D3DTEXTUREFILTERTYPE;
++
++/* Flexible vertex format bits */
++#define D3DFVF_RESERVED0       0x001
++#define D3DFVF_POSITION_MASK   0x00E
++#define D3DFVF_XYZ             0x002
++#define D3DFVF_XYZRHW          0x004
++#define D3DFVF_XYZB1           0x006
++#define D3DFVF_XYZB2           0x008
++#define D3DFVF_XYZB3           0x00a
++#define D3DFVF_XYZB4           0x00c
++#define D3DFVF_XYZB5           0x00e
++#define D3DFVF_NORMAL          0x010
++#define D3DFVF_PSIZE           0x020
++#define D3DFVF_DIFFUSE         0x040
++#define D3DFVF_SPECULAR        0x080
++#define D3DFVF_TEXCOUNT_MASK   0xf00
++#define D3DFVF_TEXCOUNT_SHIFT  8
++#define D3DFVF_TEX0            0x000
++#define D3DFVF_TEX1            0x100
++#define D3DFVF_TEX2            0x200
++#define D3DFVF_TEX3            0x300
++#define D3DFVF_TEX4            0x400
++#define D3DFVF_TEX5            0x500
++#define D3DFVF_TEX6            0x600
++#define D3DFVF_TEX7            0x700
++#define D3DFVF_TEX8            0x800
++#define D3DFVF_LASTBETA_UBYTE4 0x1000
++#define D3DFVF_RESERVED2       0xE000
++
++#define D3DFVF_TEXTUREFORMAT2 0
++#define D3DFVF_TEXTUREFORMAT1 3
++#define D3DFVF_TEXTUREFORMAT3 1
++#define D3DFVF_TEXTUREFORMAT4 2
++#define D3DFVF_TEXCOORDSIZE3(CoordIndex) (D3DFVF_TEXTUREFORMAT3 << (CoordIndex * 2 + 16))
++#define D3DFVF_TEXCOORDSIZE2(CoordIndex) (D3DFVF_TEXTUREFORMAT2)
++#define D3DFVF_TEXCOORDSIZE4(CoordIndex) (D3DFVF_TEXTUREFORMAT4 << (CoordIndex * 2 + 16))
++#define D3DFVF_TEXCOORDSIZE1(CoordIndex) (D3DFVF_TEXTUREFORMAT1 << (CoordIndex * 2 + 16))
++
++#define D3DDP_MAXTEXCOORD 8
++
++typedef enum _D3DFORMAT {
++	D3DFMT_UNKNOWN = 0,
++	D3DFMT_R8G8B8 = 20,
++	D3DFMT_A8R8G8B8 = 21,
++	D3DFMT_X8R8G8B8 = 22,
++	D3DFMT_R5G6B5 = 23,
++	D3DFMT_X1R5G5B5 = 24,
++	D3DFMT_A1R5G5B5 = 25,
++	D3DFMT_A4R4G4B4 = 26,
++	D3DFMT_R3G3B2 = 27,
++	D3DFMT_A8 = 28,
++	D3DFMT_A8R3G3B2 = 29,
++	D3DFMT_X4R4G4B4 = 30,
++	D3DFMT_A8P8 = 40,
++	D3DFMT_P8 = 41,
++	D3DFMT_L8 = 50,
++	D3DFMT_A8L8 = 51,
++	D3DFMT_A4L4 = 52,
++	D3DFMT_V8U8 = 60,
++	D3DFMT_L6V5U5 = 61,
++	D3DFMT_X8L8V8U8 = 62,
++	D3DFMT_Q8W8V8U8 = 63,
++	D3DFMT_V16U16 = 64,
++	D3DFMT_W11V11U10 = 65,
++	D3DFMT_UYVY = MAKEFOURCC('U', 'Y', 'V', 'Y'),
++	D3DFMT_YUY2 = MAKEFOURCC('Y', 'U', 'Y', '2'),
++	D3DFMT_DXT1 = MAKEFOURCC('D', 'X', 'T', '1'),
++	D3DFMT_DXT2 = MAKEFOURCC('D', 'X', 'T', '2'),
++	D3DFMT_DXT3 = MAKEFOURCC('D', 'X', 'T', '3'),
++	D3DFMT_DXT4 = MAKEFOURCC('D', 'X', 'T', '4'),
++	D3DFMT_DXT5 = MAKEFOURCC('D', 'X', 'T', '5'),
++	D3DFMT_D16_LOCKABLE = 70,
++	D3DFMT_D32 = 71,
++	D3DFMT_D15S1 = 73,
++	D3DFMT_D24S8 = 75,
++	D3DFMT_D16 = 80,
++	D3DFMT_D24X8 = 77,
++	D3DFMT_D24X4S4 = 79,
++	D3DFMT_VERTEXDATA = 100,
++	D3DFMT_INDEX16 = 101,
++	D3DFMT_INDEX32 = 102,
++	D3DFMT_FORCE_DWORD = 0x7fffffff
++} D3DFORMAT;
++
++typedef struct _D3DDISPLAYMODE {
++	UINT Width;
++	UINT Height;
++	UINT RefreshRate;
++	D3DFORMAT Format;
++} D3DDISPLAYMODE;
++
++typedef struct _D3DDEVICE_CREATION_PARAMETERS {
++	UINT AdapterOrdinal;
++	DWORD DeviceType;     /* D3DDEVTYPE */
++	HWND hFocusWindow;
++	DWORD BehaviorFlags;
++} D3DDEVICE_CREATION_PARAMETERS;
++
++typedef enum _D3DDEVTYPE {
++	D3DDEVTYPE_HAL = 1,
++	D3DDEVTYPE_REF = 2,
++	D3DDEVTYPE_SW = 3,
++	D3DDEVTYPE_FORCE_DWORD = 0x7fffffff
++} D3DDEVTYPE;
++
++typedef enum _D3DMULTISAMPLE_TYPE {
++	D3DMULTISAMPLE_NONE = 0,
++	D3DMULTISAMPLE_2_SAMPLES = 2,
++	D3DMULTISAMPLE_3_SAMPLES = 3,
++	D3DMULTISAMPLE_4_SAMPLES = 4,
++	D3DMULTISAMPLE_FORCE_DWORD = 0x7fffffff
++} D3DMULTISAMPLE_TYPE;
++
++typedef enum _D3DSWAPEFFECT {
++	D3DSWAPEFFECT_DISCARD = 1,
++	D3DSWAPEFFECT_FLIP = 2,
++	D3DSWAPEFFECT_COPY = 3,
++	D3DSWAPEFFECT_COPY_VSYNC = 4,
++	D3DSWAPEFFECT_FORCE_DWORD = 0x7fffffff
++} D3DSWAPEFFECT;
++
++typedef enum _D3DPOOL {
++	D3DPOOL_DEFAULT = 0,
++	D3DPOOL_MANAGED = 1,
++	D3DPOOL_SYSTEMMEM = 2,
++	D3DPOOL_FORCE_DWORD = 0x7fffffff
++} D3DPOOL;
++
++#define D3DPRESENT_RATE_DEFAULT 0x00000000
++
++typedef struct _D3DPRESENT_PARAMETERS_ {
++	UINT BackBufferWidth;
++	UINT BackBufferHeight;
++	D3DFORMAT BackBufferFormat;
++	UINT BackBufferCount;
++	D3DMULTISAMPLE_TYPE MultiSampleType;
++	D3DSWAPEFFECT SwapEffect;
++	HWND hDeviceWindow;
++	BOOL Windowed;
++	BOOL EnableAutoDepthStencil;
++	D3DFORMAT AutoDepthStencilFormat;
++	DWORD Flags;
++	UINT FullScreen_RefreshRateInHz;
++	UINT FullScreen_PresentationInterval;
++} D3DPRESENT_PARAMETERS;
++
++#define D3DPRESENTFLAG_LOCKABLE_BACKBUFFER 0x00000001
++
++typedef struct _D3DGAMMARAMP {
++	WORD red[256];
++	WORD green[256];
++	WORD blue[256];
++} D3DGAMMARAMP;
++
++typedef enum _D3DBACKBUFFER_TYPE {
++	D3DBACKBUFFER_TYPE_MONO = 0,
++	D3DBACKBUFFER_TYPE_LEFT = 1,
++	D3DBACKBUFFER_TYPE_RIGHT = 2,
++	D3DBACKBUFFER_TYPE_FORCE_DWORD = 0x7fffffff
++} D3DBACKBUFFER_TYPE;
++
++typedef enum _D3DRESOURCETYPE {
++	D3DRTYPE_SURFACE = 1,
++	D3DRTYPE_VOLUME = 2,
++	D3DRTYPE_TEXTURE = 3,
++	D3DRTYPE_VOLUMETEXTURE = 4,
++	D3DRTYPE_CUBETEXTURE = 5,
++	D3DRTYPE_VERTEXBUFFER = 6,
++	D3DRTYPE_INDEXBUFFER = 7,
++	D3DRTYPE_FORCE_DWORD = 0x7fffffff
++} D3DRESOURCETYPE;
++
++/* Usage */
++#define D3DUSAGE_RENDERTARGET       0x00000001L
++#define D3DUSAGE_DEPTHSTENCIL       0x00000002L
++#define D3DUSAGE_WRITEONLY          0x00000008L
++#define D3DUSAGE_SOFTWAREPROCESSING 0x00000010L
++#define D3DUSAGE_DONOTCLIP          0x00000020L
++#define D3DUSAGE_POINTS             0x00000040L
++#define D3DUSAGE_RTPATCHES          0x00000080L
++#define D3DUSAGE_NPATCHES           0x00000100L
++#define D3DUSAGE_DYNAMIC            0x00000200L
++
++typedef enum _D3DCUBEMAP_FACES {
++	D3DCUBEMAP_FACE_POSITIVE_X = 0,
++	D3DCUBEMAP_FACE_FORCE_DWORD = 0x7fffffff
++} D3DCUBEMAP_FACES;
++
++/* Lock flags */
++#define D3DLOCK_READONLY        0x00000010L
++#define D3DLOCK_DISCARD         0x00002000L
++#define D3DLOCK_NOOVERWRITE     0x00001000L
++#define D3DLOCK_NOSYSLOCK       0x00000800L
++#define D3DLOCK_NO_DIRTY_UPDATE 0x00008000L
++
++typedef struct _D3DVERTEXBUFFER_DESC {
++	D3DFORMAT Format;
++	D3DRESOURCETYPE Type;
++	DWORD Usage;
++	D3DPOOL Pool;
++	UINT Size;
++	DWORD FVF;
++} D3DVERTEXBUFFER_DESC;
++
++typedef struct _D3DINDEXBUFFER_DESC {
++	D3DFORMAT Format;
++	D3DRESOURCETYPE Type;
++	DWORD Usage;
++	D3DPOOL Pool;
++	UINT Size;
++} D3DINDEXBUFFER_DESC;
++
++typedef struct _D3DSURFACE_DESC {
++	D3DFORMAT Format;
++	D3DRESOURCETYPE Type;
++	DWORD Usage;
++	D3DPOOL Pool;
++	UINT Size;
++	D3DMULTISAMPLE_TYPE MultiSampleType;
++	UINT Width;
++	UINT Height;
++} D3DSURFACE_DESC;
++
++typedef struct _D3DLOCKED_RECT {
++	INT Pitch;
++	void *pBits;
++} D3DLOCKED_RECT;
++
++#define MAX_DEVICE_IDENTIFIER_STRING 512
++typedef struct _D3DADAPTER_IDENTIFIER8 {
++	char Driver[MAX_DEVICE_IDENTIFIER_STRING];
++	char Description[MAX_DEVICE_IDENTIFIER_STRING];
++	LARGE_INTEGER DriverVersion;
++	DWORD VendorId;
++	DWORD DeviceId;
++	DWORD SubSysId;
++	DWORD Revision;
++	GUID DeviceIdentifier;
++	DWORD WHQLLevel;
++} D3DADAPTER_IDENTIFIER8;
++
++/* SetGammaRamp flags */
++#define D3DSGR_NO_CALIBRATION 0x00000000L
++#define D3DSGR_CALIBRATE      0x00000001L
++
++#endif /* D3D8TYPES_H */
+diff --git a/Code/xbox/include/d3dx8.h b/Code/xbox/include/d3dx8.h
+new file mode 100644
+index 0000000..cb631ea
+--- /dev/null
++++ b/Code/xbox/include/d3dx8.h
+@@ -0,0 +1,161 @@
++/*
++** d3dx8.h -- the D3DX helpers Renegade uses (Xbox build only).
++**
++** The math helpers and D3DXGetFVFVertexSize are pure computation and are implemented here
++** in full, with D3DX's conventions (row vectors: v' = v * M). The texture helpers need the
++** GPU and are provided by the port's Direct3D layer.
++*/
++#ifndef D3DX8_H
++#define D3DX8_H
++
++#include "d3d8.h"
++
++#ifdef __cplusplus
++
++#define D3DX_DEFAULT ((UINT)-1)
++
++#define D3DX_FILTER_NONE     (1 << 0)
++#define D3DX_FILTER_POINT    (2 << 0)
++#define D3DX_FILTER_LINEAR   (3 << 0)
++#define D3DX_FILTER_TRIANGLE (4 << 0)
++#define D3DX_FILTER_BOX      (5 << 0)
++#define D3DX_FILTER_MIRROR_U (1 << 16)
++#define D3DX_FILTER_MIRROR_V (2 << 16)
++#define D3DX_FILTER_DITHER   (8 << 16)
++
++struct D3DXVECTOR3 : public D3DVECTOR {
++	D3DXVECTOR3() {}
++	operator float *() { return &x; }               /* D3DX vectors index as float arrays */
++	operator const float *() const { return &x; }
++	D3DXVECTOR3(float fx, float fy, float fz) { x = fx; y = fy; z = fz; }
++	D3DXVECTOR3(const D3DVECTOR &v) { x = v.x; y = v.y; z = v.z; }
++};
++
++struct D3DXVECTOR4 {
++	float x, y, z, w;
++	D3DXVECTOR4() {}
++	operator float *() { return &x; }
++	operator const float *() const { return &x; }
++	D3DXVECTOR4(float fx, float fy, float fz, float fw) : x(fx), y(fy), z(fz), w(fw) {}
++};
++
++struct D3DXMATRIX : public D3DMATRIX {
++	D3DXMATRIX() {}
++	D3DXMATRIX(const D3DMATRIX &mat) { *(D3DMATRIX *)this = mat; }
++	D3DXMATRIX(const float *f)
++	{
++		for (int i = 0; i < 16; i++) (&_11)[i] = f[i];
++	}
++	float &operator()(UINT row, UINT col) { return m[row][col]; }
++	float operator()(UINT row, UINT col) const { return m[row][col]; }
++	operator float *() { return &_11; }
++	operator const float *() const { return &_11; }
++
++	/* Matrix product, as D3DX defines it: (A * B)[i][j] = sum over k of A[i][k] * B[k][j]. */
++	D3DXMATRIX operator*(const D3DXMATRIX &b) const
++	{
++		D3DXMATRIX r;
++		for (int i = 0; i < 4; i++) {
++			for (int j = 0; j < 4; j++) {
++				r.m[i][j] = m[i][0] * b.m[0][j] + m[i][1] * b.m[1][j] +
++				            m[i][2] * b.m[2][j] + m[i][3] * b.m[3][j];
++			}
++		}
++		return r;
++	}
++	D3DXMATRIX &operator*=(const D3DXMATRIX &b) { *this = *this * b; return *this; }
++};
++
++/* out = transpose(m). Safe when out and m are the same matrix. */
++inline D3DXMATRIX *D3DXMatrixTranspose(D3DXMATRIX *pOut, const D3DXMATRIX *pM)
++{
++	D3DXMATRIX t;
++	for (int i = 0; i < 4; i++) {
++		for (int j = 0; j < 4; j++) t.m[i][j] = pM->m[j][i];
++	}
++	*pOut = t;
++	return pOut;
++}
++
++/* out = (x, y, z, 1) * M, as a 4-component result (no divide by w). */
++inline D3DXVECTOR4 *D3DXVec3Transform(D3DXVECTOR4 *pOut, const D3DXVECTOR3 *pV, const D3DXMATRIX *pM)
++{
++	const float x = pV->x, y = pV->y, z = pV->z;
++	D3DXVECTOR4 r;
++	r.x = x * pM->_11 + y * pM->_21 + z * pM->_31 + pM->_41;
++	r.y = x * pM->_12 + y * pM->_22 + z * pM->_32 + pM->_42;
++	r.z = x * pM->_13 + y * pM->_23 + z * pM->_33 + pM->_43;
++	r.w = x * pM->_14 + y * pM->_24 + z * pM->_34 + pM->_44;
++	*pOut = r;
++	return pOut;
++}
++
++/* Size in bytes of one vertex in the given flexible vertex format. */
++inline UINT D3DXGetFVFVertexSize(DWORD FVF)
++{
++	UINT size = 0;
++	switch (FVF & D3DFVF_POSITION_MASK) {
++	case D3DFVF_XYZ:    size = 12; break;
++	case D3DFVF_XYZRHW: size = 16; break;
++	case D3DFVF_XYZB1:  size = 16; break;
++	case D3DFVF_XYZB2:  size = 20; break;
++	case D3DFVF_XYZB3:  size = 24; break;
++	case D3DFVF_XYZB4:  size = 28; break;
++	case D3DFVF_XYZB5:  size = 32; break;
++	default:            break;
++	}
++	if (FVF & D3DFVF_NORMAL)   size += 12;
++	if (FVF & D3DFVF_PSIZE)    size += 4;
++	if (FVF & D3DFVF_DIFFUSE)  size += 4;
++	if (FVF & D3DFVF_SPECULAR) size += 4;
++	UINT tex_count = (FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
++	for (UINT i = 0; i < tex_count; i++) {
++		switch ((FVF >> (16 + i * 2)) & 3) {
++		case D3DFVF_TEXTUREFORMAT1: size += 4;  break;
++		case D3DFVF_TEXTUREFORMAT2: size += 8;  break;
++		case D3DFVF_TEXTUREFORMAT3: size += 12; break;
++		case D3DFVF_TEXTUREFORMAT4: size += 16; break;
++		}
++	}
++	return size;
++}
++
++typedef enum _D3DXIMAGE_FILEFORMAT {
++	D3DXIFF_BMP = 0,
++	D3DXIFF_JPG = 1,
++	D3DXIFF_TGA = 2,
++	D3DXIFF_PNG = 3,
++	D3DXIFF_DDS = 4,
++	D3DXIFF_PPM = 5,
++	D3DXIFF_DIB = 6,
++	D3DXIFF_FORCE_DWORD = 0x7fffffff
++} D3DXIMAGE_FILEFORMAT;
++
++typedef struct _D3DXIMAGE_INFO {
++	UINT Width;
++	UINT Height;
++	UINT Depth;
++	UINT MipLevels;
++	D3DFORMAT Format;
++	D3DRESOURCETYPE ResourceType;
++	D3DXIMAGE_FILEFORMAT ImageFileFormat;
++} D3DXIMAGE_INFO;
++
++/* Texture helpers, provided by the port's Direct3D layer. */
++HRESULT D3DXCreateTexture(IDirect3DDevice8 *pDevice, UINT Width, UINT Height, UINT MipLevels, DWORD Usage,
++                          D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture8 **ppTexture);
++HRESULT D3DXCreateTextureFromFileExA(IDirect3DDevice8 *pDevice, const char *pSrcFile, UINT Width, UINT Height,
++                                     UINT MipLevels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, DWORD Filter,
++                                     DWORD MipFilter, D3DCOLOR ColorKey, D3DXIMAGE_INFO *pSrcInfo,
++                                     PALETTEENTRY *pPalette, IDirect3DTexture8 **ppTexture);
++HRESULT D3DXLoadSurfaceFromSurface(IDirect3DSurface8 *pDestSurface, CONST PALETTEENTRY *pDestPalette,
++                                   CONST RECT *pDestRect, IDirect3DSurface8 *pSrcSurface,
++                                   CONST PALETTEENTRY *pSrcPalette, CONST RECT *pSrcRect, DWORD Filter,
++                                   D3DCOLOR ColorKey);
++HRESULT D3DXFilterTexture(IDirect3DBaseTexture8 *pBaseTexture, CONST PALETTEENTRY *pPalette, UINT SrcLevel,
++                          DWORD Filter);
++HRESULT D3DXGetErrorStringA(HRESULT hr, char *pBuffer, UINT BufferLen);
++
++#endif /* __cplusplus */
++
++#endif /* D3DX8_H */
+diff --git a/Code/xbox/include/d3dx8core.h b/Code/xbox/include/d3dx8core.h
+new file mode 100644
+index 0000000..49b56d6
+--- /dev/null
++++ b/Code/xbox/include/d3dx8core.h
+@@ -0,0 +1,3 @@
++/* PORT: part of D3DX; everything Renegade uses from it is in d3dx8.h (Xbox build). */
++#pragma once
++#include "d3dx8.h"
+diff --git a/Code/xbox/include/d3dx8math.h b/Code/xbox/include/d3dx8math.h
+new file mode 100644
+index 0000000..49b56d6
+--- /dev/null
++++ b/Code/xbox/include/d3dx8math.h
+@@ -0,0 +1,3 @@
++/* PORT: part of D3DX; everything Renegade uses from it is in d3dx8.h (Xbox build). */
++#pragma once
++#include "d3dx8.h"
+diff --git a/Code/xbox/include/d3dx8tex.h b/Code/xbox/include/d3dx8tex.h
+new file mode 100644
+index 0000000..49b56d6
+--- /dev/null
++++ b/Code/xbox/include/d3dx8tex.h
+@@ -0,0 +1,3 @@
++/* PORT: part of D3DX; everything Renegade uses from it is in d3dx8.h (Xbox build). */
++#pragma once
++#include "d3dx8.h"
+diff --git a/Code/xbox/include/xbox_prelude.h b/Code/xbox/include/xbox_prelude.h
+index 04ec8bc..f3eb05c 100644
+--- a/Code/xbox/include/xbox_prelude.h
++++ b/Code/xbox/include/xbox_prelude.h
+@@ -20,6 +20,8 @@ typedef wchar_t WCHAR;        /* the engine's WCHAR: native 16-bit wchar_t */
+ 
+ #include <wchar.h>
+ #include "../../wwlib/xbox_port.h"   /* port shims, for files that don't include always.h */
++#include "xbox_win32_types.h"         /* RECT, POINT, GUID, GDI handles... (windows.h has them on PC) */
++#include <mmsystem.h>                 /* timeGetTime, timeBeginPeriod (windows.h includes it on PC) */
+ 
+ static_assert(sizeof(wchar_t) == 2, "Xbox build expects a 16-bit wchar_t");
+ static_assert(sizeof(NXDK_WCHAR) == sizeof(wchar_t), "nxdk WCHAR size changed");
+diff --git a/Code/xbox/include/xbox_win32_types.h b/Code/xbox/include/xbox_win32_types.h
+new file mode 100644
+index 0000000..e19ecbe
+--- /dev/null
++++ b/Code/xbox/include/xbox_win32_types.h
+@@ -0,0 +1,97 @@
++/*
++** xbox_win32_types.h -- small Windows types that Direct3D 8 uses and nxdk does not define
++** (Xbox build only). If a future nxdk version adds any of these, remove them here.
++*/
++#ifndef XBOX_WIN32_TYPES_H
++#define XBOX_WIN32_TYPES_H
++
++#include <windows.h>
++
++#ifndef FLOAT
++typedef float FLOAT;
++#endif
++
++typedef struct tagRECT {
++	LONG left;
++	LONG top;
++	LONG right;
++	LONG bottom;
++} RECT, *PRECT, *LPRECT;
++typedef const RECT *LPCRECT;
++
++typedef struct tagPOINT {
++	LONG x;
++	LONG y;
++} POINT, *PPOINT, *LPPOINT;
++
++typedef struct _GUID {
++	unsigned long  Data1;
++	unsigned short Data2;
++	unsigned short Data3;
++	unsigned char  Data4[8];
++} GUID, IID;
++#ifdef __cplusplus
++typedef const GUID &REFGUID;
++typedef const IID &REFIID;
++#else
++typedef const GUID *REFGUID;
++typedef const IID *REFIID;
++#endif
++
++typedef void *HMONITOR;
++
++/* GDI handles. Only stored as opaque values by the engine's headers on Xbox; the one file
++** that actually draws with GDI (fonts, in render2dsentence.cpp) is being replaced. */
++typedef void *HDC;
++typedef void *HFONT;
++typedef void *HBITMAP;
++typedef void *HGDIOBJ;
++
++#ifndef LOWORD
++#define LOWORD(l) ((WORD)((DWORD)(l) & 0xffff))
++#define HIWORD(l) ((WORD)(((DWORD)(l) >> 16) & 0xffff))
++#define MAKELONG(lo, hi) ((LONG)(((WORD)(lo)) | (((DWORD)((WORD)(hi))) << 16)))
++#endif
++
++typedef struct _RGNDATAHEADER {
++	DWORD dwSize;
++	DWORD iType;
++	DWORD nCount;
++	DWORD nRgnSize;
++	RECT  rcBound;
++} RGNDATAHEADER;
++typedef struct _RGNDATA {
++	RGNDATAHEADER rdh;
++	char Buffer[1];
++} RGNDATA;
++
++typedef struct tagPALETTEENTRY {
++	BYTE peRed;
++	BYTE peGreen;
++	BYTE peBlue;
++	BYTE peFlags;
++} PALETTEENTRY;
++
++#ifndef MAKEFOURCC
++#define MAKEFOURCC(ch0, ch1, ch2, ch3) \
++	((DWORD)(BYTE)(ch0) | ((DWORD)(BYTE)(ch1) << 8) | \
++	 ((DWORD)(BYTE)(ch2) << 16) | ((DWORD)(BYTE)(ch3) << 24))
++#endif
++
++#ifndef MAKE_HRESULT
++#define MAKE_HRESULT(sev, fac, code) \
++	((HRESULT)(((unsigned long)(sev) << 31) | ((unsigned long)(fac) << 16) | ((unsigned long)(code))))
++#endif
++
++#ifdef __cplusplus
++/* The COM base interface. Direct3D objects in the Xbox build are plain C++ objects that
++** keep the COM-style reference counting the engine relies on. */
++struct IUnknown {
++	virtual HRESULT QueryInterface(REFIID riid, void **object) = 0;
++	virtual ULONG AddRef(void) = 0;
++	virtual ULONG Release(void) = 0;
++	virtual ~IUnknown() {}
++};
++#endif
++
++#endif /* XBOX_WIN32_TYPES_H */
+-- 
+2.43.0
+

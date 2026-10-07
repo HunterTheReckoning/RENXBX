@@ -1,0 +1,109 @@
+From 23fb5b3e0d2f2be69ecac408e7d17927398f232e Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sun, 4 Oct 2026 03:56:00 +0000
+Subject: [PATCH 22/32] Resolve relative file names against the game's folder
+ (D:\), as Windows does
+
+nxdk's CreateFile resolves names in the kernel's drive-letter directory, so the engine's
+relative names (models, textures, dazzle.ini) found nothing, and '..\name' (tried by the asset
+manager when a file is missing) hung start-up in ShatterSystem::Init. RawFileClass now resolves
+names with Xbox_Resolve_Path: drive-letter paths unchanged; a, .\a, \a and ..\a become D:\a.
+---
+ wwlib/rawfile.cpp   | 21 +++++++++++++++++++++
+ wwlib/xbox_port.cpp | 21 +++++++++++++++++++++
+ wwlib/xbox_port.h   |  7 +++++++
+ 3 files changed, 49 insertions(+)
+
+diff --git a/Code/wwlib/rawfile.cpp b/Code/wwlib/rawfile.cpp
+index a6673a3..a311d6b 100644
+--- a/Code/wwlib/rawfile.cpp
++++ b/Code/wwlib/rawfile.cpp
+@@ -252,6 +252,14 @@ RawFileClass::RawFileClass(char const * filename) :
+ 	Date(0),
+ 	Time(0)
+ {
++#ifdef NXDK
++	// PORT: the initializer above stored the name as given; resolve it like Set_Name does.
++	if (filename && filename[0]) {
++		char resolved[_MAX_PATH];
++		Xbox_Resolve_Path(filename, resolved, sizeof(resolved));
++		Filename=resolved;
++	}
++#endif
+ }
+ 
+ /***********************************************************************************************
+@@ -314,7 +322,20 @@ char const * RawFileClass::Set_Name(char const * filename)
+ {
+ 	Bias(0);
+ 
++#ifdef NXDK
++	// PORT: resolve the name against the game's folder (D:\) as Windows resolves it against
++	// the current folder; nxdk's CreateFile would look for a relative name in the kernel's
++	// drive-letter directory and find nothing (or, for "..\name", hang).
++	if (filename && filename[0]) {
++		char resolved[_MAX_PATH];
++		Xbox_Resolve_Path(filename, resolved, sizeof(resolved));
++		Filename=resolved;
++	} else {
++		Filename=filename;
++	}
++#else
+ 	Filename=filename;
++#endif
+ 
+ 	/*
+ 	** If this is a UNIX build, fix the filename from the DOS-like name passed in
+diff --git a/Code/wwlib/xbox_port.cpp b/Code/wwlib/xbox_port.cpp
+index 88e9079..def39d9 100644
+--- a/Code/wwlib/xbox_port.cpp
++++ b/Code/wwlib/xbox_port.cpp
+@@ -353,6 +353,27 @@ DWORD GetCurrentDirectoryA(DWORD buffer_size, char *buffer)
+ 	return sizeof(dir) - 1;
+ }
+ 
++void Xbox_Resolve_Path(const char *name, char *out, size_t out_size)
++{
++	if (!out || out_size == 0) return;
++	if (!name) name = "";
++	const char *rest = name;
++	const char *prefix = "";
++	if (name[0] && name[1] == ':') {
++		prefix = "";                                  /* has a drive letter: keep as is */
++	} else {
++		for (;;) {                                    /* drop leading \, .\ and ..\ */
++			if (rest[0] == '\\' || rest[0] == '/') { rest += 1; continue; }
++			if (rest[0] == '.' && (rest[1] == '\\' || rest[1] == '/')) { rest += 2; continue; }
++			if (rest[0] == '.' && rest[1] == '.' && (rest[2] == '\\' || rest[2] == '/')) { rest += 3; continue; }
++			break;
++		}
++		prefix = "D:\\";
++	}
++	snprintf(out, out_size, "%s%s", prefix, rest);
++	for (char *p = out; *p; ++p) if (*p == '/') *p = '\\';
++}
++
+ wchar_t *lstrcpynW(wchar_t *dst, const wchar_t *src, int max_count)
+ {
+ 	if (max_count <= 0) return dst;
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index 551c680..406b965 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -164,6 +164,13 @@ wchar_t *lstrcpynW(wchar_t *dst, const wchar_t *src, int max_count);
+ ** (with terminator) if the buffer is too small. */
+ DWORD GetCurrentDirectoryA(DWORD buffer_size, char *buffer);
+ 
++/* File names as Windows resolves them against the current folder, for the Xbox: nxdk's
++** CreateFile resolves names in the kernel's drive-letter directory (\??\), so a relative
++** name would find nothing. With D:\ as the current folder (as GetCurrentDirectory reports):
++** "X:\..." is unchanged; "\a", "a", ".\a" and "..\a" become "D:\a" (the game's folder is
++** the top of the disc, so there is no parent); '/' becomes '\'. */
++void Xbox_Resolve_Path(const char *name, char *out, size_t out_size);
++
+ /* MSVC's _beginthread, built on nxdk's _beginthreadex. Returns the thread handle, or
+ ** (uintptr_t)-1 on failure as MSVC does. Unlike MSVC, the handle is not closed when the
+ ** thread exits (ThreadClass keeps using it); the engine creates only a few threads. */
+-- 
+2.43.0
+

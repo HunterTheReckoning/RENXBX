@@ -1,0 +1,308 @@
+From 0f44c1aefd04a8629bf4cf65ff190f8140e37834 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Mon, 5 Oct 2026 03:24:22 +0000
+Subject: [PATCH 31/32] wwphys (physics, collision, visibility, pathfinding)
+ compiles; loop variables keep old MSVC's semantics
+
+- all 93 files of wwphys compile; Umbra (third-party visibility) is switched off in the source
+  (UMBRASUPPORT 0) and the level-editor-only files aren't in the build
+- usual fixes: extra qualification, loop scoping, const strrchr, a nested class's name made public
+  for its pool definition, projector macro no longer pastes a name onto '.'
+- loop variables: where a declaration was moved above its loop (old MSVC kept it alive for the
+  function), later loops at the same level now reuse it instead of declaring a new one that would
+  hide it, matching old MSVC's single variable (11 loops, one in ww3d2/dx8wrapper.cpp); duplicate
+  moved declarations removed
+---
+ ww3d2/dx8wrapper.cpp                   |  2 +-
+ wwlib/binheap.h                        |  3 ++-
+ wwphys/Path.cpp                        |  3 ++-
+ wwphys/Pathfind.cpp                    |  9 ++++++---
+ wwphys/camerashakesystem.h             |  6 +++++-
+ wwphys/motorvehicle.cpp                |  2 +-
+ wwphys/pathmgr.cpp                     |  3 ++-
+ wwphys/pathsolve.cpp                   |  3 ++-
+ wwphys/phys3.cpp                       |  3 ++-
+ wwphys/physinttest.h                   |  2 +-
+ wwphys/projectormanager.h              | 27 +++++++++++++-------------
+ wwphys/pscene_projectors.cpp           |  3 ++-
+ wwphys/renegadeterrainmaterialpass.cpp |  3 ++-
+ wwphys/renegadeterrainpatch.cpp        |  6 ++++--
+ wwphys/visrendercontext.cpp            |  3 ++-
+ 15 files changed, 48 insertions(+), 30 deletions(-)
+
+diff --git a/Code/ww3d2/dx8wrapper.cpp b/Code/ww3d2/dx8wrapper.cpp
+index f27df94..6de0db6 100644
+--- a/Code/ww3d2/dx8wrapper.cpp
++++ b/Code/ww3d2/dx8wrapper.cpp
+@@ -2462,7 +2462,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
+ 		}
+ 	}
+ /*	else {
+-		for (int l=0;l<4;++l) {
++		for (l=0;l<4;++l) {
+ 			Set_Light(l,NULL);
+ 		}
+ 	}
+diff --git a/Code/wwlib/binheap.h b/Code/wwlib/binheap.h
+index 2d64feb..14225d5 100644
+--- a/Code/wwlib/binheap.h
++++ b/Code/wwlib/binheap.h
+@@ -224,7 +224,8 @@ class BinaryHeapClass
+ 			// Decrement the number of elements in the tree.
+ 			Number_Of_Elements--;
+ 
+-			for (unsigned int i = 1; (i * 2) <= Number_Of_Elements; i = child)
++			unsigned int i;	// PORT: used after the loop (MSVC6 leaked loop variables)
++			for (i = 1; (i * 2) <= Number_Of_Elements; i = child)
+ 			{
+ 				// Find a smaller child.
+ 				child = i * 2;
+diff --git a/Code/wwphys/Path.cpp b/Code/wwphys/Path.cpp
+index 5971778..75b0657 100644
+--- a/Code/wwphys/Path.cpp
++++ b/Code/wwphys/Path.cpp
+@@ -1259,7 +1259,8 @@ PathClass::Clip_Spline_To_Pathfind_Data
+ 	// and convert the clipped points back into hermite spline
+ 	// tangents.
+ 	//
+-	for (int index = 0; index < node_list.Count () - 1; index ++) {
++	int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (index = 0; index < node_list.Count () - 1; index ++) {
+ 		
+ 		//
+ 		//	Get the current and next points on the path
+diff --git a/Code/wwphys/Pathfind.cpp b/Code/wwphys/Pathfind.cpp
+index b84b2a5..315c41c 100644
+--- a/Code/wwphys/Pathfind.cpp
++++ b/Code/wwphys/Pathfind.cpp
+@@ -387,7 +387,8 @@ PathfindClass::Save_Portals (ChunkSaveClass &csave)
+ 	bool retval = true;
+ 
+ 	int count = m_PortalList.Count ();
+-	for (int index = 0; index < count && retval; index ++) {		
++	int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (index = 0; index < count && retval; index ++) {		
+ 		PathfindPortalClass *portal = m_PortalList[index];
+ 
+ 		//
+@@ -871,7 +872,8 @@ PathfindClass::Reset_Portals (void)
+ 	//
+ 	//	Release our hold on each of the portals
+ 	//
+-	for (int index = 0; index < m_PortalList.Count (); index ++) {
++	int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (index = 0; index < m_PortalList.Count (); index ++) {
+ 		PathfindPortalClass *portal = m_PortalList[index];
+ 		REF_PTR_RELEASE (portal);
+ 	}
+@@ -1442,7 +1444,8 @@ PathfindClass::Free_Waypath_Sectors_And_Portals (void)
+ 	//
+ 	//	Release our hold on each of the waypath portals
+ 	//
+-	for (int index = 0; index < m_WaypathPortalList.Count (); index ++) {
++	int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (index = 0; index < m_WaypathPortalList.Count (); index ++) {
+ 		PathfindPortalClass *portal = m_WaypathPortalList[index];
+ 
+ 		//
+diff --git a/Code/wwphys/camerashakesystem.h b/Code/wwphys/camerashakesystem.h
+index 6465561..4913357 100644
+--- a/Code/wwphys/camerashakesystem.h
++++ b/Code/wwphys/camerashakesystem.h
+@@ -72,7 +72,9 @@ public:
+ 	void		Timestep(float dt);
+ 	void		Update_Camera(CameraClass & camera);
+ 
+-protected:
++// PORT: public so the pool can be defined at file scope (DEFINE_AUTO_POOL in the .cpp);
++// old MSVC didn't check access there. Naming only: no change to layout or behaviour.
++public:
+ 
+ 	/**
+ 	** CameraShakerClass 
+@@ -101,6 +103,8 @@ protected:
+ 		Vector3				Phi;
+ 	};
+ 
++protected:
++
+ 	MultiListClass<CameraShakerClass>	CameraShakerList;
+ 
+ };
+diff --git a/Code/wwphys/motorvehicle.cpp b/Code/wwphys/motorvehicle.cpp
+index f5699c5..aeb52a1 100644
+--- a/Code/wwphys/motorvehicle.cpp
++++ b/Code/wwphys/motorvehicle.cpp
+@@ -460,7 +460,7 @@ bool MotorVehicleDefClass::Load(ChunkLoadClass &cload)
+ 	if (!EngineTorqueCurveFilename.Is_Empty()) {
+ 
+ 		// strip the path off the filename
+-		char * fname = strrchr(EngineTorqueCurveFilename,'\\');
++		const char * fname = strrchr(EngineTorqueCurveFilename,'\\');	// PORT: only read through
+ 		if (fname == NULL) {
+ 			EngineTorqueCurve = LookupTableMgrClass::Get_Table(EngineTorqueCurveFilename);
+ 		} else {
+diff --git a/Code/wwphys/pathmgr.cpp b/Code/wwphys/pathmgr.cpp
+index 8c29a8d..27eff3c 100644
+--- a/Code/wwphys/pathmgr.cpp
++++ b/Code/wwphys/pathmgr.cpp
+@@ -118,7 +118,8 @@ PathMgrClass::Free_Objects (void)
+ 	//
+ 	//	Free the list of available objects
+ 	//
+-	for (int index = 0; index < AvailablePathList.Count (); index ++) {
++	int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (index = 0; index < AvailablePathList.Count (); index ++) {
+ 		PathSolveClass *path = AvailablePathList[index];
+ 		REF_PTR_RELEASE (path);
+ 	}
+diff --git a/Code/wwphys/pathsolve.cpp b/Code/wwphys/pathsolve.cpp
+index ad0ae2a..79f3b64 100644
+--- a/Code/wwphys/pathsolve.cpp
++++ b/Code/wwphys/pathsolve.cpp
+@@ -1512,7 +1512,8 @@ PathSolveClass::Post_Process_Path (void)
+ 	m_Path[m_Path.Count () - 1].m_SectorCenter = m_StartSector->Get_Bounding_Box ().Center;
+ 	m_Path[m_Path.Count () - 1].m_SectorExtent = m_StartSector->Get_Bounding_Box ().Extent;
+ 
+-	for (int index = 0; index < temp_node_list.Count (); index ++) {
++	int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (index = 0; index < temp_node_list.Count (); index ++) {
+ 
+ 		PathNodeClass *node				= temp_node_list[index];
+ 		PathfindPortalClass *portal	= node->Peek_Portal ();
+diff --git a/Code/wwphys/phys3.cpp b/Code/wwphys/phys3.cpp
+index b4b5f6b..91ac8e6 100644
+--- a/Code/wwphys/phys3.cpp
++++ b/Code/wwphys/phys3.cpp
+@@ -2055,7 +2055,8 @@ void Phys3Class::Clip_Move(const Vector3 * contacts,int contact_count,Vector3 *
+ 			//WWASSERT(Vector3::Dot_Product(*move,contacts[i]) >= 0.0f);
+ 		}
+ 		
+-		for (int j=0; j<contact_count; j++) {
++		int j;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (j=0; j<contact_count; j++) {
+ 			float check = Vector3::Dot_Product(*move,contacts[j]);
+ 			if (check < 0.0f) {
+ 				break;	// this contact isn't happy yet... keep choppin.
+diff --git a/Code/wwphys/physinttest.h b/Code/wwphys/physinttest.h
+index 46a4709..1e80af4 100644
+--- a/Code/wwphys/physinttest.h
++++ b/Code/wwphys/physinttest.h
+@@ -131,7 +131,7 @@ class PhysMeshIntersectionTestClass : public IntersectionTestClass
+ {
+ public:
+ 	
+-	PhysMeshIntersectionTestClass::PhysMeshIntersectionTestClass(MeshClass * mesh,int col_group,int col_type,NonRefPhysListClass * result_list) :
++	PhysMeshIntersectionTestClass(MeshClass * mesh,int col_group,int col_type,NonRefPhysListClass * result_list) :
+ 		IntersectionTestClass(col_type),
+ 		Mesh(NULL),
+ 		CollisionGroup(col_group),
+diff --git a/Code/wwphys/projectormanager.h b/Code/wwphys/projectormanager.h
+index 463e2dc..d3f3037 100644
+--- a/Code/wwphys/projectormanager.h
++++ b/Code/wwphys/projectormanager.h
+@@ -131,21 +131,22 @@ public:
+ ** The first parameter to the macro is the type-name of your class (e.g. StaticAnimPhysDefClass) and
+ ** the second parameter is the name of the member variable which is a ProjectorManagerDefClass.
+ */
++// PORT: member_name.Field instead of member_name ## .Field (pasting onto '.' is not standard)
+ #define	PROJECTORMANAGERDEF_EDITABLE_PARAMS( class_name , member_name )																						\
+    PARAM_SEPARATOR( class_name, "Texture Projector Settings");																										\
+-	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_BOOL,		member_name ## .IsEnabled, "EnableProjector");								\
+-	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_BOOL,		member_name ## .IsPerspective, "Perspective Projection" );				\
+-	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_BOOL,		member_name ## .IsAdditive, "Projector Is Additive" );					\
+-	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_BOOL,		member_name ## .IsAnimated, "Projector Is Animated" );					\
+-	NAMED_FLOAT_UNITS_PARAM( class_name , member_name ## .OrthoWidth , 0.01f , 1000.0f, "meters","Ortho Width" );									\
+-	NAMED_FLOAT_UNITS_PARAM( class_name , member_name ## .OrthoHeight , 0.01f , 1000.0f, "meters","Ortho Height" );								\
+-	NAMED_ANGLE_EDITABLE_PARAM( class_name , member_name ## .HorizontalFOV, DEG_TO_RADF(0.01f), DEG_TO_RADF(89.99f), "Horizontal FOV" );	\
+-	NAMED_ANGLE_EDITABLE_PARAM( class_name , member_name ## .VerticalFOV, DEG_TO_RADF(0.01f), DEG_TO_RADF(89.99f), "Vertical FOV" );			\
+-	NAMED_FLOAT_UNITS_PARAM( class_name , member_name ## .NearZ , 0.01f , 1000.0f, "meters","NearZ" );													\
+-	NAMED_FLOAT_UNITS_PARAM( class_name , member_name ## .FarZ , 0.01f , 1000.0f, "meters","FarZ" );													\
+-	NAMED_FLOAT_UNITS_PARAM( class_name , member_name ## .Intensity , 0.01f , 1.0f, "","Intensity" );													\
+-	FILENAME_PARAM ( class_name , member_name ## .TextureName, "Texture files", ".tga");																	\
+-	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_STRING,	member_name ## .BoneName, "BoneName" );		
++	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_BOOL,		member_name.IsEnabled, "EnableProjector");								\
++	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_BOOL,		member_name.IsPerspective, "Perspective Projection" );				\
++	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_BOOL,		member_name.IsAdditive, "Projector Is Additive" );					\
++	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_BOOL,		member_name.IsAnimated, "Projector Is Animated" );					\
++	NAMED_FLOAT_UNITS_PARAM( class_name , member_name.OrthoWidth , 0.01f , 1000.0f, "meters","Ortho Width" );									\
++	NAMED_FLOAT_UNITS_PARAM( class_name , member_name.OrthoHeight , 0.01f , 1000.0f, "meters","Ortho Height" );								\
++	NAMED_ANGLE_EDITABLE_PARAM( class_name , member_name.HorizontalFOV, DEG_TO_RADF(0.01f), DEG_TO_RADF(89.99f), "Horizontal FOV" );	\
++	NAMED_ANGLE_EDITABLE_PARAM( class_name , member_name.VerticalFOV, DEG_TO_RADF(0.01f), DEG_TO_RADF(89.99f), "Vertical FOV" );			\
++	NAMED_FLOAT_UNITS_PARAM( class_name , member_name.NearZ , 0.01f , 1000.0f, "meters","NearZ" );													\
++	NAMED_FLOAT_UNITS_PARAM( class_name , member_name.FarZ , 0.01f , 1000.0f, "meters","FarZ" );													\
++	NAMED_FLOAT_UNITS_PARAM( class_name , member_name.Intensity , 0.01f , 1.0f, "","Intensity" );													\
++	FILENAME_PARAM ( class_name , member_name.TextureName, "Texture files", ".tga");																	\
++	NAMED_EDITABLE_PARAM( class_name , ParameterClass::TYPE_STRING,	member_name.BoneName, "BoneName" );		
+ 
+ 
+ #endif
+diff --git a/Code/wwphys/pscene_projectors.cpp b/Code/wwphys/pscene_projectors.cpp
+index b921cad..e66484b 100644
+--- a/Code/wwphys/pscene_projectors.cpp
++++ b/Code/wwphys/pscene_projectors.cpp
+@@ -329,7 +329,8 @@ void DynamicShadowTexMgrClass::Reset(void)
+ void DynamicShadowTexMgrClass::Set_Max_Simultaneous_Shadows(unsigned int max)
+ {
+ 	int curlen = ShadowTextures.Length();
+-	for (int i=max;i<curlen; i++) {
++	int i;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (i=max;i<curlen; i++) {
+ 		REF_PTR_RELEASE(ShadowTextures[i]);
+ 	}
+ 	ShadowTextures.Resize(max);
+diff --git a/Code/wwphys/renegadeterrainmaterialpass.cpp b/Code/wwphys/renegadeterrainmaterialpass.cpp
+index e8f2b1e..d68f1dd 100644
+--- a/Code/wwphys/renegadeterrainmaterialpass.cpp
++++ b/Code/wwphys/renegadeterrainmaterialpass.cpp
+@@ -152,7 +152,8 @@ RenegadeTerrainMaterialPassClass::Allocate (int vertex_count)
+ 	//
+ 	//	Initialize the arrays
+ 	//
+-	for (int index = 0; index < vertex_count; index ++) {
++	int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (index = 0; index < vertex_count; index ++) {
+ 		VertexAlpha[index] = 1.0F;
+ 		GridUVs[index].Set (0.0F, 0.0F);
+ 	}
+diff --git a/Code/wwphys/renegadeterrainpatch.cpp b/Code/wwphys/renegadeterrainpatch.cpp
+index b6bcb09..a63579b 100644
+--- a/Code/wwphys/renegadeterrainpatch.cpp
++++ b/Code/wwphys/renegadeterrainpatch.cpp
+@@ -346,7 +346,8 @@ RenegadeTerrainPatchClass::Render (RenderInfoClass &rinfo)
+ 		//
+ 		//	Render the base passes first
+ 		//
+-		for (int index = 0; index < MaterialPassList.Count (); index ++) {
++		int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (index = 0; index < MaterialPassList.Count (); index ++) {
+ 			Render_By_Texture (index, RenegadeTerrainMaterialPassClass::PASS_BASE);
+ 		}
+ 
+@@ -1791,7 +1792,8 @@ RenegadeTerrainPatchClass::Save (ChunkSaveClass &csave)
+ 	//
+ 	csave.Begin_Chunk (CHUNKID_HEIGHTS);
+ 
+-		for (int index = 0; index < GridPointCount; index ++) {
++		int index;	// PORT: used after the loop (MSVC6 leaked loop variables)
++		for (index = 0; index < GridPointCount; index ++) {
+ 			csave.Write (&Grid[index].X, sizeof (float) * 3);
+ 		}
+ 				
+diff --git a/Code/wwphys/visrendercontext.cpp b/Code/wwphys/visrendercontext.cpp
+index b7ae3eb..8cdfb1c 100644
+--- a/Code/wwphys/visrendercontext.cpp
++++ b/Code/wwphys/visrendercontext.cpp
+@@ -299,7 +299,8 @@ void VisRenderContextClass::Compute_2D_Bounds
+ 	
+ 	// rotate and project the corners of the box
+ 	Vector3 corner[8];
+-	for (int ivert=0; ivert<NUM_BOX_VERTS; ivert++) {
++	int ivert;	// PORT: used after the loop (MSVC6 leaked loop variables)
++	for (ivert=0; ivert<NUM_BOX_VERTS; ivert++) {
+ 		corner[ivert].X = wrld_bbox.Center.X + _boxverts[ivert][0] * wrld_bbox.Extent.X;
+ 		corner[ivert].Y = wrld_bbox.Center.Y + _boxverts[ivert][1] * wrld_bbox.Extent.Y;
+ 		corner[ivert].Z = wrld_bbox.Center.Z + _boxverts[ivert][2] * wrld_bbox.Extent.Z;
+-- 
+2.43.0
+

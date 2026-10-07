@@ -1,0 +1,67 @@
+From 338cf425234d9542a1938d672b00636ec57b13b5 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 02:54:36 +0000
+Subject: [PATCH 07/32] Add Code/xbox/include: stand-ins for MSVC headers nxdk
+ lacks (new.h, memory.h, mmsystem.h, timeapi.h); Xbox builds only
+
+---
+ xbox/include/README.txt | 3 +++
+ xbox/include/memory.h   | 3 +++
+ xbox/include/mmsystem.h | 3 +++
+ xbox/include/new.h      | 3 +++
+ xbox/include/timeapi.h  | 3 +++
+ 5 files changed, 15 insertions(+)
+ create mode 100644 xbox/include/README.txt
+ create mode 100644 xbox/include/memory.h
+ create mode 100644 xbox/include/mmsystem.h
+ create mode 100644 xbox/include/new.h
+ create mode 100644 xbox/include/timeapi.h
+
+diff --git a/Code/xbox/include/README.txt b/Code/xbox/include/README.txt
+new file mode 100644
+index 0000000..6e8c3ef
+--- /dev/null
++++ b/Code/xbox/include/README.txt
+@@ -0,0 +1,3 @@
++Xbox (nxdk) build only: stand-ins for old Microsoft headers that nxdk does not provide.
++Put this folder on the include path for nxdk builds only (-I Code/xbox/include), never for
++the PC build, so it cannot shadow the real MSVC headers.
+diff --git a/Code/xbox/include/memory.h b/Code/xbox/include/memory.h
+new file mode 100644
+index 0000000..1c40d39
+--- /dev/null
++++ b/Code/xbox/include/memory.h
+@@ -0,0 +1,3 @@
++/* PORT: MSVC's <memory.h> declares the mem* functions, which live in <string.h>. */
++#pragma once
++#include <string.h>
+diff --git a/Code/xbox/include/mmsystem.h b/Code/xbox/include/mmsystem.h
+new file mode 100644
+index 0000000..8c9355d
+--- /dev/null
++++ b/Code/xbox/include/mmsystem.h
+@@ -0,0 +1,3 @@
++/* PORT: nxdk keeps mmsystem.h in its winmm subfolder (timeGetTime and friends). */
++#pragma once
++#include <winmm/mmsystem.h>
+diff --git a/Code/xbox/include/new.h b/Code/xbox/include/new.h
+new file mode 100644
+index 0000000..5e82fe5
+--- /dev/null
++++ b/Code/xbox/include/new.h
+@@ -0,0 +1,3 @@
++/* PORT: MSVC's pre-standard <new.h>. The engine only needs placement new and std::bad_alloc. */
++#pragma once
++#include <new>
+diff --git a/Code/xbox/include/timeapi.h b/Code/xbox/include/timeapi.h
+new file mode 100644
+index 0000000..1359690
+--- /dev/null
++++ b/Code/xbox/include/timeapi.h
+@@ -0,0 +1,3 @@
++/* PORT: nxdk's winmm/mmsystem.h includes <timeapi.h> from its own folder; forward it. */
++#pragma once
++#include <winmm/timeapi.h>
+-- 
+2.43.0
+

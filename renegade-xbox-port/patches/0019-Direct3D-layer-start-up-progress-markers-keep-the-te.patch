@@ -1,0 +1,202 @@
+From e5f0e7453663d1772ec021bf7966a071210085f5 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 23:29:07 +0000
+Subject: [PATCH 19/32] Direct3D layer: start-up progress markers; keep the
+ text screen until the first frame
+
+- PORT_TRACE markers through device creation, pb_init, start-up textures, the first clears and
+  each stage of the first two Presents (shown only when a test program switches them on)
+- pb_show_front_screen moves to the first Present, so text stays visible until a frame exists
+- no second video-mode switch when the mode already matches (it wiped the text screen)
+---
+ xbox/d3d8/xbox_d3d8.cpp        | 72 +++++++++++++++++++++++++++++++---
+ xbox/d3d8/xbox_d3d8_internal.h |  4 ++
+ 2 files changed, 71 insertions(+), 5 deletions(-)
+
+diff --git a/Code/xbox/d3d8/xbox_d3d8.cpp b/Code/xbox/d3d8/xbox_d3d8.cpp
+index 9ae248a..da99976 100644
+--- a/Code/xbox/d3d8/xbox_d3d8.cpp
++++ b/Code/xbox/d3d8/xbox_d3d8.cpp
+@@ -16,6 +16,11 @@
+ #include <pbkit/pbkit.h>
+ #include <xboxkrnl/xboxkrnl.h>
+ #include <stdio.h>
++#include <stdarg.h>
++
++#ifndef PORT_TRACE
++#define PORT_TRACE(message)
++#endif
+ 
+ namespace XboxD3D {
+ 
+@@ -35,6 +40,18 @@ void Log_Once(bool *done, const char *what)
+ 	if (*done) return;
+ 	*done = true;
+ 	DbgPrint("XboxD3D: %s\n", what);
++	Trace("%s", what);
++}
++
++void Trace(const char *format, ...)
++{
++	char line[160];
++	va_list args;
++	va_start(args, format);
++	vsnprintf(line, sizeof(line), format, args);
++	va_end(args);
++	(void)line;
++	PORT_TRACE(line);
+ }
+ 
+ /* --- Reference counting shared by all objects ------------------------------------------ */
+@@ -659,6 +676,9 @@ public:
+ 	D3DPRESENT_PARAMETERS Params;
+ 	UINT Width, Height;
+ 	bool HardwareReady;
++	bool ShowingFrames;    /* pb_show_front_screen done (at the first Present) */
++	unsigned FramesPresented;
++	unsigned ClearsTraced;
+ 	bool FrameOpen;
+ 	bool InScene;
+ 	Surface *BackBufferSurface;
+@@ -833,7 +853,8 @@ HRESULT IndexBuffer::Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DW
+ /* --- Device implementation ----------------------------------------------------------------- */
+ 
+ Device::Device(Direct3D *d3d, const D3DPRESENT_PARAMETERS &params)
+-	: D3D(d3d), Params(params), HardwareReady(false), FrameOpen(false), InScene(false),
++	: D3D(d3d), Params(params), HardwareReady(false), ShowingFrames(false), FramesPresented(0),
++	  ClearsTraced(0), FrameOpen(false), InScene(false),
+ 	  BackBufferSurface(NULL), DepthSurface(NULL), Indices(NULL), BaseVertex(0), VertexShader(0), RefCount(1)
+ {
+ 	D3D->AddRef();
+@@ -920,14 +941,26 @@ Device::~Device()
+ 
+ bool Device::Init_Hardware()
+ {
+-	if (Width != MODE_WIDTH || Height != MODE_HEIGHT) return false;
+-	if (!XVideoSetMode((int)Width, (int)Height, 32, REFRESH_DEFAULT)) return false;
++	if (Width != MODE_WIDTH || Height != MODE_HEIGHT) {
++		Trace("d3d: CreateDevice: %ux%u is not offered", Width, Height);
++		return false;
++	}
++	/* Switch mode only if needed: switching again would wipe the text screen. */
++	VIDEO_MODE current = XVideoGetMode();
++	if (current.width != (int)Width || current.height != (int)Height || current.bpp != 32) {
++		Trace("d3d: setting video mode %ux%u, 32-bit", Width, Height);
++		if (!XVideoSetMode((int)Width, (int)Height, 32, REFRESH_DEFAULT)) return false;
++	}
++	Trace("d3d: pb_init ...");
+ 	int status = pb_init();
+ 	if (status != 0) {
+-		DbgPrint("XboxD3D: pb_init failed (%d)\n", status);
++		Trace("d3d: pb_init failed (%d)", status);
+ 		return false;
+ 	}
+-	pb_show_front_screen();
++	Trace("d3d: pb_init ok, back buffer %ux%u, pitch %u", (unsigned)pb_back_buffer_width(),
++	      (unsigned)pb_back_buffer_height(), (unsigned)pb_back_buffer_pitch());
++	/* The text screen stays visible until the first frame is presented (see Present), so
++	** anything that goes wrong before then can still be seen. */
+ 	HardwareReady = true;
+ 	BackBufferSurface = new Surface(this, Surface::BACK_BUFFER, D3DFMT_X8R8G8B8, Width, Height,
+ 	                                D3DPOOL_DEFAULT, D3DUSAGE_RENDERTARGET, NULL, 0, NULL);
+@@ -941,9 +974,12 @@ bool Device::Init_Hardware()
+ void Device::Begin_Frame_If_Needed()
+ {
+ 	if (FrameOpen) return;
++	bool trace = FramesPresented < 2;
++	if (trace) Trace("d3d: frame %u: waiting for vertical blank", FramesPresented);
+ 	pb_wait_for_vbl();
+ 	pb_reset();
+ 	pb_target_back_buffer();
++	if (trace) Trace("d3d: frame %u: started", FramesPresented);
+ 	FrameOpen = true;
+ }
+ 
+@@ -956,6 +992,11 @@ HRESULT Device::Clear(DWORD Count, CONST D3DRECT *pRects, DWORD Flags, D3DCOLOR
+ 	if (Flags & D3DCLEAR_ZBUFFER) clear |= NV097_CLEAR_SURFACE_Z;
+ 	if (Flags & D3DCLEAR_STENCIL) clear |= NV097_CLEAR_SURFACE_STENCIL;
+ 	if (!clear) return D3D_OK;
++	if (ClearsTraced < 2) {
++		ClearsTraced++;
++		Trace("d3d: Clear flags 0x%lx color 0x%08lx z %d/1000", (unsigned long)Flags, (unsigned long)Color,
++		      (int)(Z * 1000.0f));
++	}
+ 
+ 	if (Z < 0.0f) Z = 0.0f;
+ 	if (Z > 1.0f) Z = 1.0f;
+@@ -992,11 +1033,21 @@ HRESULT Device::Clear(DWORD Count, CONST D3DRECT *pRects, DWORD Flags, D3DCOLOR
+ HRESULT Device::Present(CONST RECT *, CONST RECT *, HWND, CONST RGNDATA *)
+ {
+ 	if (!FrameOpen) return D3D_OK;
++	bool trace = FramesPresented < 2;
++	if (trace) Trace("d3d: frame %u: Present: waiting for the GPU", FramesPresented);
+ 	while (pb_busy()) {
+ 	}
++	if (!ShowingFrames) {
++		Trace("d3d: first frame done; switching the screen to the GPU's output");
++		pb_show_front_screen();
++		ShowingFrames = true;
++	}
++	if (trace) Trace("d3d: frame %u: Present: queueing the swap", FramesPresented);
+ 	while (pb_finished()) {
+ 		/* the previous frame's swap hasn't happened yet */
+ 	}
++	if (trace) Trace("d3d: frame %u: presented", FramesPresented);
++	FramesPresented++;
+ 	FrameOpen = false;
+ 	return D3D_OK;
+ }
+@@ -1012,6 +1063,11 @@ HRESULT Device::CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage,
+ 		Log_Once(&logged, "CreateTexture: render-target textures not implemented yet");
+ 		return D3DERR_NOTAVAILABLE;
+ 	}
++	static unsigned traced;
++	if (traced < 4) {
++		traced++;
++		Trace("d3d: CreateTexture %ux%u, %u levels, format 0x%lx", Width, Height, Levels, (unsigned long)Format);
++	}
+ 	Texture *texture = new Texture(this, Width, Height, Levels, Usage, Format, Pool);
+ 	if (!texture->Valid()) {
+ 		texture->Release();
+@@ -1134,11 +1190,16 @@ HRESULT Direct3D::CreateDevice(UINT Adapter, D3DDEVTYPE, HWND, DWORD,
+ 	if (Adapter != 0 || !pPresentationParameters || !ppReturnedDeviceInterface) return D3DERR_INVALIDCALL;
+ 	*ppReturnedDeviceInterface = NULL;
+ 	if (pPresentationParameters->Windowed) return D3DERR_NOTAVAILABLE;
++	Trace("d3d: CreateDevice %ux%u, back buffer format 0x%lx, depth format 0x%lx",
++	      pPresentationParameters->BackBufferWidth, pPresentationParameters->BackBufferHeight,
++	      (unsigned long)pPresentationParameters->BackBufferFormat,
++	      (unsigned long)pPresentationParameters->AutoDepthStencilFormat);
+ 	Device *device = new Device(this, *pPresentationParameters);
+ 	if (!device->Init_Hardware()) {
+ 		device->Release();
+ 		return D3DERR_NOTAVAILABLE;
+ 	}
++	Trace("d3d: CreateDevice ok");
+ 	*ppReturnedDeviceInterface = device;
+ 	return D3D_OK;
+ }
+@@ -1148,5 +1209,6 @@ HRESULT Direct3D::CreateDevice(UINT Adapter, D3DDEVTYPE, HWND, DWORD,
+ IDirect3D8 *Direct3DCreate8(UINT SDKVersion)
+ {
+ 	if (SDKVersion != D3D_SDK_VERSION) return NULL;
++	XboxD3D::Trace("d3d: Direct3DCreate8");
+ 	return new XboxD3D::Direct3D();
+ }
+diff --git a/Code/xbox/d3d8/xbox_d3d8_internal.h b/Code/xbox/d3d8/xbox_d3d8_internal.h
+index 2159d30..ea7154a 100644
+--- a/Code/xbox/d3d8/xbox_d3d8_internal.h
++++ b/Code/xbox/d3d8/xbox_d3d8_internal.h
+@@ -73,6 +73,10 @@ void Free_GPU_Memory(void *memory);
+ /* Logs a feature the layer does not provide yet, once per call site. */
+ void Log_Once(bool *done, const char *what);
+ 
++/* Start-up progress markers: shown on screen when a test program switches PORT_TRACE on
++** (see xbox_port.h); nothing in the game. */
++void Trace(const char *format, ...);
++
+ } /* namespace XboxD3D */
+ 
+ #endif /* XBOX_D3D8_INTERNAL_H */
+-- 
+2.43.0
+

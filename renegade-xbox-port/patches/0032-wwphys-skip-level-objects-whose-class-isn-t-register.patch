@@ -1,0 +1,111 @@
+From c92b5b31b59a95cc011cbbc6e5b9449e491df465 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Mon, 5 Oct 2026 20:46:14 +0000
+Subject: [PATCH 32/32] wwphys: skip level objects whose class isn't registered
+ (staged bring-up), report each class once
+
+PhysicsSceneClass's level loading only asserted that each placed object's factory exists (a no-op
+in release builds), then added a NULL object to the scene's lists. With only part of the game
+ported, a level places objects of classes from code not yet ported. Static objects, static
+lights and dynamic objects are now skipped in that case, and each missing class is reported once
+by its chunk ID. Nothing changes when every library is present.
+---
+ wwphys/pscene_saveload.cpp | 40 ++++++++++++++++++++++++++++++++++----
+ 1 file changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/Code/wwphys/pscene_saveload.cpp b/Code/wwphys/pscene_saveload.cpp
+index d983e4d..88e03f6 100644
+--- a/Code/wwphys/pscene_saveload.cpp
++++ b/Code/wwphys/pscene_saveload.cpp
+@@ -49,6 +49,23 @@
+ #include "wwmemlog.h"
+ 
+  
++
++/*
++** PORT: during the port's staged bring-up, a level can place objects whose classes belong to
++** code that isn't ported yet (no factory registered). The original only asserted (a no-op in
++** release builds) and then added a NULL object. Such objects are now skipped, and each missing
++** class is reported once by its chunk ID (0x4xxxx Combat, 0x3xxxx audio). With every library
++** present, as in the game, nothing changes.
++*/
++static void Port_Report_Unregistered(const char *what, uint32 chunk_id)
++{
++	static uint32 seen[32];
++	static int seen_count;
++	for (int i = 0; i < seen_count; i++) if (seen[i] == chunk_id) return;
++	if (seen_count < 32) seen[seen_count++] = chunk_id;
++	PORT_TRACEF(("level: skipping %s of unregistered class 0x%x", what, (unsigned)chunk_id));
++}
++
+ /*
+ ** This module contains the save-load related methods of PhysicsSceneClass.  
+ */
+@@ -436,6 +453,7 @@ void PhysicsSceneClass::Load_Static_Objects(ChunkLoadClass & cload)
+ 			*/ 
+ 			cload.Open_Chunk();
+ 			StaticPhysClass * obj = NULL;
++			uint32 port_class_chunk = cload.Cur_Chunk_ID();
+ 			PersistFactoryClass * fact = SaveLoadSystemClass::Find_Persist_Factory(cload.Cur_Chunk_ID());
+ 			WWASSERT(fact != NULL);
+ 			if (fact) {
+@@ -460,8 +478,12 @@ void PhysicsSceneClass::Load_Static_Objects(ChunkLoadClass & cload)
+ 			** - If it requires time-stepping, add to the timestep list
+ 			** - Let the base SceneClass notify the render object that it has been added.
+ 			*/
+-			Internal_Add_Static_Object(obj);
+-			obj->Release_Ref();
++			if (obj) {
++				Internal_Add_Static_Object(obj);
++				obj->Release_Ref();
++			} else {
++				Port_Report_Unregistered("a static object", port_class_chunk);
++			}
+ 
+ 		} else {
+ 			WWDEBUG_SAY(("Unhandled Chunk: 0x%x in file %s, line %d\n",cload.Cur_Chunk_ID(),__FILE__,__LINE__));
+@@ -511,6 +533,7 @@ void PhysicsSceneClass::Load_Static_Lights(ChunkLoadClass & cload)
+ 			*/ 
+ 			cload.Open_Chunk();
+ 			LightPhysClass * obj = NULL;
++			uint32 port_class_chunk = cload.Cur_Chunk_ID();
+ 			PersistFactoryClass * fact = SaveLoadSystemClass::Find_Persist_Factory(cload.Cur_Chunk_ID());
+ 			WWASSERT(fact != NULL);
+ 			if (fact) {
+@@ -532,8 +555,12 @@ void PhysicsSceneClass::Load_Static_Lights(ChunkLoadClass & cload)
+ 			/*
+ 			** Finish installing the object into the physics scene
+ 			*/
+-			Internal_Add_Static_Light(obj);
+-			obj->Release_Ref();
++			if (obj) {
++				Internal_Add_Static_Light(obj);
++				obj->Release_Ref();
++			} else {
++				Port_Report_Unregistered("a static light", port_class_chunk);
++			}
+ 
+ 		} else {
+ 			WWDEBUG_SAY(("Unhandled Chunk: 0x%x in file &s, line %d\n",cload.Cur_Chunk_ID(),__FILE__,__LINE__));
+@@ -612,6 +639,7 @@ void PhysicsSceneClass::Load_Dynamic_Objects(ChunkLoadClass & cload)
+ 			*/ 
+ 			cload.Open_Chunk();
+ 			PhysClass * obj = NULL;
++			uint32 port_class_chunk = cload.Cur_Chunk_ID();
+ 			PersistFactoryClass * fact = SaveLoadSystemClass::Find_Persist_Factory(cload.Cur_Chunk_ID());
+ 			WWASSERT(fact != NULL);
+ 			if (fact) {
+@@ -625,6 +653,10 @@ void PhysicsSceneClass::Load_Dynamic_Objects(ChunkLoadClass & cload)
+ 			/* 
+ 			** Add the object to the dynamic culling system
+ 			*/
++			if (!obj) {
++				Port_Report_Unregistered("a dynamic object", port_class_chunk);
++				continue;
++			}
+ 			DynamicCullingSystem->Add_Object(obj);
+ 
+ 			/*
+-- 
+2.43.0
+

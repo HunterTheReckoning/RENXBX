@@ -1,0 +1,56 @@
+From 3faedf1e36b86cce7fe89c230c4b5b8da8015dc7 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 04:55:57 +0000
+Subject: [PATCH 13/32] Xbox clock speed from nxdk instead of a start-up timing
+ loop; compiler RDTSC in wwprofile
+
+The smoke test showed start-up hanging in cpudetect's clock measurement, which reads the
+cycle counter with RDTSC emitted as raw bytes. On Xbox the frequency comes from
+QueryPerformanceFrequency (nxdk derives it from the hardware; 733.33 MHz on a stock Xbox).
+wwprofile uses the compiler's built-in RDTSC, which the compiler fully understands.
+---
+ wwdebug/wwprofile.cpp |  4 ++++
+ wwlib/cpudetect.cpp   | 12 ++++++++++++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/Code/wwdebug/wwprofile.cpp b/Code/wwdebug/wwprofile.cpp
+index ed1cacd..0fd73a6 100644
+--- a/Code/wwdebug/wwprofile.cpp
++++ b/Code/wwdebug/wwprofile.cpp
+@@ -86,6 +86,10 @@ inline void WWProfile_Get_Ticks(_int64 * ticks)
+ {
+ #ifdef _UNIX
+        *ticks = TIMEGETTIME();
++#elif defined(NXDK)
++	// PORT: the compiler's own cycle-counter read, instead of RDTSC emitted as raw bytes
++	// (which hides from the compiler which registers the instruction changes).
++	*ticks = (_int64)__builtin_ia32_rdtsc();
+ #else
+ 	__asm
+ 	{
+diff --git a/Code/wwlib/cpudetect.cpp b/Code/wwlib/cpudetect.cpp
+index 86c3d26..c9dd64e 100644
+--- a/Code/wwlib/cpudetect.cpp
++++ b/Code/wwlib/cpudetect.cpp
+@@ -179,6 +179,18 @@ static unsigned Calculate_Processor_Speed(__int64& ticks_per_second)
+ 
+ void CPUDetectClass::Init_Processor_Speed()
+ {
++#ifdef NXDK
++	// PORT: no timing loop on the Xbox. nxdk works out the CPU's cycle-counter frequency
++	// from the hardware at start-up (733.33 MHz on a stock Xbox, which is also its default),
++	// and QueryPerformanceCounter reads that same counter. The original timing loop hung
++	// here during start-up, and would have cost 1.2 s on every boot.
++	LARGE_INTEGER freq;
++	QueryPerformanceFrequency(&freq);
++	ProcessorTicksPerSecond = freq.QuadPart;
++	ProcessorSpeed = (unsigned)((freq.QuadPart + 500000) / 1000000);
++	InvProcessorTicksPerSecond = 1.0 / double(ProcessorTicksPerSecond);
++	return;
++#endif
+ 	if (!Has_RDTSC_Instruction()) {
+ 		ProcessorSpeed=0;
+ 		return;
+-- 
+2.43.0
+

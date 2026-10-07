@@ -1,0 +1,404 @@
+From 18f50168456a9178a4c8f7c99ac949ff4ddfc2f1 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 00:36:37 +0000
+Subject: [PATCH 05/32] C++ conformance: for-loop scope, dependent-base
+ members, template<> specializations, typename, functional casts, dead STL
+ allocator refs; add DosDateTimeToFileTime and MS-semantics _vsnwprintf
+
+---
+ WWMath/wwmath.cpp             |   2 +-
+ wwbitpack/BitPacker.cpp       |   4 +-
+ wwlib/FastAllocator.h         |  10 +--
+ wwlib/index.h                 |   2 +-
+ wwlib/int.cpp                 |   6 +-
+ wwlib/mempool.h               |   2 +-
+ wwlib/mixfile.cpp             |   2 +-
+ wwlib/multilist.h             |   4 +
+ wwlib/point.h                 |   4 +
+ wwlib/simplevec.h             |   5 ++
+ wwlib/xbox_port.cpp           | 141 ++++++++++++++++++++++++++++++++++
+ wwlib/xbox_port.h             |   9 +++
+ wwtranslatedb/translatedb.cpp |   4 +-
+ 13 files changed, 179 insertions(+), 16 deletions(-)
+
+diff --git a/Code/WWMath/wwmath.cpp b/Code/WWMath/wwmath.cpp
+index f465a40..1bc4a68 100644
+--- a/Code/WWMath/wwmath.cpp
++++ b/Code/WWMath/wwmath.cpp
+@@ -58,7 +58,7 @@ void		WWMath::Init(void)
+ 		_FastAsinTable[a]=asin(cv);
+ 	}
+ 
+-	for (a=0;a<SIN_TABLE_SIZE;++a) {
++	for (int a=0;a<SIN_TABLE_SIZE;++a) {
+ 		float cv= (float)a * 2.0f * WWMATH_PI / SIN_TABLE_SIZE; //float(a-SIN_TABLE_SIZE/2)*(1.0f/(SIN_TABLE_SIZE/2));
+ 		_FastSinTable[a]=sin(cv);
+ 		
+diff --git a/Code/wwbitpack/BitPacker.cpp b/Code/wwbitpack/BitPacker.cpp
+index 27e01d5..b1df6e7 100644
+--- a/Code/wwbitpack/BitPacker.cpp
++++ b/Code/wwbitpack/BitPacker.cpp
+@@ -126,12 +126,12 @@ void cBitPacker::Add_Bits(ULONG value, UINT num_bits)
+ 	// Write the rest of the data as bytes
+ 	if (num_bits>8) {
+ 		for (unsigned a=0;a<num_bits;a+=8) {
+-			Buffer[byte_num++]=unsigned char(value>>24);
++			Buffer[byte_num++]=(unsigned char)(value>>24);
+ 			value<<=8;
+ 		}
+ 	}
+ 	else {
+-		Buffer[byte_num]=unsigned char(value>>24);
++		Buffer[byte_num]=(unsigned char)(value>>24);
+ 	}
+ #endif
+ }
+diff --git a/Code/wwlib/FastAllocator.h b/Code/wwlib/FastAllocator.h
+index eb1324b..5e3e028 100644
+--- a/Code/wwlib/FastAllocator.h
++++ b/Code/wwlib/FastAllocator.h
+@@ -545,9 +545,9 @@ WWINLINE void* FastAllocatorGeneral::Realloc(void* pAlloc, unsigned int n){
+ 
+       T*            address(T& t)       const             { return (&t); } //These two are slightly strange but 
+       const  T*     address(const T& t) const             { return (&t); } //required functions. Just do it.
+-      static T*     allocate(size_t n, const void* =NULL) { return (T*)generalAllocator.Alloc(n*sizeof(T)); }
++      static T*     allocate(size_t n, const void* =NULL) { return (T*)FastAllocatorGeneral::Get_Allocator()->Alloc(n*sizeof(T)); }
+       static void   construct(T* ptr, const T& value)     { new(ptr) T(value); }
+-      static void   deallocate(void* ptr, size_t /*n*/)   { generalAllocator.Free(ptr); }
++      static void   deallocate(void* ptr, size_t /*n*/)   { FastAllocatorGeneral::Get_Allocator()->Free(ptr); }
+       static void   destroy(T* ptr)                       { ptr->~T(); }
+       static size_t max_size()                            { return (size_t)-1; }
+ 
+@@ -558,7 +558,7 @@ WWINLINE void* FastAllocatorGeneral::Realloc(void* pAlloc, unsigned int n){
+       //random objects through this function but delete them through 
+       //the above delallocate() function. So your version of deallocate
+       //should *not* assume that it will only be given T objects to delete.
+-      char* _Charalloc(size_t n){ return (char*)::generalAllocator.Alloc(n*sizeof(char)); }
++      char* _Charalloc(size_t n){ return (char*)FastAllocatorGeneral::Get_Allocator()->Alloc(n*sizeof(char)); }
+    };
+ #else
+    //This is a C++ language standard allocator. Most C++ compilers after 1999 
+@@ -587,8 +587,8 @@ WWINLINE void* FastAllocatorGeneral::Realloc(void* pAlloc, unsigned int n){
+      pointer address(reference x) const             { return &x; }
+      const_pointer address(const_reference x) const { return &x; }
+ 
+-     T* allocate(size_type n, const void* = NULL) { return n != 0 ? static_cast<T*>(generalAllocator.Alloc(n*sizeof(T))) : NULL; }
+-     void deallocate(pointer p, size_type n)      { generalAllocator.Free(p); }
++     T* allocate(size_type n, const void* = NULL) { return n != 0 ? static_cast<T*>(FastAllocatorGeneral::Get_Allocator()->Alloc(n*sizeof(T))) : NULL; }
++     void deallocate(pointer p, size_type n)      { FastAllocatorGeneral::Get_Allocator()->Free(p); }
+      size_type max_size() const                   { return size_t(-1) / sizeof(T); }
+      void construct(pointer p, const T& val)      { new(p) T(val); }
+      void destroy(pointer p)                      { p->~T(); }
+diff --git a/Code/wwlib/index.h b/Code/wwlib/index.h
+index 6495b7f..0eaca0a 100644
+--- a/Code/wwlib/index.h
++++ b/Code/wwlib/index.h
+@@ -695,7 +695,7 @@ template<class INDEX, class T>
+ #ifdef __BORLANDC__
+ NodeElement const * IndexClass<INDEX, T>::Search_For_Node(INDEX const & id) const
+ #else
+-IndexClass<INDEX, T>::NodeElement const * IndexClass<INDEX, T>::Search_For_Node(INDEX const & id) const
++typename IndexClass<INDEX, T>::NodeElement const * IndexClass<INDEX, T>::Search_For_Node(INDEX const & id) const
+ #endif
+ {
+ 	/*
+diff --git a/Code/wwlib/int.cpp b/Code/wwlib/int.cpp
+index 5bf7621..62141e1 100644
+--- a/Code/wwlib/int.cpp
++++ b/Code/wwlib/int.cpp
+@@ -39,9 +39,9 @@
+ #include	"mpmath.h"
+ #include	"rng.h"
+ 
+-int bignum::Error = 0;
+-bool bignum::Carry = false;
+-bool bignum::Borrow = false;
++template<> int bignum::Error = 0;
++template<> bool bignum::Carry = false;
++template<> bool bignum::Borrow = false;
+ bignum bignum::Remainder;
+ 
+ 
+diff --git a/Code/wwlib/mempool.h b/Code/wwlib/mempool.h
+index 6f2740d..34feec8 100644
+--- a/Code/wwlib/mempool.h
++++ b/Code/wwlib/mempool.h
+@@ -158,7 +158,7 @@ private:
+ ** the class.
+ */
+ #define DEFINE_AUTO_POOL(T,BLOCKSIZE) \
+-ObjectPoolClass<T,BLOCKSIZE> AutoPoolClass<T,BLOCKSIZE>::Allocator;
++template<> ObjectPoolClass<T,BLOCKSIZE> AutoPoolClass<T,BLOCKSIZE>::Allocator;  /* PORT: template<> required */
+ 
+ 
+ /***********************************************************************************************
+diff --git a/Code/wwlib/mixfile.cpp b/Code/wwlib/mixfile.cpp
+index 14b4d52..64f2bb9 100644
+--- a/Code/wwlib/mixfile.cpp
++++ b/Code/wwlib/mixfile.cpp
+@@ -354,7 +354,7 @@ MixFileFactoryClass::Flush_Changes (void)
+ 		//
+ 		//	Add the new files that are pending
+ 		//
+-		for (index = 0; index < PendingAddFileList.Count (); index ++) {
++		for (int index = 0; index < PendingAddFileList.Count (); index ++) {
+ 			new_mix_file.Add_File (PendingAddFileList[index].FullPath, PendingAddFileList[index].Filename);
+ 		}
+ 	}
+diff --git a/Code/wwlib/multilist.h b/Code/wwlib/multilist.h
+index 54d118d..23c0f0a 100644
+--- a/Code/wwlib/multilist.h
++++ b/Code/wwlib/multilist.h
+@@ -484,6 +484,10 @@ public:
+ template <class ObjectType>
+ class PriorityMultiListIterator : public MultiListIterator<ObjectType>
+ {
++protected:
++	// PORT: name dependent-base members for standard two-phase lookup.
++	using MultiListIterator<ObjectType>::CurNode;
++
+ public:
+ 	PriorityMultiListIterator(MultiListClass<ObjectType> *list)
+ 		:	OriginalHead (NULL),
+diff --git a/Code/wwlib/point.h b/Code/wwlib/point.h
+index a2ab2e3..62cb3b0 100644
+--- a/Code/wwlib/point.h
++++ b/Code/wwlib/point.h
+@@ -130,6 +130,10 @@ class TPoint3D : public TPoint2D<T> {
+ 		typedef TPoint2D<T> BASECLASS;
+ 
+ 	public:
++		// PORT: name dependent-base members for standard two-phase lookup.
++		using BASECLASS::X;
++		using BASECLASS::Y;
++
+ 		TPoint3D(void) {}		// Default constructor does nothing by design.
+ 		TPoint3D(T x, T y, T z) : TPoint2D<T>(x, y), Z(z) {}
+ 		TPoint3D(BASECLASS const & rvalue) : TPoint2D<T>(rvalue), Z(0) {}
+diff --git a/Code/wwlib/simplevec.h b/Code/wwlib/simplevec.h
+index 4874b04..3a4ac79 100644
+--- a/Code/wwlib/simplevec.h
++++ b/Code/wwlib/simplevec.h
+@@ -254,6 +254,11 @@ inline bool SimpleVecClass<T>::Uninitialised_Grow(int newsize)
+ */
+ template <class T> class SimpleDynVecClass : public SimpleVecClass<T>
+ {
++protected:
++	// PORT: name dependent-base members for standard two-phase lookup.
++	using SimpleVecClass<T>::Vector;
++	using SimpleVecClass<T>::VectorMax;
++
+ public:
+ 
+ 	SimpleDynVecClass(int size = 0);
+diff --git a/Code/wwlib/xbox_port.cpp b/Code/wwlib/xbox_port.cpp
+index ad42b65..a979843 100644
+--- a/Code/wwlib/xbox_port.cpp
++++ b/Code/wwlib/xbox_port.cpp
+@@ -9,6 +9,7 @@
+ #include <string.h>
+ #include <ctype.h>
+ #include <wctype.h>
++#include <stdio.h>
+ 
+ extern "C" {
+ 
+@@ -120,6 +121,146 @@ int WideCharToMultiByte(UINT code_page, DWORD flags, const wchar_t *src, int src
+ 	return n;
+ }
+ 
++BOOL DosDateTimeToFileTime(WORD fat_date, WORD fat_time, FILETIME *ft)
++{
++	if (!ft) return FALSE;
++	SYSTEMTIME st;
++	memset(&st, 0, sizeof(st));
++	st.wYear   = (WORD)(1980 + (fat_date >> 9));
++	st.wMonth  = (WORD)((fat_date >> 5) & 0x0F);
++	st.wDay    = (WORD)(fat_date & 0x1F);
++	st.wHour   = (WORD)(fat_time >> 11);
++	st.wMinute = (WORD)((fat_time >> 5) & 0x3F);
++	st.wSecond = (WORD)((fat_time & 0x1F) * 2);
++	return SystemTimeToFileTime(&st, ft);
++}
++
++/* --- Wide printf ---------------------------------------------------------------------- */
++
++struct WideOut {
++	wchar_t *buf; size_t cap; size_t len;
++	void put(wchar_t c) { if (len < cap) buf[len] = c; ++len; }
++};
++
++static void put_padded_wide(WideOut &o, const wchar_t *s, size_t n, int width, bool left)
++{
++	int pad = (width > (int)n) ? width - (int)n : 0;
++	if (!left) while (pad-- > 0) o.put(L' ');
++	for (size_t i = 0; i < n; ++i) o.put(s[i]);
++	if (left) while (pad-- > 0) o.put(L' ');
++}
++
++int _vsnwprintf(wchar_t *buffer, size_t count, const wchar_t *format, va_list args)
++{
++	WideOut o = { buffer, count, 0 };
++	for (const wchar_t *f = format; *f; ++f) {
++		if (*f != L'%') { o.put(*f); continue; }
++		const wchar_t *spec_start = f++;
++		if (*f == L'%') { o.put(L'%'); continue; }
++
++		/* Collect the spec as narrow text for vsnprintf: flags, width, precision. */
++		char spec[32]; int sl = 0; spec[sl++] = '%';
++		bool left = false; int width = 0, precision = -1;
++		while (*f == L'-' || *f == L'+' || *f == L' ' || *f == L'#' || *f == L'0') {
++			if (*f == L'-') left = true;
++			if (sl < 20) spec[sl++] = (char)*f;
++			++f;
++		}
++		if (*f == L'*') { width = va_arg(args, int); if (width < 0) { left = true; width = -width; } ++f;
++		                  sl += snprintf(spec + sl, sizeof(spec) - sl, "%d", width); }
++		else while (*f >= L'0' && *f <= L'9') { width = width * 10 + (*f - L'0'); if (sl < 28) spec[sl++] = (char)*f; ++f; }
++		if (*f == L'.') {
++			++f; precision = 0; if (sl < 28) spec[sl++] = '.';
++			if (*f == L'*') { precision = va_arg(args, int); ++f;
++			                  sl += snprintf(spec + sl, sizeof(spec) - sl, "%d", precision < 0 ? 0 : precision); }
++			else while (*f >= L'0' && *f <= L'9') { precision = precision * 10 + (*f - L'0'); if (sl < 28) spec[sl++] = (char)*f; ++f; }
++		}
++
++		/* Length modifiers, Microsoft style. */
++		enum { LEN_NONE, LEN_H, LEN_L, LEN_LL, LEN_I64 } len = LEN_NONE;
++		if (*f == L'h') { len = LEN_H; ++f; }
++		else if (*f == L'l') { ++f; if (*f == L'l') { len = LEN_LL; ++f; } else len = LEN_L; }
++		else if (*f == L'w') { len = LEN_L; ++f; }
++		else if (f[0] == L'I' && f[1] == L'6' && f[2] == L'4') { len = LEN_I64; f += 3; }
++		else if (*f == L'L') { ++f; }  /* long double: treated as double below */
++
++		wchar_t conv = *f;
++		if (!conv) break;
++
++		switch (conv) {
++		case L's': case L'S': {
++			/* %s wide unless 'h'; %S narrow unless 'l'/'w'. */
++			bool wide = (conv == L's') ? (len != LEN_H) : (len == LEN_L);
++			if (wide) {
++				const wchar_t *s = va_arg(args, const wchar_t *);
++				if (!s) s = L"(null)";
++				size_t n = 0; while (s[n] && (precision < 0 || (int)n < precision)) ++n;
++				put_padded_wide(o, s, n, width, left);
++			} else {
++				const char *s = va_arg(args, const char *);
++				if (!s) s = "(null)";
++				size_t n = 0; while (s[n] && (precision < 0 || (int)n < precision)) ++n;
++				int pad = (width > (int)n) ? width - (int)n : 0;
++				if (!left) while (pad-- > 0) o.put(L' ');
++				for (size_t i = 0; i < n; ++i) o.put((wchar_t)(unsigned char)s[i]);
++				if (left) while (pad-- > 0) o.put(L' ');
++			}
++			break;
++		}
++		case L'c': case L'C': {
++			int ch = va_arg(args, int);
++			bool wide = (conv == L'c') ? (len != LEN_H) : (len == LEN_L);
++			wchar_t wc = wide ? (wchar_t)ch : (wchar_t)(unsigned char)ch;
++			put_padded_wide(o, &wc, 1, width, left);
++			break;
++		}
++		case L'd': case L'i': case L'u': case L'x': case L'X': case L'o':
++		case L'f': case L'F': case L'e': case L'E': case L'g': case L'G': case L'p': {
++			char narrow[128];
++			if (len == LEN_LL || len == LEN_I64) { spec[sl++] = 'l'; spec[sl++] = 'l'; }
++			else if (len == LEN_L) spec[sl++] = 'l';
++			else if (len == LEN_H) spec[sl++] = 'h';
++			spec[sl++] = (char)conv; spec[sl] = 0;
++			int n;
++			if (conv == L'f' || conv == L'F' || conv == L'e' || conv == L'E' || conv == L'g' || conv == L'G')
++				n = snprintf(narrow, sizeof(narrow), spec, va_arg(args, double));
++			else if (conv == L'p')
++				n = snprintf(narrow, sizeof(narrow), spec, va_arg(args, void *));
++			else if (len == LEN_LL || len == LEN_I64)
++				n = snprintf(narrow, sizeof(narrow), spec, va_arg(args, long long));
++			else if (len == LEN_L)
++				n = snprintf(narrow, sizeof(narrow), spec, va_arg(args, long));
++			else
++				n = snprintf(narrow, sizeof(narrow), spec, va_arg(args, int));
++			if (n > (int)sizeof(narrow) - 1) n = sizeof(narrow) - 1;
++			for (int i = 0; i < n; ++i) o.put((wchar_t)(unsigned char)narrow[i]);
++			break;
++		}
++		case L'n': {
++			int *out = va_arg(args, int *);
++			if (out) *out = (int)o.len;
++			break;
++		}
++		default:
++			/* Unknown conversion: copy it through literally. */
++			for (const wchar_t *c = spec_start; c <= f; ++c) o.put(*c);
++			break;
++		}
++	}
++	if (o.len < count) { buffer[o.len] = 0; return (int)o.len; }
++	if (o.len == count) return (int)o.len;   /* fits exactly: MSVC leaves it unterminated */
++	return -1;                               /* truncated */
++}
++
++int _snwprintf(wchar_t *buffer, size_t count, const wchar_t *format, ...)
++{
++	va_list args;
++	va_start(args, format);
++	int n = _vsnwprintf(buffer, count, format, args);
++	va_end(args);
++	return n;
++}
++
+ void DebugBreak(void)
+ {
+ 	__asm__ volatile("int3");
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index 6ee1b25..ceff868 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -26,6 +26,8 @@ typedef const char *LPCTSTR;
+ 
+ #include <windows.h>
+ #include <wchar.h>
++#include <stdarg.h>
++#include <stddef.h>
+ 
+ /* Path size limits from the MSVC CRT (stdlib.h), same values. */
+ #ifndef _MAX_PATH
+@@ -72,6 +74,13 @@ int   MultiByteToWideChar(UINT code_page, DWORD flags, const char *src, int src_
+ int   WideCharToMultiByte(UINT code_page, DWORD flags, const wchar_t *src, int src_len,
+                           char *dst, int dst_len, const char *default_char, BOOL *used_default);
+ void  DebugBreak(void);
++BOOL  DosDateTimeToFileTime(WORD fat_date, WORD fat_time, FILETIME *ft);
++
++/* Wide printf with Microsoft semantics (%s = wide string, %S/%hs = narrow string,
++** %c = wide char, %C/%hc = narrow char). Returns the character count, or -1 if the
++** output did not fit (like MSVC's _vsnwprintf, the buffer is then not terminated). */
++int   _vsnwprintf(wchar_t *buffer, size_t count, const wchar_t *format, va_list args);
++int   _snwprintf(wchar_t *buffer, size_t count, const wchar_t *format, ...);
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/Code/wwtranslatedb/translatedb.cpp b/Code/wwtranslatedb/translatedb.cpp
+index b980915..90a723c 100644
+--- a/Code/wwtranslatedb/translatedb.cpp
++++ b/Code/wwtranslatedb/translatedb.cpp
+@@ -237,7 +237,7 @@ TranslateDBClass::Save (ChunkSaveClass &csave)
+ 		//
+ 		//	Loop over and save all the translation objects
+ 		//
+-		for (index = 0; index < m_ObjectList.Count (); index ++) {			
++		for (int index = 0; index < m_ObjectList.Count (); index ++) {			
+ 			TDBObjClass *translate_obj = m_ObjectList[index];
+ 
+ 			//
+@@ -1318,7 +1318,7 @@ int Build_List_From_String
+ 			// Parse the string and pull out its entries.
+ 			//
+ 			count = 0;
+-			for (entry = buffer;
++			for (const char * entry = buffer;
+ 				  (entry != NULL) && (entry[1] != 0);
+ 				  entry = ::strstr (entry, delimiter))
+ 			{
+-- 
+2.43.0
+

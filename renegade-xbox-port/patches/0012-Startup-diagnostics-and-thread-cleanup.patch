@@ -1,0 +1,118 @@
+From ab4674c3ffeae39cd70398f64992c6b8fbf77f58 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 04:48:35 +0000
+Subject: [PATCH 12/32] Startup diagnostics and thread cleanup
+
+- PORT_TRACE / XboxPort_Trace: optional start-up progress markers (off unless a test turns them on)
+- cpudetect: a marker before each start-up step
+- thread.cpp: no leftover test event at start-up on Xbox; Switch_Thread sleeps 1 ms, as the event wait did
+---
+ wwlib/cpudetect.cpp | 14 ++++++++++++++
+ wwlib/thread.cpp    |  5 ++++-
+ wwlib/xbox_port.cpp |  2 ++
+ wwlib/xbox_port.h   |  5 +++++
+ 4 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/Code/wwlib/cpudetect.cpp b/Code/wwlib/cpudetect.cpp
+index 82002ba..86c3d26 100644
+--- a/Code/wwlib/cpudetect.cpp
++++ b/Code/wwlib/cpudetect.cpp
+@@ -17,6 +17,9 @@
+ */
+ 
+ #include "cpudetect.h"
++#ifndef PORT_TRACE
++#define PORT_TRACE(message)	// PORT: startup markers exist only in Xbox builds
++#endif
+ #include "wwstring.h"
+ #include "wwdebug.h"
+ #include "thread.h"
+@@ -1103,22 +1106,33 @@ static class CPUDetectInitClass
+ public:
+ 	CPUDetectInitClass()
+ 	{
++		PORT_TRACE("cpudetect: CPUID check");
+ 		CPUDetectClass::Init_CPUID_Instruction();
+ 		// We pretty much need CPUID, but let's not crash if it doesn't exist.
+ 		// Every processor our games run should have CPUID so it would be extremely unlikely for it not to be present.
+ 		// One can never be sure about the clones though...
+ 		if (CPUDetectClass::Has_CPUID_Instruction()) {
++			PORT_TRACE("cpudetect: manufacturer");
+ 			CPUDetectClass::Init_Processor_Manufacturer();
++			PORT_TRACE("cpudetect: family");
+ 			CPUDetectClass::Init_Processor_Family();
++			PORT_TRACE("cpudetect: processor string");
+ 			CPUDetectClass::Init_Processor_String();
++			PORT_TRACE("cpudetect: features");
+ 			CPUDetectClass::Init_Processor_Features();
++			PORT_TRACE("cpudetect: memory");
+ 			CPUDetectClass::Init_Memory();
++			PORT_TRACE("cpudetect: OS version");
+ 			CPUDetectClass::Init_OS();
+ 		}
++		PORT_TRACE("cpudetect: clock speed (takes ~0.4 s)");
+ 		CPUDetectClass::Init_Processor_Speed();
+ 
++		PORT_TRACE("cpudetect: processor log");
+ 		CPUDetectClass::Init_Processor_Log();
++		PORT_TRACE("cpudetect: compact log");
+ 		CPUDetectClass::Init_Compact_Log();
++		PORT_TRACE("cpudetect: done");
+ 	}
+ } _CPU_Detect_Init;
+ 
+diff --git a/Code/wwlib/thread.cpp b/Code/wwlib/thread.cpp
+index b5e5967..bc51e8f 100644
+--- a/Code/wwlib/thread.cpp
++++ b/Code/wwlib/thread.cpp
+@@ -140,7 +140,7 @@ void ThreadClass::Sleep_Ms(unsigned ms)
+ 	Sleep(ms);
+ }
+ 
+-#ifndef _UNIX
++#if !defined(_UNIX) && !defined(NXDK)  // PORT: on Xbox, Switch_Thread sleeps directly (no event needed)
+ HANDLE test_event = ::CreateEvent (NULL, FALSE, FALSE, "");
+ #endif
+ 
+@@ -148,6 +148,9 @@ void ThreadClass::Switch_Thread()
+ {
+ 	#ifdef _UNIX
+ 		return;
++	#elif defined(NXDK)
++		// PORT: waiting 1 ms on an event that is never signalled is a 1 ms sleep.
++		Sleep(1);
+ 	#else
+ 		//	::SwitchToThread ();
+ 		::WaitForSingleObject (test_event, 1);
+diff --git a/Code/wwlib/xbox_port.cpp b/Code/wwlib/xbox_port.cpp
+index 85a53c4..442f158 100644
+--- a/Code/wwlib/xbox_port.cpp
++++ b/Code/wwlib/xbox_port.cpp
+@@ -15,6 +15,8 @@
+ 
+ extern "C" {
+ 
++void (*XboxPort_Trace)(const char *message) = NULL;
++
+ void _splitpath(const char *path, char *drive, char *dir, char *fname, char *ext)
+ {
+ 	if (drive) drive[0] = 0;
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index 62f44ca..d28d054 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -105,6 +105,11 @@ typedef void *HKEY;
+ extern "C" {
+ #endif
+ 
++/* Startup progress markers. A test program can point XboxPort_Trace at a print function
++** to see how far start-up gets; in the game it stays NULL and PORT_TRACE does nothing. */
++extern void (*XboxPort_Trace)(const char *message);
++#define PORT_TRACE(message) do { if (XboxPort_Trace) XboxPort_Trace(message); } while (0)
++
+ /* MSVC CRT functions missing from nxdk (implemented in xbox_port.cpp). */
+ void  _splitpath(const char *path, char *drive, char *dir, char *fname, char *ext);
+ char *_strlwr(char *s);
+-- 
+2.43.0
+

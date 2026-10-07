@@ -1,0 +1,27 @@
+From 232e0a61df8e79a9246c31e09aadeadb883b8b74 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 23:51:29 +0000
+Subject: [PATCH 20/32] Direct3D layer: return to the text screen after pb_init
+ (it shows its own blank buffer)
+
+---
+ xbox/d3d8/xbox_d3d8.cpp | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/Code/xbox/d3d8/xbox_d3d8.cpp b/Code/xbox/d3d8/xbox_d3d8.cpp
+index da99976..a60a5a9 100644
+--- a/Code/xbox/d3d8/xbox_d3d8.cpp
++++ b/Code/xbox/d3d8/xbox_d3d8.cpp
+@@ -957,6 +957,9 @@ bool Device::Init_Hardware()
+ 		Trace("d3d: pb_init failed (%d)", status);
+ 		return false;
+ 	}
++	/* pb_init ends by showing its own (blank) front buffer, which would hide the text screen
++	** until our first Present; switch back so start-up messages stay visible. */
++	pb_show_debug_screen();
+ 	Trace("d3d: pb_init ok, back buffer %ux%u, pitch %u", (unsigned)pb_back_buffer_width(),
+ 	      (unsigned)pb_back_buffer_height(), (unsigned)pb_back_buffer_pitch());
+ 	/* The text screen stays visible until the first frame is presented (see Present), so
+-- 
+2.43.0
+

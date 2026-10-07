@@ -1,0 +1,111 @@
+From 849b50fe13c896ac26be1af215d970cccf9e675f Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sun, 4 Oct 2026 03:50:30 +0000
+Subject: [PATCH 21/32] Start-up markers through the engine's device set-up
+ (missing texture, texture loader thread, D3DX)
+
+PORT_TRACE now does nothing outside Xbox builds, so engine files can use it freely.
+---
+ ww3d2/dx8wrapper.cpp     | 10 ++++++++++
+ ww3d2/missingtexture.cpp |  1 +
+ ww3d2/textureloader.cpp  |  4 ++++
+ wwlib/xbox_port.h        |  6 ++++++
+ xbox/d3d8/xbox_d3dx8.cpp |  5 +++++
+ 5 files changed, 26 insertions(+)
+
+diff --git a/Code/ww3d2/dx8wrapper.cpp b/Code/ww3d2/dx8wrapper.cpp
+index 874474b..f27df94 100644
+--- a/Code/ww3d2/dx8wrapper.cpp
++++ b/Code/ww3d2/dx8wrapper.cpp
+@@ -345,16 +345,26 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits(void)
+    /*
+ 	** Initalize any other subsystems inside of WW3D
+ 	*/
++	PORT_TRACE("ww3d: MissingTexture::_Init");
+ 	MissingTexture::_Init();
++	PORT_TRACE("ww3d: TextureClass::_Init_Filters");
+ 	TextureClass::_Init_Filters((TextureClass::TextureFilterMode)WW3D::Get_Texture_Filter());
++	PORT_TRACE("ww3d: TheDX8MeshRenderer.Init");
+ 	TheDX8MeshRenderer.Init();
++	PORT_TRACE("ww3d: BoxRenderObjClass::Init");
+ 	BoxRenderObjClass::Init();
++	PORT_TRACE("ww3d: VertexMaterialClass::Init");
+ 	VertexMaterialClass::Init();
++	PORT_TRACE("ww3d: PointGroupClass::_Init");
+ 	PointGroupClass::_Init(); // This needs the VertexMaterialClass to be initted
++	PORT_TRACE("ww3d: ShatterSystem::Init");
+ 	ShatterSystem::Init();
++	PORT_TRACE("ww3d: TextureLoader::Init");
+ 	TextureLoader::Init();
+ 
++	PORT_TRACE("ww3d: Set_Default_Global_Render_States");
+ 	Set_Default_Global_Render_States();
++	PORT_TRACE("ww3d: device set-up done");
+ }
+ 
+ inline DWORD F2DW(float f) { return *((unsigned*)&f); }
+diff --git a/Code/ww3d2/missingtexture.cpp b/Code/ww3d2/missingtexture.cpp
+index 4e82ccf..286ff24 100644
+--- a/Code/ww3d2/missingtexture.cpp
++++ b/Code/ww3d2/missingtexture.cpp
+@@ -101,6 +101,7 @@ void MissingTexture::_Init()
+ 	}
+ 
+ 	DX8_ErrorCode(tex->UnlockRect(0));
++	PORT_TRACE("ww3d: missing texture: pattern written, building mipmaps");
+ 
+ 	for (unsigned i=1;i<tex->GetLevelCount();++i) {
+ 		IDirect3DSurface8 *src,*dst;
+diff --git a/Code/ww3d2/textureloader.cpp b/Code/ww3d2/textureloader.cpp
+index 4715ebc..932f565 100644
+--- a/Code/ww3d2/textureloader.cpp
++++ b/Code/ww3d2/textureloader.cpp
+@@ -295,10 +295,14 @@ void TextureLoader::Init()
+ {
+ 	WWASSERT(!_TextureLoadThread.Is_Running());
+ 
++	PORT_TRACE("ww3d: thumbnail manager init");
+ 	ThumbnailManagerClass::Init();
+ 
++	PORT_TRACE("ww3d: starting the texture loader thread");
+ 	_TextureLoadThread.Execute();
++	PORT_TRACE("ww3d: setting the loader thread's priority");
+ 	_TextureLoadThread.Set_Priority(-4);
++	PORT_TRACE("ww3d: texture loader started");
+ }
+ 
+ 
+diff --git a/Code/wwlib/xbox_port.h b/Code/wwlib/xbox_port.h
+index 721cf8b..551c680 100644
+--- a/Code/wwlib/xbox_port.h
++++ b/Code/wwlib/xbox_port.h
+@@ -201,4 +201,10 @@ int   _snwprintf(wchar_t *buffer, size_t count, const wchar_t *format, ...);
+ #endif
+ 
+ #endif /* NXDK */
++
++/* Outside Xbox builds, start-up markers do nothing. */
++#ifndef PORT_TRACE
++#define PORT_TRACE(message)
++#endif
++
+ #endif /* XBOX_PORT_H */
+diff --git a/Code/xbox/d3d8/xbox_d3dx8.cpp b/Code/xbox/d3d8/xbox_d3dx8.cpp
+index 893e1f7..39b1dd4 100644
+--- a/Code/xbox/d3d8/xbox_d3dx8.cpp
++++ b/Code/xbox/d3d8/xbox_d3dx8.cpp
+@@ -125,6 +125,11 @@ HRESULT D3DXLoadSurfaceFromSurface(IDirect3DSurface8 *pDestSurface, CONST PALETT
+ 		return D3DERR_NOTAVAILABLE;
+ 	}
+ 
++	static unsigned traced;
++	if (traced < 8) {
++		traced++;
++		Trace("d3dx: LoadSurfaceFromSurface %dx%d -> %dx%d", sw, sh, dw, dh);
++	}
+ 	D3DLOCKED_RECT src, dst;
+ 	if (FAILED(pSrcSurface->LockRect(&src, NULL, D3DLOCK_READONLY))) return D3DERR_INVALIDCALL;
+ 	if (FAILED(pDestSurface->LockRect(&dst, NULL, 0))) {
+-- 
+2.43.0
+

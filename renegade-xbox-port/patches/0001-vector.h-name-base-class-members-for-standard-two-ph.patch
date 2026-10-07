@@ -1,0 +1,35 @@
+From c2e67b6a199c4ddefcb2916c8bdd97c3090828d3 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Sat, 3 Oct 2026 00:12:26 +0000
+Subject: [PATCH 01/32] vector.h: name base-class members for standard
+ two-phase lookup
+
+---
+ wwlib/vector.h | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/Code/wwlib/vector.h b/Code/wwlib/vector.h
+index 6da03b4..61cd549 100644
+--- a/Code/wwlib/vector.h
++++ b/Code/wwlib/vector.h
+@@ -486,7 +486,17 @@ bool VectorClass<T>::Resize(int newsize, T const * array)
+ template<class T>
+ class DynamicVectorClass : public VectorClass<T>
+ {
++	protected:
++		// PORT: name base-class members explicitly. MSVC6 found these without
++		// two-phase lookup; standard C++ compilers need to be told.
++		using VectorClass<T>::Vector;
++		using VectorClass<T>::VectorMax;
++		using VectorClass<T>::IsValid;
++		using VectorClass<T>::IsAllocated;
++
+ 	public:
++		using VectorClass<T>::Length;
++
+ 		DynamicVectorClass(unsigned size=0, T const * array=0);
+ 
+ 		// Stubbed equality operators so you can have dynamic vectors of dynamic vectors
+-- 
+2.43.0
+
